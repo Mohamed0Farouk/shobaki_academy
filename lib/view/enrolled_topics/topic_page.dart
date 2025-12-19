@@ -20,7 +20,18 @@ class _TopicPageState extends State<TopicPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
+    final crossAxisCount = isDesktop
+        ? (size.width > 1600
+              ? 5
+              : size.width > 1200
+              ? 4
+              : 4)
+        : 1;
+
     return Scaffold(
+      backgroundColor: const Color(0xfff7f7f7),
       appBar: AppBar(
         title: Text(
           'محتوى الموضوع',
@@ -35,11 +46,24 @@ class _TopicPageState extends State<TopicPage> {
           future: fetcher(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
-              return Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: snapshot.data == null
-                    ? Center(child: Text('لا توجد بيانات'))
-                    : ListView(children: snapshot.data as List<Widget>),
+              return Directionality(
+                textDirection: TextDirection.rtl,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 20 : 10,
+                    vertical: isDesktop ? 12 : 10,
+                  ),
+                  child: snapshot.data == null
+                      ? Center(child: Text('لا توجد بيانات'))
+                      : FadeInUp(
+                          duration: const Duration(milliseconds: 500),
+                          child: _buildResponsiveLayout(
+                            snapshot.data as List<Widget>,
+                            isDesktop,
+                            crossAxisCount,
+                          ),
+                        ),
+                ),
               );
             } else {
               return loading(context);
@@ -47,6 +71,31 @@ class _TopicPageState extends State<TopicPage> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildResponsiveLayout(
+    List<Widget> items,
+    bool isDesktop,
+    int crossAxisCount,
+  ) {
+    if (!isDesktop) {
+      return ListView(children: items);
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 10,
+        //childAspectRatio: 1.3,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        return items[index];
+      },
     );
   }
 
@@ -80,21 +129,20 @@ class _TopicPageState extends State<TopicPage> {
         );
         Map topic = response[0];
         topics.add(topic);
-        print('element: $element');
       }
     } on Exception catch (e) {
       print('Error fetching subtopics: $e');
     }
 
-    print(topics);
-
     final List<Widget> widgets = [];
 
-    for (var element in topics) {
+    for (int idx = 0; idx < topics.length; idx++) {
+      final element = topics[idx];
       widgets.add(
         FadeInUp(
           from: 100,
           duration: const Duration(milliseconds: 600),
+          delay: Duration(milliseconds: 50 + (idx * 80)),
           child: CardModel(
             type: CardTypes.enrolledTopic,
             title: element['title'],
@@ -140,7 +188,10 @@ class _TopicPageState extends State<TopicPage> {
         return aDate.compareTo(bDate);
       });
 
-      for (Map element in sortedData) {
+      for (int idx = 0; idx < sortedData.length; idx++) {
+        final element = sortedData[idx];
+        final delayMs = 50 + (idx * 80);
+
         if (element['exam_to_open'] != null) {
           final studentSolvedExam = await api.fetchWithConditions(
             'students_solved_exams',
@@ -154,21 +205,25 @@ class _TopicPageState extends State<TopicPage> {
               FadeInUp(
                 from: 100,
                 duration: const Duration(milliseconds: 600),
-                child: CardModel(
-                  type: CardTypes.lecture,
-                  id: element['id'],
-                  topicId: widget.topicId,
-                  title: element['title'],
-                  description: element['description'],
+                delay: Duration(milliseconds: delayMs),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  child: CardModel(
+                    type: CardTypes.lecture,
+                    id: element['id'],
+                    topicId: widget.topicId,
+                    title: element['title'],
+                    description: element['description'],
+                  ),
                 ),
               ),
             );
-            widgets.add(SizedBox(height: 15));
           } else {
             widgets.add(
               FadeInUp(
                 from: 100,
                 duration: const Duration(milliseconds: 600),
+                delay: Duration(milliseconds: delayMs),
                 child: SizedBox(
                   child: Stack(
                     children: [
@@ -214,13 +269,13 @@ class _TopicPageState extends State<TopicPage> {
                 ),
               ),
             );
-            widgets.add(SizedBox(height: 15));
           }
         } else {
           widgets.add(
             FadeInUp(
               from: 100,
               duration: const Duration(milliseconds: 600),
+              delay: Duration(milliseconds: delayMs),
               child: CardModel(
                 type: CardTypes.lecture,
                 id: element['id'],
@@ -231,8 +286,6 @@ class _TopicPageState extends State<TopicPage> {
               ),
             ),
           );
-
-          widgets.add(SizedBox(height: 15));
         }
       }
     }

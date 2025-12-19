@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:animate_do/animate_do.dart';
 import 'package:shobaki_academy/controller/enrolled_topics_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/theme.dart';
@@ -17,13 +18,26 @@ class EnrolledTopicsPage extends StatelessWidget {
       controller.loadenrolledtopics();
     }
 
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
+    final crossAxisCount = isDesktop
+        ? (size.width > 1600
+              ? 5
+              : size.width > 1200
+              ? 4
+              : 4)
+        : 2;
+
     return Scaffold(
       backgroundColor: const Color(0xfff7f7f7),
       body: SafeArea(
         child: Directionality(
           textDirection: TextDirection.rtl,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 20 : 14,
+              vertical: isDesktop ? 12 : 12,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -33,7 +47,7 @@ class EnrolledTopicsPage extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.08),
@@ -102,13 +116,12 @@ class EnrolledTopicsPage extends StatelessWidget {
 
                     return GridView.builder(
                       physics: const BouncingScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.85,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 12,
-                          ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: 1.4,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 10,
+                      ),
                       itemBuilder: (_, i) {
                         final item = allTopics[i];
                         final title = item['title'] ?? '';
@@ -117,12 +130,17 @@ class EnrolledTopicsPage extends StatelessWidget {
                         final isRecommended =
                             item['topic']?['recommended'] == true;
 
-                        return _topicGridCard(
-                          context,
-                          title,
-                          imageUrl,
-                          () => controller.onSelectenrolledtopic(item),
-                          isRecommended: isRecommended,
+                        return FadeInUp(
+                          from: 50,
+                          delay: Duration(milliseconds: 50 + (i * 80)),
+                          duration: const Duration(milliseconds: 600),
+                          child: _topicGridCard(
+                            context,
+                            title,
+                            imageUrl,
+                            () => controller.onSelectenrolledtopic(item),
+                            isRecommended: isRecommended,
+                          ),
                         );
                       },
                       itemCount: allTopics.length,
@@ -137,9 +155,6 @@ class EnrolledTopicsPage extends StatelessWidget {
     );
   }
 
-  /// ===================================
-  /// Grid Card for All Topics
-  /// ===================================
   Widget _topicGridCard(
     BuildContext context,
     String title,
@@ -147,112 +162,205 @@ class EnrolledTopicsPage extends StatelessWidget {
     VoidCallback onTap, {
     bool isRecommended = false,
   }) {
-    return GestureDetector(
+    return _HoverableTopicCard(
+      title: title,
+      imageUrl: imageUrl,
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16),
-            bottomRight: Radius.circular(16),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isRecommended
-                  ? AppTheme.primaryColor.withOpacity(0.25)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: isRecommended ? 10 : 6,
-              offset: const Offset(0, 3),
-              spreadRadius: isRecommended ? 1 : 0,
+      isRecommended: isRecommended,
+    );
+  }
+}
+
+/// Hoverable topic card with scale and shadow animations
+class _HoverableTopicCard extends StatefulWidget {
+  final String title;
+  final String imageUrl;
+  final VoidCallback onTap;
+  final bool isRecommended;
+
+  const _HoverableTopicCard({
+    required this.title,
+    required this.imageUrl,
+    required this.onTap,
+    this.isRecommended = false,
+  });
+
+  @override
+  State<_HoverableTopicCard> createState() => _HoverableTopicCardState();
+}
+
+class _HoverableTopicCardState extends State<_HoverableTopicCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _shadowAnimation;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    _shadowAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.025,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _controller.forward(),
+      onExit: (_) => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateZ(_rotationAnimation.value)
+              ..scale(_scaleAnimation.value),
+            child: child,
+          );
+        },
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.isRecommended
+                      ? AppTheme.primaryColor.withOpacity(0.15)
+                      : Colors.black.withOpacity(0.06),
+                  blurRadius: widget.isRecommended
+                      ? 8
+                      : 4 + (_shadowAnimation.value * 4),
+                  offset: Offset(0, 2 + (_shadowAnimation.value * 2)),
+                  spreadRadius: widget.isRecommended ? 0.5 : 0,
+                ),
+              ],
+              border: widget.isRecommended
+                  ? Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.2),
+                      width: 1,
+                    )
+                  : null,
             ),
-          ],
-          border: isRecommended
-              ? Border.all(
-                  color: AppTheme.primaryColor.withOpacity(0.3),
-                  width: 1.5,
-                )
-              : null,
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Expanded(
-                  child: Hero(
-                    tag: '$title-image-grid-$isRecommended',
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                      ),
-                      child: AspectRatio(
-                        aspectRatio: 1 / 1,
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.fill,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image_not_supported),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Hero(
+                        tag:
+                            '${widget.title}-image-grid-${widget.isRecommended}',
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                          child: Image.network(
+                            widget.imageUrl,
+                            fit: BoxFit.fill,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image_not_supported),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (isRecommended)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.5),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star, color: Colors.white, size: 12),
-                      SizedBox(width: 2),
-                      Text(
-                        'مُرشّح',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    Expanded(
+                      flex: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              widget.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.2,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ),
-          ],
+                if (widget.isRecommended)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.4),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star, color: Colors.white, size: 10),
+                          SizedBox(width: 2),
+                          Text(
+                            'مُرشّح',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

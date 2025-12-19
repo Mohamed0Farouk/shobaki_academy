@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+//import 'package:webview_windows/webview_windows.dart';
 
 class VdoWatchingController extends GetxController {
   final String videoId;
@@ -19,6 +19,7 @@ class VdoWatchingController extends GetxController {
   late final String apiUrl;
 
   VdoWatchingController(this.videoId);
+  //final WebviewController windowsController = WebviewController();
 
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
@@ -53,6 +54,7 @@ class VdoWatchingController extends GetxController {
     await _loadUser();
     await _initializePlayer();
     _startTracking();
+    if (!_logInitialized) _createInitialLog();
   }
 
   Future<void> _loadUser() async {
@@ -82,15 +84,55 @@ class VdoWatchingController extends GetxController {
         embedInfoOptions: const EmbedInfoOptions(autoplay: true),
       );
 
-      if (!kIsWeb &&
-          (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
-        webController = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..addJavaScriptChannel(
-            "FlutterEvents",
-            onMessageReceived: (msg) => _onWebEvent(msg.message),
-          )
-          ..loadHtmlString(_webViewHtml(otp, playbackInfo));
+      if (!kIsWeb) {
+        if (Platform.isAndroid || Platform.isIOS) {
+          // ===== Mobile SDK =====
+          webController = WebViewController()
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            ..addJavaScriptChannel(
+              "FlutterEvents",
+              onMessageReceived: (msg) => _onWebEvent(msg.message),
+            )
+            ..loadHtmlString(_webViewHtml(otp, playbackInfo));
+        }
+        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+          //await windowsController.initialize();
+
+          // ignore: unused_local_variable
+          final html =
+              '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: black;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <iframe
+    src="https://player.vdocipher.com/v2/?otp=$otp&playbackInfo=$playbackInfo"
+    allow="encrypted-media; fullscreen"
+    allowfullscreen>
+  </iframe>
+</body>
+</html>
+''';
+
+          //await windowsController.loadStringContent(html);
+        }
       }
     } catch (e) {
       errorMessage.value = "Failed to load video";
@@ -161,21 +203,55 @@ class VdoWatchingController extends GetxController {
   }
 
   String _webViewHtml(String otp, String playbackInfo) {
+    final encoded = playbackInfo;
+
     return """
+<!DOCTYPE html>
 <html>
-  <body style="margin:0;background:black;height:100%;width:100%">
-    <div id="vdo" style="width:100%;height:100%"></div>
-    <script src="https://player.vdocipher.com/v2/api.js"></script>
-    <script>
-      var player = new VdoPlayer({
-        otp: "$otp",
-        playbackInfo: "$playbackInfo",
-        container: document.getElementById("vdo")
-      });
-      player.on("play", ()=>FlutterEvents.postMessage("play"));
-      player.on("pause", ()=>FlutterEvents.postMessage("pause"));
-    </script>
-  </body>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: black;
+      overflow: hidden;
+    }
+    .wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: black;
+    }
+    .iframe-container {
+      padding-top: 56.25%; /* 16:9 aspect ratio */
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    iframe {
+      border: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="iframe-container">
+      <iframe
+        src="https://player.vdocipher.com/v2/?otp=$otp&playbackInfo=$encoded"
+        allowfullscreen
+        allow="encrypted-media; fullscreen">
+      </iframe>
+    </div>
+  </div>
+</body>
 </html>
 """;
   }

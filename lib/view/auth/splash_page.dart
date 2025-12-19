@@ -35,7 +35,8 @@ class SplashPage extends StatelessWidget {
                 await authController.enterGuestMode();
                 break;
               case AuthStatus.notVerified:
-                Get.offAllNamed('/otp');
+                //Get.offAllNamed('/otp');
+                Get.offAllNamed('/home');
                 break;
               case AuthStatus.loggedIn:
                 Get.offAllNamed('/home');

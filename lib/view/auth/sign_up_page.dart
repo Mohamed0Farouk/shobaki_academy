@@ -277,7 +277,8 @@ class _SignUpPageState extends State<SignUpPage> {
                                       style: Theme.of(
                                         context,
                                       ).textTheme.bodyMedium,
-                                      value: auth.selectedStage.value.isEmpty
+                                      initialValue:
+                                          auth.selectedStage.value.isEmpty
                                           ? null
                                           : auth.selectedStage.value,
                                       items: auth.educationStages
@@ -328,7 +329,8 @@ class _SignUpPageState extends State<SignUpPage> {
                                       style: Theme.of(
                                         context,
                                       ).textTheme.bodyMedium,
-                                      value: auth.selectedUae.value.isEmpty
+                                      initialValue:
+                                          auth.selectedUae.value.isEmpty
                                           ? null
                                           : auth.selectedUae.value,
                                       items: auth.uaeStates
@@ -419,41 +421,40 @@ class _SignUpPageState extends State<SignUpPage> {
                                   // }),
 
                                   // const SizedBox(height: 12),
-                                  SizedBox(
-                                    height: 48,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: primary,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        spacing: 15,
-                                        children: [
-                                          Text(
-                                            'تسجيل بصمة الاصبع',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyLarge
-                                                ?.copyWith(color: Colors.white),
-                                          ),
-                                          const Icon(
-                                            Icons.fingerprint,
-                                            size: 28,
-                                          ),
-                                        ],
-                                      ),
-                                      onPressed: () async {
-                                        await auth.gatherFingerprint();
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-
+                                  // SizedBox(
+                                  //   height: 48,
+                                  //   child: ElevatedButton(
+                                  //     style: ElevatedButton.styleFrom(
+                                  //       backgroundColor: primary,
+                                  //       shape: RoundedRectangleBorder(
+                                  //         borderRadius: BorderRadius.circular(
+                                  //           12,
+                                  //         ),
+                                  //       ),
+                                  //     ),
+                                  //     child: Row(
+                                  //       mainAxisSize: MainAxisSize.min,
+                                  //       spacing: 15,
+                                  //       children: [
+                                  //         Text(
+                                  //           'تسجيل بصمة الاصبع',
+                                  //           style: Theme.of(context)
+                                  //               .textTheme
+                                  //               .bodyLarge
+                                  //               ?.copyWith(color: Colors.white),
+                                  //         ),
+                                  //         const Icon(
+                                  //           Icons.fingerprint,
+                                  //           size: 28,
+                                  //         ),
+                                  //       ],
+                                  //     ),
+                                  //     onPressed: () async {
+                                  //       await auth.gatherFingerprint();
+                                  //     },
+                                  //   ),
+                                  // ),
+                                  // const SizedBox(height: 16),
                                   SizedBox(
                                     width: double.infinity,
                                     height: 48,

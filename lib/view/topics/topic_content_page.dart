@@ -12,7 +12,7 @@ import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
-import 'package:shobaki_academy/view/home.dart';
+//import 'package:shobaki_academy/view/home.dart';
 
 class TopicContentPage extends StatelessWidget {
   const TopicContentPage({
@@ -28,17 +28,17 @@ class TopicContentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Force RTL for Arabic pages
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-          title: const Text('تفاصيل الموضوع'),
-          elevation: 0,
-          centerTitle: true,
-        ),
-        //extendBodyBehindAppBar: true,
-        body: SafeArea(
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: const Text('تفاصيل الموضوع'),
+        elevation: 0,
+        centerTitle: true,
+      ),
+      //extendBodyBehindAppBar: true,
+      body: Directionality(
+        textDirection: TextDirection.rtl,
+        child: SafeArea(
           child: FutureBuilder<Widget>(
             future: _topicDataFetcher(context),
             builder: (context, snapshot) {
@@ -422,9 +422,10 @@ class TopicContentPage extends StatelessWidget {
       );
     }
 
-    final label = !isSubscribed
+    String label = !isSubscribed
         ? 'انضم الى الموضوع'
         : 'تم الانضمام — افتح الموضوع';
+    label = topic['free'] == true ? 'افتح الموضوع' : label;
 
     return ElevatedButton.icon(
       icon: Icon(
@@ -610,33 +611,35 @@ class TopicContentPage extends StatelessWidget {
     String id,
     String userId,
   ) async {
-    await api
-        .insertData('students_subscriptions', {
-          "student_id": userId,
-          "topic_id": id,
-        })
-        .then((_) {
-          Get.snackbar(
-            'اشعار',
-            'تم الانضمام في $name',
-            backgroundColor: Colors.greenAccent,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          Get.offAllNamed('/home');
-        })
-        .onError((err, _) {
-          Get.snackbar(
-            'توجد مشكلة',
-            err.toString(),
-            backgroundColor: Colors.red,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          Get.offAll(
-            () => HomePage(),
-            transition: Transition.upToDown,
-            duration: const Duration(milliseconds: 600),
-          );
-        });
+    Get.to(TopicPage(topicId: topicId));
+    // await api
+    // .insertData('students_subscriptions', {
+    //   "student_id": userId,
+    //   "topic_id": id,
+    // })
+    // .then((_) {
+    //   // Get.snackbar(
+    //   //   'اشعار',
+    //   //   'تم الانضمام في $name',
+    //   //   backgroundColor: Colors.greenAccent,
+    //   //   snackPosition: SnackPosition.BOTTOM,
+    //   // );
+    //   //Get.offAllNamed('/home');
+
+    // })
+    // .onError((err, _) {
+    //   Get.snackbar(
+    //     'توجد مشكلة',
+    //     err.toString(),
+    //     backgroundColor: Colors.red,
+    //     snackPosition: SnackPosition.BOTTOM,
+    //   );
+    //   Get.offAll(
+    //     () => HomePage(),
+    //     transition: Transition.upToDown,
+    //     duration: const Duration(milliseconds: 600),
+    //   );
+    // });
   }
 
   void _handleSubscription(

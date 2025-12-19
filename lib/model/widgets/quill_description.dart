@@ -83,6 +83,7 @@ class QuillDescription extends StatelessWidget {
           ),
           padding: padding,
           decoration: decoration,
+
           textStyle: textStyle,
         );
       } else {

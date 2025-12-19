@@ -45,7 +45,18 @@ class _LectureContentPageState extends State<LectureContentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
+    final crossAxisCount = isDesktop
+        ? (size.width > 1600
+              ? 5
+              : size.width > 1200
+              ? 4
+              : 4)
+        : 1;
+
     return Scaffold(
+      backgroundColor: const Color(0xfff7f7f7),
       appBar: AppBar(
         title: Text(
           'محتوى المحاضرة',
@@ -61,9 +72,22 @@ class _LectureContentPageState extends State<LectureContentPage> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
               if (snapshot.data!.isNotEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(5),
-                  child: ListView(children: snapshot.data!),
+                return Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 20 : 10,
+                      vertical: isDesktop ? 12 : 10,
+                    ),
+                    child: FadeInUp(
+                      duration: const Duration(milliseconds: 500),
+                      child: _buildResponsiveLayout(
+                        snapshot.data as List<Widget>,
+                        isDesktop,
+                        crossAxisCount,
+                      ),
+                    ),
+                  ),
                 );
               } else {
                 return Center(
@@ -79,6 +103,31 @@ class _LectureContentPageState extends State<LectureContentPage> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildResponsiveLayout(
+    List<Widget> items,
+    bool isDesktop,
+    int crossAxisCount,
+  ) {
+    if (!isDesktop) {
+      return ListView(children: items);
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 10,
+        //childAspectRatio: 1.2,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        return items[index];
+      },
     );
   }
 

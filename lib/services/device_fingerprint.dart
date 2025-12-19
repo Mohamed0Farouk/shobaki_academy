@@ -8,25 +8,31 @@ class DeviceFingerprint {
       final deviceInfo = DeviceInfoPlugin();
       final packageInfo = await PackageInfo.fromPlatform();
 
-      String fingerprint = '';
+      String rawFingerprint = '';
 
       if (defaultTargetPlatform == TargetPlatform.android) {
-        final androidInfo = await deviceInfo.androidInfo;
-        fingerprint =
-            '${androidInfo.model}-${androidInfo.id}-${packageInfo.packageName}';
+        final android = await deviceInfo.androidInfo;
+        rawFingerprint =
+            '${android.id}-${android.model}-${packageInfo.packageName}';
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        fingerprint =
-            '${iosInfo.model}-${iosInfo.identifierForVendor}-${packageInfo.packageName}';
+        final ios = await deviceInfo.iosInfo;
+        rawFingerprint =
+            '${ios.identifierForVendor}-${ios.model}-${packageInfo.packageName}';
+      } else if (defaultTargetPlatform == TargetPlatform.windows) {
+        final windows = await deviceInfo.windowsInfo;
+        rawFingerprint =
+            '${windows.deviceId}-${windows.computerName}-${packageInfo.packageName}';
+      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
+        final mac = await deviceInfo.macOsInfo;
+        rawFingerprint = '${mac.systemGUID}-${packageInfo.packageName}';
       } else {
-        fingerprint =
+        rawFingerprint =
             '${defaultTargetPlatform.name}-${packageInfo.packageName}';
       }
 
-      return fingerprint;
+      return rawFingerprint;
     } catch (e) {
-      // If we can't get device info, generate a random fingerprint
-      return 'unknown-device-${DateTime.now().millisecondsSinceEpoch}';
+      return 'unknown-${DateTime.now().millisecondsSinceEpoch}';
     }
   }
 }

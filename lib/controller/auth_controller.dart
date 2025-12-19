@@ -338,7 +338,8 @@ class AuthController extends GetxController {
         Get.offAllNamed('/home');
         return true;
       } else {
-        Get.toNamed('/otp', arguments: {'userId': userData['id']});
+        //Get.toNamed('/otp', arguments: {'userId': userData['id']});
+        Get.offAllNamed('/home');
         return true;
       }
     } catch (e) {

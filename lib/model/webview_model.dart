@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:shobaki_academy/services/statics.dart';
+
+// Mobile + macOS
 import 'package:webview_flutter/webview_flutter.dart';
+
+// Windows only
+import 'package:webview_windows/webview_windows.dart';
 
 class WebviewModel extends StatefulWidget {
   final String url;
@@ -11,24 +16,48 @@ class WebviewModel extends StatefulWidget {
 }
 
 class _WebviewModelState extends State<WebviewModel> {
-  late final WebViewController controller;
-  bool isFirstLoad = true; // Tracks if it's the first page load
+  /// Windows controller
+  final WebviewController _windowsController = WebviewController();
+
+  /// Mobile & macOS controller
+  WebViewController? _mobileController;
+
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize the WebViewController
-    controller = WebViewController()
+    if (Platform.isWindows) {
+      _initWindows();
+    } else {
+      _initMobile();
+    }
+  }
+
+  /* ---------------- WINDOWS ---------------- */
+
+  Future<void> _initWindows() async {
+    await _windowsController.initialize();
+    await _windowsController.loadUrl(widget.url);
+
+    _windowsController.url.listen((_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    });
+  }
+
+  /* ------------- MOBILE + macOS ------------ */
+
+  void _initMobile() {
+    _mobileController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (String url) {
-            if (isFirstLoad) {
-              // Hide the loading indicator after the first page is loaded
-              setState(() {
-                isFirstLoad = false;
-              });
+          onPageFinished: (_) {
+            if (mounted) {
+              setState(() => _loading = false);
             }
           },
         ),
@@ -40,17 +69,24 @@ class _WebviewModelState extends State<WebviewModel> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // WebView Widget
-            WebViewWidget(controller: controller),
-
-            // Loading Indicator (only on first load)
-            if (isFirstLoad) Center(child: loading(context)),
-          ],
-        ),
+      body: Stack(
+        children: [
+          _buildWebView(),
+          if (_loading) const Center(child: CircularProgressIndicator()),
+        ],
       ),
     );
+  }
+
+  Widget _buildWebView() {
+    if (Platform.isWindows) {
+      return Webview(_windowsController);
+    }
+
+    if (_mobileController != null) {
+      return WebViewWidget(controller: _mobileController!);
+    }
+
+    return const Center(child: Text("Unsupported platform"));
   }
 }

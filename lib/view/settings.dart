@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
-import 'package:shobaki_academy/extentions.dart';
+//import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -173,25 +173,28 @@ class _SettingsPageState extends State<SettingsPage> {
                         // ===========================
                         _user!['email'] == 'guest@example.com'
                             ? SizedBox.shrink()
-                            : Column(
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton(
-                                      onPressed: _logout,
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        backgroundColor: Colors.redAccent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        elevation: 6,
-                                        shadowColor: Colors.redAccent
-                                            .withOpacity(0.4),
+                                  ElevatedButton(
+                                    onPressed: _logout,
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      backgroundColor: Colors.redAccent,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 6,
+                                      shadowColor: Colors.redAccent.withOpacity(
+                                        0.4,
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 25,
+                                        vertical: 10,
                                       ),
                                       child: Text(
                                         'تسجيل الخروج',
@@ -200,7 +203,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 15),
+                                  const SizedBox(height: 15, width: 15),
                                   ElevatedButton(
                                     onPressed: () {
                                       showDialog(
@@ -280,22 +283,24 @@ class _SettingsPageState extends State<SettingsPage> {
                                       ),
                                       elevation: 6,
                                     ),
-                                    child: SizedBox(
-                                      width: context.screenW,
-                                      child: Center(
-                                        child: Text(
-                                          'حذف الحساب',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyLarge!
-                                              .copyWith(color: Colors.white),
-                                        ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 25,
+                                        vertical: 10,
+                                      ),
+                                      child: Text(
+                                        'حذف الحساب',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge!
+                                            .copyWith(color: Colors.white),
                                       ),
                                     ),
                                   ),
                                   SizedBox(height: 30),
                                 ],
                               ),
+                        SizedBox(height: 30),
                         Wrap(
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
@@ -327,6 +332,27 @@ class _SettingsPageState extends State<SettingsPage> {
                                     height: 20,
                                   ),
                                 ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            //TODO: update whatsapp number
+                            InkWell(
+                              onTap: () => _launchUrl(
+                                'https://wa.me/+?text=${Uri.encodeFull('')}',
+                              ),
+                              child: Text(
+                                'سياسة الخصوصية و شروط الاستخدام  ',
+                                style: Theme.of(context).textTheme.bodySmall!
+                                    .copyWith(
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                softWrap: true,
                               ),
                             ),
                           ],

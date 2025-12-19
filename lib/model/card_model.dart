@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/model/webview_model.dart';
 import 'package:shobaki_academy/model/widgets/quill_description.dart';
 import 'package:shobaki_academy/view/enrolled_topics/lecture_content_page.dart';
@@ -63,7 +64,6 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/MobileMarketing.gif',
           navlabel: 'تعلم المزيد',
           navPage: nav == null ? TopicContentPage(topicId: id) : nav!,
         );
@@ -72,7 +72,6 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Science.gif',
           navlabel: 'تصفح الموضوع',
           navPage: TopicPage(topicId: id),
         );
@@ -81,7 +80,6 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Science2.gif',
           navlabel: 'تصفح المحاضرة',
           navPage: LectureContentPage(lectureId: id, topicId: topicId),
         );
@@ -91,9 +89,7 @@ class CardModel extends StatelessWidget {
           description: description,
           thumbnail: thumbnail,
           note: note,
-          //fallbackAsset: 'assets/gifs/KidsStudyingfromHome.gif',
           navlabel: 'بدء المشاهدة',
-          //navPage: WatchingPage(videoUrl: url!),
           navPage: VideoPlayerView(videoId: url!),
         );
       case CardTypes.book:
@@ -101,16 +97,15 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Readinglist.gif',
           navlabel: 'بدء القراءة',
-          navPage: WebviewModel(url: url!),
+          //navPage: WebviewModel(url: url!),
+          navPage: PdfModel(),
         );
       case CardTypes.homework:
         return _SimpleCard(
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Todolist.gif',
           navlabel: 'بدء الواجب',
           navPage: HomeworkPage(topicId: topicId!, id: id),
           questionsNumber: questionsNumber,
@@ -121,7 +116,6 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Exams.gif',
           navlabel: 'بدء الامتحان',
           navPage: ExamPage(id: id, topicId: topicId!),
           questionsNumber: questionsNumber,
@@ -133,7 +127,6 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          //fallbackAsset: 'assets/gifs/Questions.gif',
           navlabel: 'عرض الاخطاء',
           navPage: nav != null ? nav! : ResultsPage(),
         );
@@ -141,12 +134,11 @@ class CardModel extends StatelessWidget {
   }
 }
 
-/// Unified simple card used for all card types (replaces fullImage / cornerImage)
+/// Unified simple card used for all card types
 class _SimpleCard extends StatelessWidget {
   final String title;
   final String description;
   final String? thumbnail;
-  //final String? fallbackAsset;
   final String navlabel;
   final String? note;
   final Widget navPage;
@@ -157,7 +149,6 @@ class _SimpleCard extends StatelessWidget {
   const _SimpleCard({
     required this.title,
     required this.description,
-    //this.fallbackAsset,
     required this.navlabel,
     required this.navPage,
     this.thumbnail,
@@ -171,177 +162,389 @@ class _SimpleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+
+    // Responsive sizing
+    final isSmallScreen = screenWidth < 360;
+    final isTinyScreen = screenWidth < 280;
+    final titleSize = isTinyScreen ? 12.0 : (isSmallScreen ? 13.0 : 15.0);
+    //final descSize = isTinyScreen ? 9.0 : (isSmallScreen ? 10.0 : 12.0);
+    final buttonPadH = isTinyScreen ? 8.0 : (isSmallScreen ? 10.0 : 14.0);
+    final buttonPadV = isTinyScreen ? 4.0 : (isSmallScreen ? 5.0 : 7.0);
+    final buttonFontSize = isTinyScreen ? 8.0 : (isSmallScreen ? 9.0 : 10.0);
+    final contentPad = isTinyScreen ? 6.0 : (isSmallScreen ? 8.0 : 12.0);
+
+    // Calculate max dimensions
+    final maxCardHeight = screenHeight * 0.65;
+    final maxCardWidth = screenWidth > 600 ? 600.0 : double.infinity;
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Container(
-        padding: const EdgeInsets.all(10.0),
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: [primary.withOpacity(0.12), primary.withOpacity(0.18)],
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: maxCardHeight,
+            maxWidth: maxCardWidth,
+            minHeight: 180,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+          child: Container(
+            margin: EdgeInsets.symmetric(
+              vertical: isSmallScreen ? 6 : 8,
+              horizontal: isSmallScreen ? 2 : 4,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Material(
-            color: Colors.white.withOpacity(0.92),
-            child: InkWell(
-              onTap: () => Get.to(
-                () => navPage,
-                transition: Transition.fade,
-                duration: const Duration(milliseconds: 350),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+              gradient: LinearGradient(
+                colors: [primary.withOpacity(0.12), primary.withOpacity(0.18)],
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(14.0),
-                child: Column(
-                  children: [
-                    /// ---------------- IMAGE ----------------
-                    AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: thumbnail != null
-                            ? Image.network(
-                                thumbnail!,
-                                fit: BoxFit.fill,
-                                width: double.infinity,
-
-                                errorBuilder: (_, __, ___) => Image.network(
-                                  'https://placehold.co/320x180/png',
-                                ),
-                              )
-                            : Image.network(
-                                'https://placehold.co/320x180/png',
-                                fit: BoxFit.fill,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+              child: Material(
+                color: Colors.white,
+                child: InkWell(
+                  onTap: () => Get.to(
+                    () => navPage,
+                    transition: Transition.fade,
+                    duration: const Duration(milliseconds: 350),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          /// ---------------- IMAGE ----------------
+                          Flexible(
+                            flex: 5,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: constraints.maxHeight * 0.5,
                               ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    /// ---------------- TITLE + GRADE ----------------
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-
-                        if (grade != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: primary.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              "درجتك: $grade",
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: primary,
-                                fontWeight: FontWeight.bold,
+                              child: AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: thumbnail != null
+                                    ? Image.network(
+                                        thumbnail!,
+                                        fit: BoxFit.fill,
+                                        width: double.infinity,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: Colors.grey[200],
+                                          child: Icon(
+                                            Icons.image_not_supported,
+                                            color: Colors.grey[400],
+                                            size: isTinyScreen ? 30 : 40,
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
+                                        color: Colors.grey[200],
+                                        child: Icon(
+                                          Icons.image,
+                                          color: Colors.grey[400],
+                                          size: isTinyScreen ? 30 : 40,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 8),
+                          /// ---------------- CONTENT SECTION ----------------
+                          Flexible(
+                            flex: 5,
+                            child: Padding(
+                              padding: EdgeInsets.all(contentPad),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  /// Top content (title, description, note)
+                                  Flexible(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        /// Title + Grade Row
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                title,
+                                                style: TextStyle(
+                                                  fontSize: titleSize,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                  height: 1.2,
+                                                ),
+                                                maxLines: isTinyScreen ? 1 : 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (grade != null) ...[
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: isTinyScreen
+                                                      ? 5
+                                                      : (isSmallScreen ? 6 : 8),
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: primary.withOpacity(
+                                                    0.15,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  "$grade",
+                                                  style: TextStyle(
+                                                    fontSize: isTinyScreen
+                                                        ? 9
+                                                        : (isSmallScreen
+                                                              ? 10
+                                                              : 11),
+                                                    color: primary,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
 
-                    /// ---------------- DESCRIPTION ----------------
-                    QuillDescription.fromContent(
-                      description,
-                      maxLines: 2,
-                      textStyle: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.black87,
-                        height: 1.4,
-                      ),
-                    ),
+                                        SizedBox(
+                                          height: isTinyScreen
+                                              ? 3
+                                              : (isSmallScreen ? 4 : 6),
+                                        ),
 
-                    note != null
-                        ? Text(
-                            note!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.black54,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          )
-                        : SizedBox(height: 0),
+                                        /// Description
+                                        // QuillDescription.fromContent(
+                                        //   description,
+                                        //   maxLines: 1,
+                                        //   textStyle: TextStyle(
+                                        //     fontSize: descSize,
+                                        //     color: Colors.black54,
+                                        //     height: 1.3,
+                                        //   ),
+                                        // ),
 
-                    const SizedBox(height: 10),
+                                        /// Note (if exists)
+                                        if (note != null && !isTinyScreen) ...[
+                                          SizedBox(
+                                            height: isSmallScreen ? 6 : 8,
+                                          ),
+                                          Text(
+                                            note!,
+                                            style: TextStyle(
+                                              fontSize: isSmallScreen ? 10 : 12,
+                                              color: Colors.black45,
+                                              fontStyle: FontStyle.italic,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
 
-                    /// ---------------- FOOTER ----------------
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (questionsNumber != null)
-                          Text(
-                            "عدد الأسئلة: $questionsNumber",
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                                  SizedBox(
+                                    height: isTinyScreen
+                                        ? 4
+                                        : (isSmallScreen ? 6 : 8),
+                                  ),
 
-                        InkWell(
-                          onTap: () {
-                            Get.to(
-                              () => navPage,
-                              transition: Transition.leftToRightWithFade,
-                              duration: const Duration(milliseconds: 450),
-                              preventDuplicates: false,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: primary,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primary.withOpacity(0.35),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              navlabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                                  /// Footer Row - Always visible
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      /// Info and Button Row
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          /// Questions/Duration Info
+                                          if (questionsNumber != null)
+                                            Flexible(
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.quiz_outlined,
+                                                    size: isTinyScreen
+                                                        ? 10
+                                                        : 12,
+                                                    color: Colors.black54,
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  Flexible(
+                                                    child: Text(
+                                                      "$questionsNumber أسئلة",
+                                                      style: TextStyle(
+                                                        fontSize: isTinyScreen
+                                                            ? 8
+                                                            : (isSmallScreen
+                                                                  ? 9
+                                                                  : 10),
+                                                        color: Colors.black54,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          else if (examDuration != null)
+                                            Flexible(
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.access_time,
+                                                    size: isTinyScreen
+                                                        ? 10
+                                                        : 12,
+                                                    color: Colors.black54,
+                                                  ),
+                                                  const SizedBox(width: 2),
+                                                  Flexible(
+                                                    child: Text(
+                                                      "$examDuration د",
+                                                      style: TextStyle(
+                                                        fontSize: isTinyScreen
+                                                            ? 8
+                                                            : (isSmallScreen
+                                                                  ? 9
+                                                                  : 10),
+                                                        color: Colors.black54,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          else
+                                            const SizedBox(width: 4),
+
+                                          const SizedBox(width: 6),
+
+                                          /// Action Button
+                                          Flexible(
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Material(
+                                                  color: Colors.transparent,
+                                                  child: InkWell(
+                                                    onTap: () {
+                                                      Get.to(
+                                                        () => navPage,
+                                                        transition: Transition
+                                                            .leftToRightWithFade,
+                                                        duration:
+                                                            const Duration(
+                                                              milliseconds: 450,
+                                                            ),
+                                                        preventDuplicates:
+                                                            false,
+                                                      );
+                                                    },
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    child: Container(
+                                                      padding:
+                                                          EdgeInsets.symmetric(
+                                                            horizontal:
+                                                                buttonPadH,
+                                                            vertical:
+                                                                buttonPadV,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: primary,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: primary
+                                                                .withOpacity(
+                                                                  0.3,
+                                                                ),
+                                                            blurRadius: 4,
+                                                            offset:
+                                                                const Offset(
+                                                                  0,
+                                                                  2,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: Text(
+                                                        navlabel,
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              buttonFontSize,
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
