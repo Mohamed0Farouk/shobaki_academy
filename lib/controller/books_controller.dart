@@ -107,7 +107,7 @@ class BooksController extends GetxController {
 
       final response = await _api.fetchData('books');
 
-      books.value = (response as List)
+      books.value = (response)
           .map((item) => Book.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (e) {
