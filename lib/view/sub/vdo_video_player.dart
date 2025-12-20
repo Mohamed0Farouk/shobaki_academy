@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
-import 'package:shobaki_academy/view/home.dart';
+//import 'package:shobaki_academy/view/home.dart';
 import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 import 'package:get/get.dart';
 //import 'package:webview_windows/webview_windows.dart';

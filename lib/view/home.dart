@@ -112,6 +112,11 @@ class _HomePageState extends State<HomePage> {
         activeIcon: Icon(Icons.home_filled),
         label: 'المواضيع',
       ),
+      BottomNavigationBarItem(
+        label: 'الملازم',
+        icon: Icon(Icons.bookmarks_outlined),
+        activeIcon: Icon(Icons.bookmarks_rounded),
+      ),
 
       const BottomNavigationBarItem(
         icon: Icon(Icons.bookmark_border),
@@ -163,6 +168,7 @@ class _HomePageState extends State<HomePage> {
     // Guest pages
     final guestPages = <Widget>[
       TopicsPage(guest: true),
+      BooksPage(),
       if (useHomeworksAndExams) ResultsPage(),
       SettingsPage(isGuest: true),
     ];
@@ -172,6 +178,11 @@ class _HomePageState extends State<HomePage> {
         icon: Icon(Icons.home_outlined),
         activeIcon: Icon(Icons.home_filled),
         label: 'المواضيع',
+      ),
+      const BottomNavigationBarItem(
+        label: 'الملازم',
+        icon: Icon(Icons.bookmarks_outlined),
+        activeIcon: Icon(Icons.bookmarks_rounded),
       ),
       if (useHomeworksAndExams)
         const BottomNavigationBarItem(
@@ -192,6 +203,11 @@ class _HomePageState extends State<HomePage> {
         icon: Icons.home_outlined,
         activeIcon: Icons.home_filled,
       ),
+      _SidebarItem(
+        label: 'الملازم',
+        icon: Icons.bookmarks_outlined,
+        activeIcon: Icons.bookmarks_rounded,
+      ),
       if (useHomeworksAndExams)
         _SidebarItem(
           label: 'النتائج',
@@ -208,6 +224,7 @@ class _HomePageState extends State<HomePage> {
     // Reviewer pages
     final reviewPages = <Widget>[
       TopicsPage(inReview: inReviewMode),
+      BooksPage(),
       if (useHomeworksAndExams) ResultsPage(),
       SettingsPage(),
     ];
@@ -217,6 +234,11 @@ class _HomePageState extends State<HomePage> {
         icon: Icon(Icons.home_outlined),
         activeIcon: Icon(Icons.home_filled),
         label: 'المواضيع',
+      ),
+      BottomNavigationBarItem(
+        label: 'الملازم',
+        icon: Icon(Icons.bookmarks_outlined),
+        activeIcon: Icon(Icons.bookmarks_rounded),
       ),
       if (useHomeworksAndExams)
         const BottomNavigationBarItem(
@@ -236,6 +258,11 @@ class _HomePageState extends State<HomePage> {
         label: 'المواضيع',
         icon: Icons.home_outlined,
         activeIcon: Icons.home_filled,
+      ),
+      _SidebarItem(
+        label: 'الملازم',
+        icon: Icons.bookmarks_outlined,
+        activeIcon: Icons.bookmarks_rounded,
       ),
       if (useHomeworksAndExams)
         _SidebarItem(

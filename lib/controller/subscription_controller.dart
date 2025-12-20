@@ -1,3 +1,4 @@
+import 'package:shobaki_academy/controller/books_controller.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/view/home.dart';
@@ -21,18 +22,7 @@ class SubscriptionController extends GetxController {
     String topicId,
     String userId,
   ) async {
-    // if (topicCodes.isEmpty) {
-    //   _showErrorSnackbar(
-    //     'توجد مشكلة',
-    //     'الاكواد الخاصة ب $topicName تم استخدامها جميعاً',
-    //     Colors.red,
-    //   );
-    //   return;
-    // }
-
     if (!topicCodes.contains(inputText.value)) {
-      //_showErrorSnackbar('توجد مشكلة', "انت تستخدم كود خاطئ", Colors.yellow);
-
       await api
           .fetchWithConditions(
             'student_codes',
@@ -87,19 +77,15 @@ class SubscriptionController extends GetxController {
           });
     }
 
-    // Valid code, proceed with subscription
     if (topicCodes.contains(inputText.value)) {
       try {
-        // Remove used code
         topicCodes.remove(inputText.value);
 
-        // Update subscription
         await api.insertData('students_subscriptions', {
           "student_id": userId,
           "topic_id": topicId,
         });
 
-        // Update remaining codes
         await api.updateData('topics', {'codes': topicCodes}, {'id': topicId});
 
         _showSuccessSnackbar('اشعار', 'تم الاشتراك في $topicName');
@@ -115,23 +101,108 @@ class SubscriptionController extends GetxController {
     }
   }
 
+  /// Handle book subscription with code validation
+  Future<void> handleBookSubscription(String code, String userId) async {
+    try {
+      // Validate code exists and belongs to user or is global
+      final codeResult = await api.fetchWithConditions(
+        'student_codes',
+        filters: {'student_id': userId, 'code': code},
+      );
+
+      if (codeResult.isEmpty) {
+        Get.back(); // Close loading dialog
+        Get.snackbar(
+          'توجد مشكلة',
+          'الكود غير صحيح',
+          backgroundColor: Colors.yellow,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+        return;
+      }
+
+      final codeData = codeResult[0] as Map<String, dynamic>;
+
+      // Check if code is limited and has remaining uses
+      if (codeData['limited'] == true && codeData['remain_uses'] <= 0) {
+        Get.back(); // Close loading dialog
+        Get.snackbar(
+          'توجد مشكلة',
+          'الكود قد استُخدم بالكامل',
+          backgroundColor: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+        return;
+      }
+
+      // Deduct use if limited
+      if (codeData['limited'] == true) {
+        await api.updateData(
+          'student_codes',
+          {'remain_uses': (codeData['remain_uses'] as int) - 1},
+          {'id': codeData['id']},
+        );
+      }
+
+      // Insert book subscription (no topic_id, just subscription_type: "books")
+      await api.insertData('students_subscriptions', {
+        'student_id': userId,
+        'topic_id': null,
+        'subscription_type': 'books',
+      });
+
+      // Close loading dialog first
+      Get.back();
+
+      // Close subscription dialog
+      Get.back();
+
+      // Show success snackbar
+      Get.snackbar(
+        'اشعار',
+        'تم الاشتراك في الملازم بنجاح قم باعادة تحميل الصفحة عن طريق السحب من اعلى لاسفل',
+        backgroundColor: Colors.greenAccent,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+
+      // Refresh books controller after small delay to ensure snackbar shows
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (Get.isRegistered<BooksController>()) {
+        final booksController = Get.find<BooksController>();
+        await booksController.checkBookSubscription();
+      }
+    } catch (e) {
+      Get.back(); // Close loading dialog
+      Get.snackbar(
+        'خطأ',
+        'حدث خطأ أثناء الاشتراك: $e',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+      );
+    }
+  }
+
   void _showSuccessSnackbar(String title, String message) {
-    Get.back(); // Close dialog first
     Get.snackbar(
       title,
       message,
       backgroundColor: Colors.greenAccent,
       snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
     );
   }
 
   void _showErrorSnackbar(String title, String message, Color backgroundColor) {
-    Get.back(); // Close dialog first
     Get.snackbar(
       title,
       message,
       backgroundColor: backgroundColor,
       snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
     );
   }
 }
@@ -159,14 +230,7 @@ void showSubscriptionDialog({
   required int amount,
   required context,
 }) {
-  // Initialize controller
   final controller = Get.put(SubscriptionController(api: api));
-  // final paymentController = Get.put(
-  //   PaymentController(
-  //     apiKey: dotenv.get("PAYMENT_API_KEY"),
-  //     integrationId: 73082,
-  //   ),
-  // );
 
   Get.dialog(
     AlertDialog(
@@ -174,34 +238,6 @@ void showSubscriptionDialog({
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ElevatedButton(
-          //   style: ElevatedButton.styleFrom(
-          //     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          //     shape: RoundedRectangleBorder(
-          //       borderRadius: BorderRadius.circular(12),
-          //     ),
-          //   ),
-          //   onPressed: () async {
-          //     await paymentController.pay(
-          //       amountCents: amount,
-          //       topicId: topicId,
-          //       topicName: topicName,
-          //       userId: userId,
-          //     );
-          //   },
-          //   child: SizedBox(
-          //     width: double.infinity,
-          //     child: Center(
-          //       child: Text(
-          //         'الدفع المباشر',
-          //         style: Theme.of(
-          //           context,
-          //         ).textTheme.bodyMedium!.copyWith(color: Colors.white),
-          //       ),
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(height: 15),
           Directionality(
             textDirection: TextDirection.rtl,
             child: TextField(
@@ -218,10 +254,8 @@ void showSubscriptionDialog({
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               InkWell(
-                onTap: () => _launchUrl(
-                  //TODO: Add pre-filled message if needed
-                  'https://wa.me/+?text=${Uri.encodeFull('')}',
-                ),
+                onTap: () =>
+                    _launchUrl('https://wa.me/+?text=${Uri.encodeFull('')}'),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   spacing: 5,
@@ -235,7 +269,7 @@ void showSubscriptionDialog({
                       'Whatapp',
                       style: Theme.of(
                         context,
-                      ).textTheme.bodySmall!.copyWith(color: Colors.green),
+                      ).textTheme.bodySmall?.copyWith(color: Colors.green),
                     ),
                   ],
                 ),
@@ -270,5 +304,121 @@ void showSubscriptionDialog({
       ],
     ),
     barrierDismissible: true,
+  );
+}
+
+/// Show subscription dialog for books
+void showBookSubscriptionDialog({
+  required ApiClient api,
+  required String userId,
+  required context,
+}) {
+  final controller = Get.put(SubscriptionController(api: api), tag: 'books');
+
+  Get.dialog(
+    AlertDialog(
+      title: const Text('اشترك في الملازم', textAlign: TextAlign.center),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'ادخل كود الاشتراك للوصول إلى جميع الملازم',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: TextField(
+              onChanged: controller.updateInputText,
+              decoration: InputDecoration(
+                hintText: 'ادخل الكود',
+                hintStyle: Theme.of(context).textTheme.bodyMedium,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              InkWell(
+                onTap: () =>
+                    _launchUrl('https://wa.me/+?text=${Uri.encodeFull('')}'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 5,
+                  children: [
+                    Image.asset(
+                      'assets/logos/whatsapp.png',
+                      width: 20,
+                      height: 20,
+                    ),
+                    Text(
+                      'Whatapp',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.green),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                ' للحصول على الكود ',
+                style: Theme.of(context).textTheme.bodySmall,
+                softWrap: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Get.back(), child: const Text('إلغاء')),
+        Obx(
+          () => ElevatedButton(
+            onPressed: controller.inputText.value.isNotEmpty
+                ? () {
+                    loadingDilog(context);
+                    controller.handleBookSubscription(
+                      controller.inputText.value,
+                      userId,
+                    );
+                  }
+                : null,
+            child: const Text('اشترك'),
+          ),
+        ),
+      ],
+    ),
+    barrierDismissible: true,
+  );
+}
+
+/// Show guest annotation dialog
+void showGuestAnnotationDialog({required BuildContext context}) {
+  Get.dialog(
+    AlertDialog(
+      title: const Text('ميزة مخصصة للمستخدمين', textAlign: TextAlign.center),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
+          const SizedBox(height: 16),
+          const Text(
+            'عذراً، لا يمكنك الوصول إلى الملازم كمستخدم ضيف. الرجاء تسجيل الدخول بحسابك الخاص.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, height: 1.5),
+          ),
+        ],
+      ),
+      actions: [
+        ElevatedButton(onPressed: () => Get.back(), child: const Text('فهمت')),
+      ],
+    ),
+    barrierDismissible: true,
+    transitionDuration: const Duration(milliseconds: 300),
   );
 }

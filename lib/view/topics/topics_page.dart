@@ -53,17 +53,13 @@ class _TopicsPageState extends State<TopicsPage> {
                   vertical: isDesktop ? 12 : 6,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     /// -------------------------
                     /// MODERN SEARCH BAR
                     /// -------------------------
-                    FadeInDown(
-                      duration: const Duration(milliseconds: 400),
-                      child: _buildModernSearchBar(context),
-                    ),
+                    _buildModernSearchBar(context),
 
-                    SizedBox(height: isDesktop ? 8 : 6),
+                    SizedBox(height: isDesktop ? 8 : 32),
 
                     /// -------------------------
                     /// SECTION: Recommended
@@ -77,7 +73,6 @@ class _TopicsPageState extends State<TopicsPage> {
 
                     Obx(() {
                       final recs = controller.recommendations;
-
                       if (controller.isLoading.value) {
                         return Center(child: loading(context));
                       }
@@ -302,11 +297,18 @@ class _TopicsPageState extends State<TopicsPage> {
   /// HORIZONTAL LIST (Mobile)
   /// ===================================
   Widget _buildHorizontalList(List<dynamic> items) {
+    final size = MediaQuery.of(context).size;
+    final cardWidth = _computeCardWidth(context);
+    final sidePadding = (size.width - cardWidth) / 2;
+    final double horizontalPadding = sidePadding > 8 ? sidePadding : 8;
+    final listHeight = cardWidth + 80; // increased height for larger cards
+
     return SizedBox(
-      height: 160, // Adjusted height for larger cards
+      height: listHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         itemBuilder: (context, index) {
           return FadeInRight(
             delay: Duration(milliseconds: 100 + (index * 50)),
@@ -320,8 +322,7 @@ class _TopicsPageState extends State<TopicsPage> {
             ),
           );
         },
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: 12), // Increased spacing
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemCount: items.length,
       ),
     );
@@ -337,24 +338,33 @@ class _TopicsPageState extends State<TopicsPage> {
     VoidCallback onTap,
     int index,
   ) {
-    final size = MediaQuery.of(context).size;
-    final isDesktop = size.width > 900;
-    final cardWidth =
-        (isDesktop
-            ? (size.width - 60) / (size.width > 1400 ? 4 : 3)
-            : size.width / 1.8) *
-        0.66;
-
+    final cardWidth = _computeCardWidth(context);
     return GestureDetector(
       onTap: onTap,
       child: _HoverableCard(
         title: title,
         imageUrl: imageUrl,
         cardWidth: cardWidth,
-        isDesktop: isDesktop,
+        isDesktop: MediaQuery.of(context).size.width > 900,
         index: index,
       ),
     );
+  }
+
+  /// ===================================
+  /// COMPUTE CARD WIDTH HELPER
+  /// ===================================
+  double _computeCardWidth(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 900;
+    if (isDesktop) {
+      // keep desktop sizing logic (same as before)
+      final base = (size.width - 60) / (size.width > 1400 ? 4 : 3);
+      return base * 0.66;
+    } else {
+      // larger card on mobile (≈46% of width)
+      return size.width * 0.46;
+    }
   }
 }
 
@@ -530,14 +540,11 @@ class _HoverableCardState extends State<_HoverableCard>
                           widget.title,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: widget.isDesktop
-                                ? 12
-                                : 11, // Further increased size
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                            height: 1.3,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
                         ),
                       ),
                     ],
@@ -561,8 +568,7 @@ class _HoverableCardState extends State<_HoverableCard>
                   children: [
                     Text(
                       "ابدأ الآن",
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.blue.shade600,
                       ),

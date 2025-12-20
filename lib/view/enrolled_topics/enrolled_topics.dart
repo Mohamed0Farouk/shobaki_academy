@@ -118,7 +118,8 @@ class EnrolledTopicsPage extends StatelessWidget {
                       physics: const BouncingScrollPhysics(),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: crossAxisCount,
-                        childAspectRatio: 1.4,
+                        // taller cards on mobile, compact on desktop
+                        childAspectRatio: isDesktop ? 1.4 : 0.9,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 10,
                       ),
@@ -305,15 +306,15 @@ class _HoverableTopicCardState extends State<_HoverableTopicCard>
                           children: [
                             Text(
                               widget.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                height: 1.2,
-                                color: Colors.black87,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                    color: Colors.black87,
+                                  ),
                             ),
                           ],
                         ),
