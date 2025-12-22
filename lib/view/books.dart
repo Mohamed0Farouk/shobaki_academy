@@ -24,7 +24,7 @@ class BooksPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: isDesktop ? Colors.transparent : null,
+        backgroundColor: Colors.transparent,
         elevation: isDesktop ? 0 : null,
         actions: [
           Obx(
