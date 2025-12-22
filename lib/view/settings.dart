@@ -355,6 +355,18 @@ class _SettingsPageState extends State<SettingsPage> {
                                 softWrap: true,
                               ),
                             ),
+                            SizedBox(width: 12),
+                            InkWell(
+                              onTap: () => showFirstLaunchDialog(), 
+                              child: Text(
+                                'عرض ارشادات الاستخدام',
+                                style: Theme.of(context).textTheme.bodySmall!
+                                    .copyWith(
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                softWrap: true,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -427,6 +439,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
       ),
+    );
+  }
+
+  Future<void> showFirstLaunchDialog({bool dismissible = true}) {
+    return Get.dialog(
+      AlertDialog(
+        title: const Text('Welcome 👋'),
+        content: const Text(
+          'Welcome to the app!\n\nHere you can explain features, rules, or anything important.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Got it')),
+        ],
+      ),
+      barrierDismissible: dismissible,
     );
   }
 

@@ -278,20 +278,16 @@ class _HoverableTopicCardState extends State<_HoverableTopicCard>
                   children: [
                     Expanded(
                       flex: 2,
-                      child: Hero(
-                        tag:
-                            '${widget.title}-image-grid-${widget.isRecommended}',
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
-                          ),
-                          child: Image.network(
-                            widget.imageUrl,
-                            fit: BoxFit.fill,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image_not_supported),
-                            ),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: Image.network(
+                          widget.imageUrl,
+                          fit: BoxFit.fill,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.image_not_supported),
                           ),
                         ),
                       ),

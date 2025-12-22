@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -267,16 +269,21 @@ class _LoginPageState extends State<LoginPage> {
                                             ),
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.fingerprint,
-                                            size: 28,
-                                          ),
-                                          onPressed: () async {
-                                            await authController
-                                                .loginWithFingerprint();
-                                          },
-                                        ),
+
+                                        Platform.isWindows ||
+                                                Platform.isMacOS ||
+                                                Platform.isLinux
+                                            ? const SizedBox.shrink()
+                                            : IconButton(
+                                                icon: const Icon(
+                                                  Icons.fingerprint,
+                                                  size: 28,
+                                                ),
+                                                onPressed: () async {
+                                                  await authController
+                                                      .loginWithFingerprint();
+                                                },
+                                              ),
                                       ],
                                     ),
                                     const SizedBox(height: 16),

@@ -7,6 +7,8 @@ import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class LectureContentPage extends StatefulWidget {
   const LectureContentPage({
@@ -25,6 +27,9 @@ class _LectureContentPageState extends State<LectureContentPage> {
   final WatermarkController watermarkController = Get.find();
   final ApiClient api = ApiClient();
 
+  // Cache for view counts to avoid multiple API calls for the same video
+  final Map<String, int> _viewCountCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +42,7 @@ class _LectureContentPageState extends State<LectureContentPage> {
 
   @override
   void dispose() {
+    _viewCountCache.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.showWatermark.value = false;
     });
@@ -131,85 +137,61 @@ class _LectureContentPageState extends State<LectureContentPage> {
     );
   }
 
-  /// Get user's view count for a specific video from logs
+  /// Get user's view count for a specific video from API
   Future<int> _getUserVideoViewCount(String videoUrl, String userId) async {
+    // Check cache first
+    final cacheKey = '$userId-$videoUrl';
+    if (_viewCountCache.containsKey(cacheKey)) {
+      return _viewCountCache[cacheKey]!;
+    }
+
     try {
-      final logs = await api.fetchWithConditions(
-        'logs',
-        select: 'video_url, viewed, created_at',
-        filters: {
-          'type': 'video_view',
-          'user_id': userId,
-          'video_url': videoUrl,
-        },
-      );
+      final apiBaseUrl = dotenv.env['ALSHOBAKI_API'];
 
-      if (logs.isEmpty) return 0;
-
-      // 1️⃣ Parse & sort logs by created_at
-      final sortedLogs =
-          logs.map((e) => DateTime.parse(e['created_at'])).toList()..sort();
-
-      int viewCount = 0;
-
-      // 2️⃣ Group logs by day
-      final Map<DateTime, List<DateTime>> logsByDay = {};
-      for (final time in sortedLogs) {
-        final dayKey = DateTime(time.year, time.month, time.day);
-        logsByDay.putIfAbsent(dayKey, () => []).add(time);
+      if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
+        projectLogger.e('ALSHOBAKI_API not found in .env');
+        return 0;
       }
 
-      // 3️⃣ Process each day
-      for (final dayKey in logsByDay.keys.toList()..sort()) {
-        final dayLogs = logsByDay[dayKey]!;
-        int i = 0;
+      final uri = Uri.parse(
+        '${apiBaseUrl}api/videos/view-count',
+      ).replace(queryParameters: {'videoUrl': videoUrl, 'userId': userId});
 
-        while (i < dayLogs.length) {
-          final sessionStart = dayLogs[i];
-
-          // Calculate session end
-          var sessionEnd = sessionStart.add(const Duration(hours: 3));
-
-          // If session crosses midnight, limit to the end of day
-          final endOfDay = DateTime(
-            sessionStart.year,
-            sessionStart.month,
-            sessionStart.day,
-            23,
-            59,
-            59,
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              // Add authorization header if needed
+              // 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
           );
-          if (sessionEnd.isAfter(endOfDay)) {
-            sessionEnd = endOfDay;
-          }
 
-          // Count 1 view
-          viewCount++;
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final viewCount = data['data']['viewCount'] as int;
 
-          // Skip logs inside the session window
-          while (i < dayLogs.length && !dayLogs[i].isAfter(sessionEnd)) {
-            i++;
-          }
-        }
+        // Cache the result
+        _viewCountCache[cacheKey] = viewCount;
+
+        return viewCount;
+      } else {
+        projectLogger.e(
+          'Error fetching video view count: ${response.statusCode} - ${response.body}',
+        );
+        return 0;
       }
-
-      return viewCount;
     } catch (e) {
-      projectLogger.e('Error fetching video view logs: $e');
+      projectLogger.e('Error fetching video view count: $e');
       return 0;
     }
   }
-
-  // Count logs where viewed=true (user watched > 25% of video)
-  // int viewCount = 0;
-  // for (final log in logs) {
-  //   if (log['video_url'] == videoUrl) {
-  //     if (log['viewed'] == true) {
-  //       viewCount++;
-  //     }
-  //   }
-  // }
-  // return viewCount;
 
   /// Check if video view limit is reached
   Future<bool> _isVideoViewLimitReached(
@@ -273,29 +255,6 @@ class _LectureContentPageState extends State<LectureContentPage> {
       );
     }
 
-    // void addVideoCards(
-    //   Map videos,
-    //   List<Widget> list, {
-    //   bool isLocked = false,
-    //   String? lockMessage,
-    // }) {
-    //   videos.forEach((key, value) {
-    //     Widget card = CardModel(
-    //       type: CardTypes.video,
-    //       title: value['title'],
-    //       description: value['description'],
-    //       id: '',
-    //       url: value['url'],
-    //     );
-
-    //     if (isLocked && lockMessage != null) {
-    //       card = Stack(children: [card, buildLockedOverlay(lockMessage)]);
-    //     }
-
-    //     addCard(list, card);
-    //   });
-    // }
-
     // Videos with view limit checking
     if (lectureData['videos'] != null) {
       for (final MapEntry entry in lectureData['videos'].entries) {
@@ -315,7 +274,10 @@ class _LectureContentPageState extends State<LectureContentPage> {
           type: CardTypes.video,
           title: value['title'],
           description: value['description'],
-          note: ' المشاهدات  ($userViews/$maxViewCount)',
+          note: Text(
+            ' المشاهدات  ($userViews/$maxViewCount)',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           id: '',
           url: value['url'],
         );
@@ -388,7 +350,10 @@ class _LectureContentPageState extends State<LectureContentPage> {
             type: CardTypes.video,
             title: value['title'],
             description: value['description'],
-            note: ' المشاهدات  ($userViews/$maxViewCount)',
+            note: Text(
+              ' المشاهدات  ($userViews/$maxViewCount)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
 
             id: '',
             url: value['url'],
@@ -456,7 +421,10 @@ class _LectureContentPageState extends State<LectureContentPage> {
             type: CardTypes.video,
             title: value['title'],
             description: value['description'],
-            note: ' المشاهدات  ($userViews/$maxViewCount)',
+            note: Text(
+              ' المشاهدات  ($userViews/$maxViewCount)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
 
             id: '',
             url: value['url'],

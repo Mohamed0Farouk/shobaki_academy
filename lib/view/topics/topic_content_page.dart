@@ -224,15 +224,12 @@ class TopicContentPage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (hasThumb)
-              Hero(
-                tag: '${title}_image',
-                child: AspectRatio(
-                  aspectRatio: 1 / 1,
-                  child: Image.network(
-                    thumb,
-                    fit: BoxFit.fill,
-                    errorBuilder: (_, __, ___) => _headerPlaceholder(context),
-                  ),
+              AspectRatio(
+                aspectRatio: 1 / 1,
+                child: Image.network(
+                  thumb,
+                  fit: BoxFit.fill,
+                  errorBuilder: (_, __, ___) => _headerPlaceholder(context),
                 ),
               )
             else
@@ -611,7 +608,11 @@ class TopicContentPage extends StatelessWidget {
     String id,
     String userId,
   ) async {
-    Get.to(TopicPage(topicId: topicId));
+    Get.to(
+      () => TopicPage(topicId: topicId),
+      transition: Transition.downToUp,
+      duration: const Duration(milliseconds: 600),
+    );
     // await api
     // .insertData('students_subscriptions', {
     //   "student_id": userId,

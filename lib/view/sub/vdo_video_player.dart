@@ -80,41 +80,148 @@ class VideoPlayerView extends StatelessWidget {
   <meta charset="UTF-8">
   <title>Secure Player</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
       background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
     }
-    #player {
+
+    #embedBox {
       width: 100%;
       height: 100%;
     }
+
+    #expired {
+      display: none;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+    }
+
+    .message-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
+
 <body>
 
-<div id="player"></div>
+<div id="embedBox"></div>
+
+<div id="expired">
+  <div>
+    <div class="message-icon">⏱️</div>
+    <h2>Session Expired</h2>
+    <p>Please return to the app to continue watching.</p>
+  </div>
+</div>
+
+<!-- VdoCipher Player SDK -->
+<script src="https://player.vdocipher.com/v2/api.js"></script>
 
 <script>
 (function () {
-  const otp = "${Uri.encodeComponent(otp)}";
-  const playbackInfo = "${Uri.encodeComponent(playbackInfo)}";
+  'use strict';
 
-  const iframe = document.createElement("iframe");
-  iframe.src =
-    "https://player.vdocipher.com/v2/?" +
-    "otp=" + otp +
-    "&playbackInfo=" + playbackInfo;
+  const SESSION_DURATION = 3 * 60 * 60 * 1000; // 3 hours
+  
+  const otp = decodeURIComponent("${Uri.encodeComponent(otp)}");
+  const playbackInfo = decodeURIComponent("${Uri.encodeComponent(playbackInfo)}");
 
-  iframe.allow = "encrypted-media";
-  iframe.allowFullscreen = true;
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.border = "0";
+  const embedBox = document.getElementById("embedBox");
+  const expiredDiv = document.getElementById("expired");
+  
+  let sessionStartTime = Date.now();
+  let sessionTimer = null;
 
-  document.getElementById("player").appendChild(iframe);
+  function showExpired(message = null) {
+    embedBox.style.display = "none";
+    expiredDiv.style.display = "flex";
+    
+    if (message) {
+      expiredDiv.querySelector('p').textContent = message;
+    }
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
+  }
+
+  function checkSessionExpiry() {
+    const elapsed = Date.now() - sessionStartTime;
+    if (elapsed >= SESSION_DURATION) {
+      showExpired('Please return to the app to continue watching.');
+    }
+  }
+
+ // 🎬 Initialize VdoCipher Player using iframe embed
+  window.addEventListener('load', function() {
+    try {
+      // Create iframe with VdoCipher player URL
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://player.vdocipher.com/v2/?otp=$otp&playbackInfo=$playbackInfo&theme=9ae8bbe8dd964ddc9bdb932cca1cb59a`;
+      iframe.style.border = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.allow = 'encrypted-media';
+      iframe.allowFullscreen = true;
+      embedBox.appendChild(iframe);
+
+      console.log('✅ VdoCipher player initialized with DRM protection');
+
+      // Start session expiration timer
+      sessionTimer = setTimeout(() => {
+        showExpired('Please return to the app to continue watching.');
+      }, SESSION_DURATION);
+
+    } catch (error) {
+      console.error('Failed to initialize player:', error);
+      showExpired('Failed to initialize video player.');
+    }
+  });
+
+  // Cleanup on page close
+  window.addEventListener('beforeunload', () => {
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+    }
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
+  });
+
+  // Handle visibility change (user switches tabs)
+  let hiddenTime = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hiddenTime = Date.now();
+    } else if (hiddenTime) {
+      const timeHidden = Date.now() - hiddenTime;
+      // If away for more than 30 minutes, expire session
+      if (timeHidden > 30 * 60 * 1000) {
+        if (sessionTimer) {
+          clearTimeout(sessionTimer);
+        }
+        showExpired('Session expired due to inactivity.');
+      }
+      hiddenTime = null;
+    }
+  });
+
+  // Check session every minute
+  setInterval(checkSessionExpiry, 60 * 1000);
+
 })();
 </script>
 

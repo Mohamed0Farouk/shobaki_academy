@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 //import 'package:shobaki_academy/model/webview_model.dart';
 //import 'package:shobaki_academy/model/widgets/quill_description.dart';
+//import 'package:shobaki_academy/view/enrolled_topics/lecture_content.dart';
 import 'package:shobaki_academy/view/enrolled_topics/lecture_content_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
@@ -28,7 +29,7 @@ class CardModel extends StatelessWidget {
   final CardTypes type;
   final String title;
   final String description;
-  final String? note;
+  final Widget? note;
   final String id;
   final String? topicId;
   final String? url;
@@ -140,7 +141,7 @@ class _SimpleCard extends StatelessWidget {
   final String description;
   final String? thumbnail;
   final String navlabel;
-  final String? note;
+  final Widget? note;
   final Widget navPage;
   final int? questionsNumber;
   final int? examDuration;
@@ -214,11 +215,20 @@ class _SimpleCard extends StatelessWidget {
               child: Material(
                 color: Colors.white,
                 child: InkWell(
-                  onTap: () => Get.to(
-                    () => navPage,
-                    transition: Transition.fade,
-                    duration: const Duration(milliseconds: 350),
-                  ),
+                  onTap: () {
+                    if (navPage is LectureContentPage) {
+                      Get.offAll(
+                        () => navPage,
+                        transition: Transition.fade,
+                        duration: const Duration(milliseconds: 350),
+                      );
+                    }
+                    Get.to(
+                      () => navPage,
+                      transition: Transition.fade,
+                      duration: const Duration(milliseconds: 350),
+                    );
+                  },
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       return Column(
@@ -351,17 +361,7 @@ class _SimpleCard extends StatelessWidget {
                                           SizedBox(
                                             height: isSmallScreen ? 6 : 8,
                                           ),
-                                          Text(
-                                            note!,
-                                            style: TextStyle(
-                                              fontSize: isSmallScreen ? 10 : 12,
-                                              color: Colors.black45,
-                                              fontStyle: FontStyle.italic,
-                                              height: 1.2,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                          note!,
                                         ],
                                       ],
                                     ),

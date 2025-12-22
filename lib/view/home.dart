@@ -59,7 +59,6 @@ class _HomePageState extends State<HomePage> {
 
     final params = Get.parameters;
     inReviewParam = params['inReview'] == 'true';
-    // guestParam = params['guest'] == 'true';
 
     final localDb = Get.find<LocalDB>();
     final prefs = localDb.sharedPref!;
@@ -73,10 +72,47 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    guestParam = _user!['email'] == 'guest@example.com';
+    guestParam = _user?['email'] == 'guest@example.com';
 
     _init();
     _loadLocalUserName();
+    _checkFirstLaunch(); // 👈 HERE
+  }
+
+  Future<void> showFirstLaunchDialog({bool dismissible = true}) {
+    return Get.dialog(
+      AlertDialog(
+        title: const Text('Welcome 👋'),
+        content: const Text(
+          'Welcome to the app!\n\nHere you can explain features, rules, or anything important.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Got it')),
+        ],
+      ),
+      barrierDismissible: dismissible,
+    );
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final localDb = Get.find<LocalDB>();
+    final prefs = localDb.sharedPref!;
+
+    const key = 'first_launch_done';
+
+    final isFirstLaunch = !(prefs.getBool(key) ?? false);
+
+    print(isFirstLaunch ? 'first launch' : 'not first launch');
+
+    print('added');
+    if (isFirstLaunch) {
+      // Wait until UI is ready
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showFirstLaunchDialog();
+      });
+
+      await prefs.setBool(key, true);
+    }
   }
 
   Future<void> _init() async {

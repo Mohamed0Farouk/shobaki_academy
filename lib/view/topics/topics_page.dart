@@ -486,18 +486,15 @@ class _HoverableCardState extends State<_HoverableCard>
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        Hero(
-                          tag: '${widget.title}-image-${widget.index}',
-                          child: Image.network(
-                            widget.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(
-                                Icons.broken_image,
-                                size: 32,
-                                color: Colors.grey,
-                              ),
+                        Image.network(
+                          widget.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey.shade200,
+                            child: const Icon(
+                              Icons.broken_image,
+                              size: 32,
+                              color: Colors.grey,
                             ),
                           ),
                         ),

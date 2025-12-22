@@ -17,16 +17,29 @@ class BooksPage extends StatelessWidget {
     final isDesktop =
         Platform.isWindows || Platform.isMacOS || Platform.isLinux;
     final crossAxisCount = isDesktop ? 4 : 2;
-    final childAspectRatio = isDesktop ? 0.75 : 0.85;
+    final childAspectRatio = isDesktop ? 1.0 : 1.2;
+
+    // Add this observable for view mode (list view is default)
+    final isGridView = false.obs;
 
     return Scaffold(
-      appBar: isDesktop
-          ? AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              actions: [_RefreshButton(controller: controller)],
-            )
-          : null,
+      appBar: AppBar(
+        backgroundColor: isDesktop ? Colors.transparent : null,
+        elevation: isDesktop ? 0 : null,
+        actions: [
+          Obx(
+            () => IconButton(
+              icon: Icon(
+                isGridView.value ? Icons.view_list : Icons.grid_view,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: () => isGridView.value = !isGridView.value,
+              tooltip: isGridView.value ? 'عرض كقائمة' : 'عرض كشبكة',
+            ),
+          ),
+          if (isDesktop) _RefreshButton(controller: controller),
+        ],
+      ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return loading(context);
@@ -82,25 +95,40 @@ class BooksPage extends StatelessWidget {
           );
         }
 
-        Widget content = GridView.builder(
-          padding: const EdgeInsets.all(12),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: controller.books.length,
-          itemBuilder: (context, index) {
-            final book = controller.books[index];
-            return _BookCard(
-              book: book,
-              isGuest: controller.isGuest.value,
-              isReviewer: controller.isReviewer.value,
-              controller: controller,
-            );
-          },
-        );
+        Widget content = isGridView.value
+            ? GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: childAspectRatio,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: controller.books.length,
+                itemBuilder: (context, index) {
+                  final book = controller.books[index];
+                  return _BookCard(
+                    book: book,
+                    isGuest: controller.isGuest.value,
+                    isReviewer: controller.isReviewer.value,
+                    controller: controller,
+                  );
+                },
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: controller.books.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final book = controller.books[index];
+                  return _BookListTile(
+                    book: book,
+                    isGuest: controller.isGuest.value,
+                    isReviewer: controller.isReviewer.value,
+                    controller: controller,
+                  );
+                },
+              );
 
         if (isDesktop) {
           return content;
@@ -169,6 +197,194 @@ class _RefreshButtonState extends State<_RefreshButton>
   }
 }
 
+class _BookListTile extends StatefulWidget {
+  final Book book;
+  final bool isGuest;
+  final bool isReviewer;
+  final BooksController controller;
+  const _BookListTile({
+    required this.book,
+    required this.isGuest,
+    required this.isReviewer,
+    required this.controller,
+  });
+
+  @override
+  State<_BookListTile> createState() => _BookListTileState();
+}
+
+class _BookListTileState extends State<_BookListTile> {
+  late Future<bool> _hasSubscriptionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasSubscriptionFuture = widget.controller.checkBookSubscription();
+  }
+
+  void _onTileTap() async {
+    if (widget.isReviewer) {
+      Get.to(
+        () => PdfModel(
+          pdfUrl: widget.book.url,
+          filename: '${widget.book.title}.pdf',
+        ),
+      );
+      return;
+    }
+
+    if (widget.book.free) {
+      Get.to(
+        () => PdfModel(
+          pdfUrl: widget.book.url,
+          filename: '${widget.book.title}.pdf',
+        ),
+      );
+      return;
+    }
+
+    if (widget.isGuest) {
+      showGuestAnnotationDialog(context: context);
+    } else {
+      final hasSubscription = await widget.controller.checkBookSubscription();
+      if (hasSubscription) {
+        Get.to(
+          () => PdfModel(
+            pdfUrl: widget.book.url,
+            filename: '${widget.book.title}.pdf',
+          ),
+        );
+      } else {
+        showBookSubscriptionDialog(
+          api: ApiClient(),
+          userId: widget.controller.userId.value,
+          context: context,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop =
+        Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _onTileTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            vertical: isDesktop ? 16 : 12,
+            horizontal: isDesktop ? 16 : 8,
+          ),
+          child: Row(
+            children: [
+              // Title and badges
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.book.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (!widget.isReviewer && widget.book.free)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green[400],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.lock_open_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'مجاني',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (!widget.isReviewer && !widget.book.free)
+                          FutureBuilder<bool>(
+                            future: _hasSubscriptionFuture,
+                            builder: (context, snapshot) {
+                              final hasSubscription = snapshot.data ?? false;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: hasSubscription
+                                      ? Colors.green[400]
+                                      : Colors.red[400],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      hasSubscription
+                                          ? Icons.lock_open_rounded
+                                          : Icons.lock,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      hasSubscription ? 'مفتوح' : 'مقفل',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Arrow icon
+              Icon(
+                Icons.arrow_forward_ios,
+                size: isDesktop ? 20 : 16,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BookCard extends StatefulWidget {
   final Book book;
   final bool isGuest;
@@ -216,7 +432,6 @@ class _BookCardState extends State<_BookCard>
       end: 0.05,
     ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
 
-    // Check subscription status once on init
     _hasSubscriptionFuture = widget.controller.checkBookSubscription();
   }
 
@@ -374,7 +589,6 @@ class _BookCardState extends State<_BookCard>
                         ),
                       ),
                     ),
-                    // Lock/Open lock icon for paid books (not shown for reviewer)
                     if (!widget.isReviewer && !widget.book.free)
                       Positioned(
                         bottom: 8,
