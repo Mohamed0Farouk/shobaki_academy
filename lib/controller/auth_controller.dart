@@ -296,7 +296,7 @@ class AuthController extends GetxController {
       await saveUserLocally(
         userData,
         loggedIn: true,
-        verified: db.sharedPref?.getBool('isVerified') ?? false,
+        verified: userData['verified'],
         reviewer: isReviewer,
       );
 
@@ -332,14 +332,13 @@ class AuthController extends GetxController {
         return true;
       }
 
-      final verified = db.sharedPref?.getBool('isVerified') ?? false;
+      final verified = userData['verified'];
 
       if (verified) {
         Get.offAllNamed('/home');
         return true;
       } else {
-        //Get.toNamed('/otp', arguments: {'userId': userData['id']});
-        Get.offAllNamed('/home');
+        Get.toNamed('/otp', arguments: {'userId': userData['id']});
         return true;
       }
     } catch (e) {

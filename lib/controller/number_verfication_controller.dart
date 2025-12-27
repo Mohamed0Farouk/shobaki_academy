@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 
@@ -96,6 +97,13 @@ class NumberVerificationController extends GetxController {
       if (isSuccess) {
         isVerified.value = true;
         localDb?.setBool('isVerified', true);
+        final ApiClient apiClient = ApiClient();
+        await apiClient.updateData(
+          'students',
+          {'verified': true},
+          {'id': studentId.value},
+        );
+        userData['verified'] = true;
         Get.snackbar(
           'تم التحقق',
           'تم التحقق من الرقم بنجاح',
