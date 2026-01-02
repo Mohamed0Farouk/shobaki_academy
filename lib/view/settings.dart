@@ -313,7 +313,43 @@ class _SettingsPageState extends State<SettingsPage> {
                             //TODO: update whatsapp number
                             InkWell(
                               onTap: () => _launchUrl(
-                                'https://wa.me/+?text=${Uri.encodeFull('')}',
+                                'https://wa.me/+502762100?text=${Uri.encodeFull('')}',
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                spacing: 5,
+                                children: [
+                                  Text(
+                                    'Whatapp',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.green),
+                                  ),
+                                  Image.asset(
+                                    'assets/logos/whatsapp.png',
+                                    width: 20,
+                                    height: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'للحجز و الاستعلام ',
+                              style: Theme.of(context).textTheme.bodySmall,
+                              softWrap: true,
+                            ),
+                            //TODO: update whatsapp number
+                            InkWell(
+                              onTap: () => _launchUrl(
+                                'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -357,7 +393,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             SizedBox(width: 12),
                             InkWell(
-                              onTap: () => showFirstLaunchDialog(), 
+                              onTap: () => showFirstLaunchDialog(),
                               child: Text(
                                 'عرض ارشادات الاستخدام',
                                 style: Theme.of(context).textTheme.bodySmall!
@@ -376,7 +412,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(height: 15),
                         Text(
-                          'Made with ❤️ By Mohamed Farouk',
+                          'Made with ❤️ By Eng / Mohamed Farouk',
                           style: Theme.of(context).textTheme.bodySmall!
                               .copyWith(fontWeight: FontWeight.bold),
                         ),
@@ -385,29 +421,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           spacing: 15,
                           children: [
-                            InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+201200164345?text=${Uri.encodeFull('')}',
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                spacing: 5,
-                                children: [
-                                  Text(
-                                    'Whatapp',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.green),
-                                  ),
-                                  Image.asset(
-                                    'assets/logos/whatsapp.png',
-                                    width: 20,
-                                    height: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
+                            // InkWell(
+                            //   onTap: () => _launchUrl(
+                            //     'https://wa.me/+201200164345?text=${Uri.encodeFull('')}',
+                            //   ),
+                            //   child: Row(
+                            //     mainAxisAlignment: MainAxisAlignment.center,
+                            //     spacing: 5,
+                            //     children: [
+                            //       Text(
+                            //         'Whatapp',
+                            //         style: Theme.of(context)
+                            //             .textTheme
+                            //             .bodySmall!
+                            //             .copyWith(color: Colors.green),
+                            //       ),
+                            //       Image.asset(
+                            //         'assets/logos/whatsapp.png',
+                            //         width: 20,
+                            //         height: 20,
+                            //       ),
+                            //     ],
+                            //   ),
+                            // ),
                             InkWell(
                               onTap: () => _launchUrl(
                                 'https://www.instagram.com/mohamed.farouk.dev?igsh=azc5M2R3NjUwNXpw',
@@ -445,7 +481,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> showFirstLaunchDialog({bool dismissible = true}) {
     return Get.dialog(
       AlertDialog(
-        title: const Text('Welcome 👋'),
+        title: const Text('ارشادات الاستخدام'),
         content: const Text(
           'Welcome to the app!\n\nHere you can explain features, rules, or anything important.',
         ),

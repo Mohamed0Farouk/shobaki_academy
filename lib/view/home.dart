@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> showFirstLaunchDialog({bool dismissible = true}) {
     return Get.dialog(
       AlertDialog(
-        title: const Text('Welcome 👋'),
+        title: const Text('ارشادات الاستخدام'),
         content: const Text(
           'Welcome to the app!\n\nHere you can explain features, rules, or anything important.',
         ),

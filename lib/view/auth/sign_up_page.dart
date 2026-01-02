@@ -17,6 +17,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController schoolController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool isObscure = true;
   late final AuthController auth;
 
   @override
@@ -247,7 +248,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodyMedium,
-                                    obscureText: true,
+                                    obscureText: isObscure,
                                     validator: (v) => (v == null || v.isEmpty)
                                         ? 'الرجاء ادخال كلمة المرور'
                                         : null,
@@ -260,6 +261,14 @@ class _SignUpPageState extends State<SignUpPage> {
                                             horizontal: 16,
                                             vertical: 16,
                                           ),
+                                      suffixIcon: IconButton(
+                                        onPressed: () => setState(() {
+                                          isObscure = !isObscure;
+                                        }),
+                                        icon: isObscure
+                                            ? Icon(Icons.remove_red_eye)
+                                            : Icon(Icons.visibility_off),
+                                      ),
                                       prefixIcon: const Icon(
                                         Icons.lock_outline,
                                       ),

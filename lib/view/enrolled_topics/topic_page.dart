@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
@@ -156,6 +158,142 @@ class _TopicPageState extends State<TopicPage> {
     return widgets;
   }
 
+  // Future<List<Widget>> lecturesHandler(context, lecturesList) async {
+  //   final ApiClient api = ApiClient();
+
+  //   final LocalDB services = Get.find();
+  //   final localDb = services.sharedPref;
+
+  //   final jsonUserData = localDb!.getString('UserData');
+  //   final Map userData = jsonDecode(jsonUserData!);
+
+  //   final data = [];
+
+  //   final List<Widget> widgets = [];
+
+  //   for (var element in lecturesList) {
+  //     final fetchedLectureData = await api.fetchWithConditions(
+  //       'lectures',
+  //       filters: {'id': element},
+  //     );
+  //     data.add(fetchedLectureData[0]);
+  //   }
+
+  //   if (data.isNotEmpty) {
+  //     final List<Map<String, dynamic>> sortedData = data
+  //         .map((item) => item as Map<String, dynamic>)
+  //         .toList();
+
+  //     sortedData.sort((a, b) {
+  //       final aDate = DateTime.parse(a['created_at']);
+  //       final bDate = DateTime.parse(b['created_at']);
+  //       return aDate.compareTo(bDate);
+  //     });
+
+  //     for (int idx = 0; idx < sortedData.length; idx++) {
+  //       final element = sortedData[idx];
+  //       final delayMs = 50 + (idx * 80);
+
+  //       if (element['exam_to_open'] != null) {
+  //         final studentSolvedExam = await api.fetchWithConditions(
+  //           'students_solved_exams',
+  //           filters: {
+  //             'student_id': userData['id'],
+  //             'exam_id': element['exam_to_open'],
+  //           },
+  //         );
+  //         if (studentSolvedExam.isNotEmpty) {
+  //           widgets.add(
+  //             FadeInUp(
+  //               from: 100,
+  //               duration: const Duration(milliseconds: 600),
+  //               delay: Duration(milliseconds: delayMs),
+  //               child: AnimatedContainer(
+  //                 duration: const Duration(milliseconds: 300),
+  //                 child: CardModel(
+  //                   type: CardTypes.lecture,
+  //                   id: element['id'],
+  //                   topicId: widget.topicId,
+  //                   title: element['title'],
+  //                   description: element['description'],
+  //                 ),
+  //               ),
+  //             ),
+  //           );
+  //         } else {
+  //           widgets.add(
+  //             FadeInUp(
+  //               from: 100,
+  //               duration: const Duration(milliseconds: 600),
+  //               delay: Duration(milliseconds: delayMs),
+  //               child: SizedBox(
+  //                 child: Stack(
+  //                   children: [
+  //                     CardModel(
+  //                       type: CardTypes.lecture,
+  //                       id: element['id'],
+  //                       topicId: widget.topicId,
+  //                       title: element['title'],
+  //                       description: element['description'],
+  //                     ),
+  //                     Positioned.fill(
+  //                       child: Card(
+  //                         shadowColor: Colors.black.withOpacity(0.12),
+  //                         elevation: 4,
+  //                         shape: RoundedRectangleBorder(
+  //                           borderRadius: BorderRadius.circular(25),
+  //                         ),
+  //                         color: Colors.black.withOpacity(0.5),
+  //                         child: Row(
+  //                           mainAxisAlignment: MainAxisAlignment.center,
+  //                           children: [
+  //                             SizedBox(
+  //                               width: 300,
+  //                               child: Text(
+  //                                 'قم بحل الاختبار السابق لفتح هذه المحاضرة',
+  //                                 maxLines: 3,
+  //                                 textAlign: TextAlign.center,
+  //                                 style: Theme.of(context).textTheme.bodyLarge!
+  //                                     .copyWith(color: Colors.white),
+  //                               ),
+  //                             ),
+  //                             const SizedBox(width: 15),
+  //                             const Icon(
+  //                               Icons.lock_rounded,
+  //                               color: Colors.white,
+  //                             ),
+  //                           ],
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           );
+  //         }
+  //       } else {
+  //         widgets.add(
+  //           FadeInUp(
+  //             from: 100,
+  //             duration: const Duration(milliseconds: 600),
+  //             delay: Duration(milliseconds: delayMs),
+  //             child: CardModel(
+  //               type: CardTypes.lecture,
+  //               id: element['id'],
+  //               thumbnail: element['thumbnail'],
+  //               topicId: widget.topicId,
+  //               title: element['title'],
+  //               description: element['description'],
+  //             ),
+  //           ),
+  //         );
+  //       }
+  //     }
+  //   }
+  //   return widgets;
+  // }
+
   Future<List<Widget>> lecturesHandler(context, lecturesList) async {
     final ApiClient api = ApiClient();
 
@@ -188,107 +326,138 @@ class _TopicPageState extends State<TopicPage> {
         return aDate.compareTo(bDate);
       });
 
-      for (int idx = 0; idx < sortedData.length; idx++) {
-        final element = sortedData[idx];
-        final delayMs = 50 + (idx * 80);
+      for (var i = 0; i < sortedData.length; i++) {
+        if (sortedData[i]['videos'] != null) {
+          for (final MapEntry entry in sortedData[i]['videos'].entries) {
+            final value = entry.value;
+            final videoUrl = value['url'];
+            final maxViewCount =
+                value['max_view_count'] ?? 0; // Get max views from video data
 
-        if (element['exam_to_open'] != null) {
-          final studentSolvedExam = await api.fetchWithConditions(
-            'students_solved_exams',
-            filters: {
-              'student_id': userData['id'],
-              'exam_id': element['exam_to_open'],
-            },
-          );
-          if (studentSolvedExam.isNotEmpty) {
-            widgets.add(
-              FadeInUp(
-                from: 100,
-                duration: const Duration(milliseconds: 600),
-                delay: Duration(milliseconds: delayMs),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  child: CardModel(
-                    type: CardTypes.lecture,
-                    id: element['id'],
-                    topicId: widget.topicId,
-                    title: element['title'],
-                    description: element['description'],
-                  ),
-                ),
-              ),
+            final userViews = await _getUserVideoViewCount(
+              videoUrl,
+              userData['id'],
             );
-          } else {
-            widgets.add(
-              FadeInUp(
-                from: 100,
-                duration: const Duration(milliseconds: 600),
-                delay: Duration(milliseconds: delayMs),
-                child: SizedBox(
-                  child: Stack(
-                    children: [
-                      CardModel(
-                        type: CardTypes.lecture,
-                        id: element['id'],
-                        topicId: widget.topicId,
-                        title: element['title'],
-                        description: element['description'],
-                      ),
-                      Positioned.fill(
-                        child: Card(
-                          shadowColor: Colors.black.withOpacity(0.12),
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          color: Colors.black.withOpacity(0.5),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 300,
-                                child: Text(
-                                  'قم بحل الاختبار السابق لفتح هذه المحاضرة',
-                                  maxLines: 3,
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.bodyLarge!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              const Icon(
-                                Icons.lock_rounded,
-                                color: Colors.white,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            final isLimited = await _isVideoViewLimitReached(
+              videoUrl,
+              maxViewCount,
+              userViews,
+              userData['id'],
             );
+
+            Widget card = CardModel(
+              type: CardTypes.video,
+              title: value['title'],
+              description: value['description'],
+              thumbnail: sortedData[i]['thumbnail'],
+              note: Text(
+                ' المشاهدات  ($userViews/$maxViewCount)',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              id: '',
+              url: value['url'],
+            );
+
+            if (isLimited) {
+              final lockMsg =
+                  'وصلت للحد الأقصى من\n المشاهدات ($userViews/$maxViewCount)';
+              card = Stack(
+                children: [
+                  Padding(padding: const EdgeInsets.all(15), child: card),
+                  buildLockedOverlay(lockMsg),
+                ],
+              );
+            }
+            widgets.add(card);
           }
-        } else {
-          widgets.add(
-            FadeInUp(
-              from: 100,
-              duration: const Duration(milliseconds: 600),
-              delay: Duration(milliseconds: delayMs),
-              child: CardModel(
-                type: CardTypes.lecture,
-                id: element['id'],
-                thumbnail: element['thumbnail'],
-                topicId: widget.topicId,
-                title: element['title'],
-                description: element['description'],
-              ),
-            ),
-          );
         }
       }
     }
     return widgets;
+  }
+
+  Future<int> _getUserVideoViewCount(String videoUrl, String userId) async {
+    try {
+      final apiBaseUrl = dotenv.env['ALSHOBAKI_API'];
+
+      if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
+        projectLogger.e('ALSHOBAKI_API not found in .env');
+        return 0;
+      }
+
+      final uri = Uri.parse(
+        '${apiBaseUrl}api/videos/view-count',
+      ).replace(queryParameters: {'videoUrl': videoUrl, 'userId': userId});
+
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              // Add authorization header if needed
+              // 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final viewCount = data['data']['viewCount'] as int;
+
+        return viewCount;
+      } else {
+        projectLogger.e(
+          'Error fetching video view count: ${response.statusCode} - ${response.body}',
+        );
+        return 0;
+      }
+    } catch (e) {
+      projectLogger.e('Error fetching video view count: $e');
+      return 0;
+    }
+  }
+
+  /// Check if video view limit is reached
+  Future<bool> _isVideoViewLimitReached(
+    String videoUrl,
+    int maxViewCount,
+    int userViewCount,
+    String userId,
+  ) async {
+    if (maxViewCount <= 0) return false; // No limit set
+
+    return userViewCount >= maxViewCount;
+  }
+
+  Widget buildLockedOverlay(String message) {
+    return Positioned.fill(
+      child: Card(
+        shadowColor: Colors.black.withOpacity(0.12),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        color: Colors.black.withOpacity(0.5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge!.copyWith(color: Colors.white),
+            ),
+            const Icon(Icons.lock_rounded, color: Colors.white),
+          ],
+        ),
+      ),
+    );
   }
 }

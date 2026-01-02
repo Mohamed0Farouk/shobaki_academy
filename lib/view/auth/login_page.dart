@@ -19,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final authController = Get.put(AuthController());
-
+  bool isObscure = true;
   @override
   void dispose() {
     phoneController.dispose();
@@ -170,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                                         context,
                                       ).textTheme.bodyMedium,
 
-                                      obscureText: true,
+                                      obscureText: isObscure,
                                       validator: (v) => (v == null || v.isEmpty)
                                           ? 'الرجاء ادخال كلمة المرور'
                                           : null,
@@ -178,6 +178,14 @@ class _LoginPageState extends State<LoginPage> {
                                         hintText: 'كلمة السر',
                                         prefixIcon: const Icon(
                                           Icons.lock_outline,
+                                        ),
+                                        suffixIcon: IconButton(
+                                          onPressed: () => setState(() {
+                                            isObscure = !isObscure;
+                                          }),
+                                          icon: isObscure
+                                              ? Icon(Icons.remove_red_eye)
+                                              : Icon(Icons.visibility_off),
                                         ),
                                         filled: true,
                                         fillColor: Colors.grey[200],

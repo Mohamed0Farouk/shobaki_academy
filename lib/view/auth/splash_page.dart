@@ -36,7 +36,7 @@ class SplashPage extends StatelessWidget {
                 break;
               case AuthStatus.notVerified:
                 //Get.offAllNamed('/otp');
-                Get.offAllNamed('/home');
+                print('not verified');
                 break;
               case AuthStatus.loggedIn:
                 Get.offAllNamed('/home');
