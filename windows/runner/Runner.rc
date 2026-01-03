@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.mohamedfarouk" "\0"
-            VALUE "FileDescription", "shobaki_academy" "\0"
+            VALUE "FileDescription", "Al-Shobaki Academy" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "shobaki_academy" "\0"
+            VALUE "InternalName", "Al-Shobaki Academy" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.mohamedfarouk. All rights reserved." "\0"
-            VALUE "OriginalFilename", "shobaki_academy.exe" "\0"
-            VALUE "ProductName", "shobaki_academy" "\0"
+            VALUE "OriginalFilename", "Al-Shobaki Academy.exe" "\0"
+            VALUE "ProductName", "Al-Shobaki Academy" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

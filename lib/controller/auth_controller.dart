@@ -473,7 +473,7 @@ class AuthController extends GetxController {
       'school_name': 'الشوبكي أكاديمي',
       'phone_number': 'لا يوجد رقم هاتف',
       'stage': null,
-      'goverment': 'دبي',
+      'goverment': '-----------',
       //'subscription': 'منصة فقط',
       'disabled': false,
       'password': 'guest_password',

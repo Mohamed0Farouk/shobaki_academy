@@ -47,6 +47,7 @@ class BooksController extends GetxController {
   final RxString userId = ''.obs;
   final RxBool isGuest = false.obs;
   final RxBool isReviewer = false.obs;
+  Map? userData;
 
   @override
   void onInit() {
@@ -59,11 +60,11 @@ class BooksController extends GetxController {
   /// Load user data from local storage
   void _loadUserData() {
     try {
-      final userData = _localDb.sharedPref?.getString('UserData');
-      if (userData != null && userData.isNotEmpty) {
-        final userMap = jsonDecode(userData) as Map<String, dynamic>;
-        userEmail.value = userMap['email'] as String? ?? '';
-        userId.value = userMap['id'] ?? '';
+      final user = _localDb.sharedPref?.getString('UserData');
+      if (user != null && user.isNotEmpty) {
+        userData = jsonDecode(user) as Map<String, dynamic>;
+        userEmail.value = userData?['email'] as String? ?? '';
+        userId.value = userData?['id'] ?? '';
 
         // Check if guest
         isGuest.value = userEmail.value == 'guest@example.com';
@@ -105,11 +106,20 @@ class BooksController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
 
-      final response = await _api.fetchData('books');
-
-      books.value = (response)
-          .map((item) => Book.fromJson(item as Map<String, dynamic>))
-          .toList();
+      if (userData != null && userData!['stage'] != null) {
+        final response = await _api.fetchWithConditions(
+          'books',
+          filters: {'stage': userData!['stage']},
+        );
+        books.value = (response)
+            .map((item) => Book.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else {
+        final response = await _api.fetchData('books');
+        books.value = (response)
+            .map((item) => Book.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
     } catch (e) {
       errorMessage.value = 'فشل تحميل الملازم: $e';
       Get.log('Error fetching books: $e', isError: true);

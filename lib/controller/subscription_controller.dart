@@ -254,8 +254,9 @@ void showSubscriptionDialog({
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               InkWell(
-                onTap: () =>
-                    _launchUrl('https://wa.me/+?text=${Uri.encodeFull('')}'),
+                onTap: () => _launchUrl(
+                  'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   spacing: 5,
