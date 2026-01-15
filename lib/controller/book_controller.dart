@@ -68,6 +68,7 @@ class PdfController extends GetxController {
           'تم حفظ الملف: $filepath',
           backgroundColor: Colors.green,
           snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 6),
         );
       } else {
         throw Exception('Failed to download PDF');

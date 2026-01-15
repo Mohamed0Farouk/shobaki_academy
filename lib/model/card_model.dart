@@ -243,7 +243,7 @@ class _SimpleCard extends StatelessWidget {
                                 maxHeight: constraints.maxHeight * 0.5,
                               ),
                               child: AspectRatio(
-                                aspectRatio: 16 / 9,
+                                aspectRatio: 1 / 1,
                                 child: thumbnail != null
                                     ? Image.network(
                                         thumbnail!,

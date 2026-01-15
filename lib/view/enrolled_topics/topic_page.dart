@@ -350,10 +350,10 @@ class _TopicPageState extends State<TopicPage> {
               title: value['title'],
               description: value['description'],
               thumbnail: sortedData[i]['thumbnail'],
-              note: Text(
-                ' المشاهدات  ($userViews/$maxViewCount)',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              // note: Text(
+              //   ' المشاهدات  ($userViews/$maxViewCount)',
+              //   style: Theme.of(context).textTheme.bodySmall,
+              // ),
               id: '',
               url: value['url'],
             );

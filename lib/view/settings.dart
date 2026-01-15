@@ -403,6 +403,18 @@ class _SettingsPageState extends State<SettingsPage> {
                                 softWrap: true,
                               ),
                             ),
+                            SizedBox(width: 12),
+                            InkWell(
+                              onTap: () => showPaymentMethodsDialog(),
+                              child: Text(
+                                'عرض طرق الدفع ',
+                                style: Theme.of(context).textTheme.bodySmall!
+                                    .copyWith(
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                softWrap: true,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -490,6 +502,294 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
       barrierDismissible: dismissible,
+    );
+  }
+
+  Future<void> showPaymentMethodsDialog({bool dismissible = true}) {
+    return Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 500),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Icon(Icons.payment, color: Colors.blue, size: 28),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'طرق الدفع',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close),
+                          onPressed: () => Get.back(),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24),
+
+                    // Payment Method 1: Bank Transfer
+                    _buildPaymentMethod(
+                      icon: Icons.account_balance,
+                      title: '1. التحويل البنكي',
+                      children: [
+                        _buildBankAccount(
+                          accountName: 'juma Al shobaki',
+                          bankName: 'WIO',
+                          iban: 'AE960860000009227058837',
+                          swiftBic: 'WIOBAEADXXX',
+                        ),
+                        SizedBox(height: 16),
+                        _buildBankAccount(
+                          accountName: 'QUMAT ALTOMOH C B LLC',
+                          bankName: 'بنك ابو ظبي التجاري ADCB',
+                          accountNumber: '12853891920001',
+                          iban: 'AE110030012853891920001',
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 20),
+                    Divider(),
+                    SizedBox(height: 20),
+
+                    // Payment Method 2: Stripe
+                    _buildPaymentMethod(
+                      icon: Icons.credit_card,
+                      title: '2. الدفع عبر Stripe',
+                      children: [
+                        SizedBox(height: 8),
+                        Center(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              launchUrl(
+                                Uri.parse(
+                                  'https://buy.stripe.com/bIYcQ2eSM1Su1S8dQW',
+                                ),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                            icon: Icon(Icons.open_in_new),
+                            label: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                'الدفع بالبطاقة الآن',
+                                style: Theme.of(context).textTheme.bodyMedium!
+                                    .copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 20),
+                    Divider(),
+                    SizedBox(height: 20),
+
+                    // Instructions
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'تعليمات مهمة',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          _buildInfoRow(
+                            Icons.receipt_long,
+                            'بعد إتمام الدفع، يرجى إرسال صورة الإيصال على الواتساب',
+                          ),
+                          SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.warning_amber,
+                            'الرسوم غير قابلة للاسترداد بعد الدفع لأي سبب كان',
+                          ),
+                          SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.check_circle_outline,
+                            'لا تسدد الرسوم إلا بعد التأكد من الالتزام مع الأستاذ',
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 24),
+
+                    // Action Button
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'فهمت',
+                        style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: dismissible,
+    );
+  }
+
+  // Helper Widgets
+  Widget _buildPaymentMethod({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.blue.shade700, size: 20),
+            SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildBankAccount({
+    required String accountName,
+    required String bankName,
+    String? accountNumber,
+    required String iban,
+    String? swiftBic,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailRow('اسم الحساب', accountName),
+          _buildDetailRow('اسم البنك', bankName),
+          if (accountNumber != null)
+            _buildDetailRow('رقم الحساب', accountNumber),
+          _buildDetailRow('IBAN (للتحويل)', iban, monospace: true),
+          if (swiftBic != null)
+            _buildDetailRow('BIC/SWIFT', swiftBic, monospace: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {bool monospace = false}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: monospace ? 'monospace' : null,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.blue.shade700),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(text, style: TextStyle(fontSize: 14, height: 1.4)),
+        ),
+      ],
     );
   }
 

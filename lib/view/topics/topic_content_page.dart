@@ -214,56 +214,126 @@ class TopicContentPage extends StatelessWidget {
   Widget _buildHeader(BuildContext context, String title, String? thumb) {
     final theme = Theme.of(context);
     final hasThumb = thumb != null && thumb.trim().isNotEmpty;
+
     return Material(
       elevation: 4,
       color: theme.colorScheme.primary,
       child: SizedBox(
         height: 240,
         width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (hasThumb)
-              AspectRatio(
-                aspectRatio: 1 / 1,
-                child: Image.network(
-                  thumb,
-                  fit: BoxFit.fill,
-                  errorBuilder: (_, __, ___) => _headerPlaceholder(context),
-                ),
-              )
-            else
-              _headerPlaceholder(context),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary.withOpacity(0.75),
-                    theme.colorScheme.primary.withOpacity(0.45),
-                    Colors.transparent,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 700;
+
+            /// ===============================
+            /// WIDE SCREENS (Tablet / Desktop)
+            /// ===============================
+            if (isWide) {
+              return Padding(
+                padding: const EdgeInsets.all(15),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // LEFT: Square image
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary,
+                              theme.colorScheme.primary.withOpacity(0.85),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Text(
+                            title,
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: theme.colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // RIGHT: Title area
+                    AspectRatio(
+                      aspectRatio: 1 / 1,
+                      child: hasThumb
+                          ? Image.network(
+                              thumb,
+                              fit: BoxFit.fill,
+                              errorBuilder: (_, __, ___) =>
+                                  _headerPlaceholder(context),
+                            )
+                          : _headerPlaceholder(context),
+                    ),
                   ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: Text(
-                  title,
-                  textAlign: TextAlign.right,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    color: theme.colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
+              );
+            }
+
+            /// ===============================
+            /// SMALL SCREENS (Mobile)
+            /// ===============================
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasThumb)
+                  Image.network(
+                    thumb,
+                    fit: BoxFit.fill,
+                    errorBuilder: (_, __, ___) => _headerPlaceholder(context),
+                  )
+                else
+                  _headerPlaceholder(context),
+
+                // Gradient overlay
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary.withOpacity(0.75),
+                        theme.colorScheme.primary.withOpacity(0.45),
+                        Colors.transparent,
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+
+                // Title
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
