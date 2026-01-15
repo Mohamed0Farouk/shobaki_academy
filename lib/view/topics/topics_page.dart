@@ -297,10 +297,8 @@ class _TopicsPageState extends State<TopicsPage> {
   /// HORIZONTAL LIST (Mobile)
   /// ===================================
   Widget _buildHorizontalList(List<dynamic> items) {
-    final size = MediaQuery.of(context).size;
+    //final size = MediaQuery.of(context).size;
     final cardWidth = _computeCardWidth(context);
-    final sidePadding = (size.width - cardWidth) / 2;
-    final double horizontalPadding = sidePadding > 8 ? sidePadding : 8;
     final listHeight = cardWidth + 80; // increased height for larger cards
 
     return SizedBox(
@@ -308,7 +306,9 @@ class _TopicsPageState extends State<TopicsPage> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+        ), // Fixed padding from left
         itemBuilder: (context, index) {
           return FadeInRight(
             delay: Duration(milliseconds: 100 + (index * 50)),
@@ -486,15 +486,18 @@ class _HoverableCardState extends State<_HoverableCard>
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.network(
-                          widget.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(
-                              Icons.broken_image,
-                              size: 32,
-                              color: Colors.grey,
+                        AspectRatio(
+                          aspectRatio: 1 / 1,
+                          child: Image.network(
+                            widget.imageUrl,
+                            fit: BoxFit.fill,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 32,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                         ),

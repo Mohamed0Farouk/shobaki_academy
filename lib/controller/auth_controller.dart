@@ -35,13 +35,10 @@ class AuthController extends GetxController {
     'الظفرة',
     'دبي',
     'الشارقة',
-    'خورفكان',
-    'كلباء',
     'عجمان',
     'أم القيوين',
     'رأس الخيمة',
     'الفجيرة',
-    'دبا الفجيرة',
   ];
 
   // selected values for signup form

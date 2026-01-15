@@ -523,12 +523,15 @@ class _BookCardState extends State<_BookCard>
                       child: widget.book.thumbnail != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                widget.book.thumbnail!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildPlaceholder();
-                                },
+                              child: AspectRatio(
+                                aspectRatio: 1 / 1,
+                                child: Image.network(
+                                  widget.book.thumbnail!,
+                                  fit: BoxFit.fill,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildPlaceholder();
+                                  },
+                                ),
                               ),
                             )
                           : _buildPlaceholder(),
