@@ -24,6 +24,10 @@ class VideoPlayerView extends StatelessWidget {
         },
         child: Icon(Icons.home, color: Theme.of(context).colorScheme.primary),
       ),
+      floatingActionButtonLocation: (Platform.isAndroid || Platform.isIOS)
+          ? FloatingActionButtonLocation.centerFloat
+          : FloatingActionButtonLocation.endFloat,
+
       appBar: AppBar(
         title: Text(
           "صفحة المشاهدة",
