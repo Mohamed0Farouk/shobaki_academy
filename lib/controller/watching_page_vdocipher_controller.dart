@@ -72,7 +72,24 @@ class VdoWatchingController extends GetxController {
       });
       final otpResponse = await Dio().post(
         "${apiUrl}api/vdocipher/otp",
-        data: {"videoId": videoId, "ttl": 30, "userId": user["id"]},
+        data: {
+          "videoId": videoId,
+          "ttl": 30,
+          "userId": user["id"],
+          "platform": kIsWeb
+              ? "web"
+              : Platform.isAndroid
+              ? "android"
+              : Platform.isIOS
+              ? "ios"
+              : Platform.isWindows
+              ? "windows"
+              : Platform.isMacOS
+              ? "macos"
+              : Platform.isLinux
+              ? "linux"
+              : "unknown",
+        },
       );
 
       final otp = otpResponse.data["otp"];
