@@ -36,7 +36,7 @@ class _TopicPageState extends State<TopicPage> {
       backgroundColor: const Color(0xfff7f7f7),
       appBar: AppBar(
         title: Text(
-          'محتوى الموضوع',
+          'محتوى المحتوى',
           style: Theme.of(
             context,
           ).textTheme.headlineMedium?.copyWith(color: Colors.white),

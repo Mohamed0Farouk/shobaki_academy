@@ -31,7 +31,7 @@ class TopicContentPage extends StatelessWidget {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: const Text('تفاصيل الموضوع'),
+        title: const Text('تفاصيل المحتوى'),
         elevation: 0,
         centerTitle: true,
       ),
@@ -154,7 +154,7 @@ class TopicContentPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'المواضيع الفرعية المتضمنة',
+                  'المحتويات الفرعية المتضمنة',
                   style: Theme.of(context).textTheme.headlineMedium,
                   textAlign: TextAlign.right,
                 ),
@@ -394,12 +394,12 @@ class TopicContentPage extends StatelessWidget {
                 ),
                 _infoChip(context, Icons.tag, 'المرحلة: $stage'),
                 // Hide price in review mode
-                if (!inReview)
-                  _infoChip(
-                    context,
-                    Icons.price_check,
-                    'السعر: ${_formatPrice(price)}',
-                  ),
+                // if (!inReview)
+                //   _infoChip(
+                //     context,
+                //     Icons.price_check,
+                //     'السعر: ${_formatPrice(price)}',
+                //   ),
               ],
             ),
             const SizedBox(height: 16),
@@ -407,7 +407,7 @@ class TopicContentPage extends StatelessWidget {
             if (showChildrenHeader) const SizedBox(height: 20),
             if (showChildrenHeader)
               Text(
-                'المواضيع الفرعية',
+                'المحتويات الفرعية',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.right,
               ),
@@ -490,9 +490,9 @@ class TopicContentPage extends StatelessWidget {
     }
 
     String label = !isSubscribed
-        ? 'انضم الى الموضوع'
-        : 'تم الانضمام — افتح الموضوع';
-    label = topic['free'] == true ? 'افتح الموضوع' : label;
+        ? 'انضم الى المحتوى'
+        : 'تم الانضمام — افتح المحتوى';
+    label = topic['free'] == true ? 'افتح المحتوى' : label;
 
     return ElevatedButton.icon(
       icon: Icon(
@@ -532,7 +532,7 @@ class TopicContentPage extends StatelessWidget {
               const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
-                'هذا الموضوع مدفوع',
+                'هذا المحتوى مدفوع',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.orange,
                   fontWeight: FontWeight.w600,
@@ -542,7 +542,7 @@ class TopicContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'سجل دخولك للاشتراك في هذا الموضوع',
+            'سجل دخولك للاشتراك في هذا المحتوى',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.orange.shade700),

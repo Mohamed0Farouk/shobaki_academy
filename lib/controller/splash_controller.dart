@@ -35,11 +35,10 @@ class SplashController extends GetxController {
 
     final isGuest = localDb?.getBool('isGuestMode') ?? false;
     final isLoggedIn = localDb?.getBool('isLoggedIn') ?? false;
-    final isVerified = localDb?.getBool('isVerified') ?? false;
     final isInReview = localDb?.getBool('inReview') ?? false;
 
     print(
-      'Auth Check - isGuest: $isGuest, isLoggedIn: $isLoggedIn, isVerified: $isVerified, isInReview: $isInReview',
+      'Auth Check - isGuest: $isGuest, isLoggedIn: $isLoggedIn, isInReview: $isInReview',
     );
 
     if (isGuest) {
@@ -58,12 +57,12 @@ class SplashController extends GetxController {
       return;
     }
 
-    if (!isVerified) {
+    if (!authController.isVerified.value) {
       status.value = AuthStatus.notVerified;
       return;
     }
 
-    if (isLoggedIn && isVerified) {
+    if (isLoggedIn && authController.isVerified.value) {
       status.value = AuthStatus.loggedIn;
       return;
     }

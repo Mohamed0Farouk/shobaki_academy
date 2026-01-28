@@ -1,5 +1,7 @@
 // lib/controller/books_controller.dart
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'dart:convert';
@@ -47,6 +49,11 @@ class BooksController extends GetxController {
   final RxString userId = ''.obs;
   final RxBool isGuest = false.obs;
   final RxBool isReviewer = false.obs;
+  final TextEditingController searchController = TextEditingController();
+  final RxString searchQuery = ''.obs;
+  final RxBool isSearching = false.obs;
+  final RxBool sheetOpen = false.obs;
+  final RxList<Book> searchResults = <Book>[].obs;
   Map? userData;
 
   @override
@@ -55,6 +62,12 @@ class BooksController extends GetxController {
     _loadUserData();
     checkBookSubscription();
     fetchBooks();
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
   }
 
   /// Load user data from local storage
@@ -141,5 +154,160 @@ class BooksController extends GetxController {
     } catch (e) {
       Get.log('Error refreshing books and subscription: $e', isError: true);
     }
+  }
+
+  /// Search books by title
+  void onSearchSubmitted(String value, context) {
+    _doSearch(value, context);
+  }
+
+  Future<void> _doSearch(String q, context) async {
+    final query = q.trim();
+    if (query.isEmpty) {
+      searchResults.clear();
+      if (sheetOpen.value) {
+        if (Get.isBottomSheetOpen == true) Get.back();
+        sheetOpen.value = false;
+      }
+      isSearching.value = false;
+      return;
+    }
+
+    if (!sheetOpen.value) {
+      _showResultsSheet(context);
+    }
+
+    isSearching.value = true;
+    try {
+      final pattern = '%$query%';
+      final filters = <String, dynamic>{
+        'title': {'operator': 'ilike', 'value': pattern},
+      };
+
+      if (userData != null && userData!['stage'] != null) {
+        filters['stage'] = userData!['stage'];
+      }
+
+      final response = await _api.fetchWithConditions(
+        'books',
+        filters: filters,
+      );
+      searchResults.assignAll(
+        response.map((item) => Book.fromJson(item as Map<String, dynamic>)),
+      );
+    } catch (e) {
+      Get.log('Error searching books: $e', isError: true);
+      searchResults.clear();
+      Get.snackbar(
+        'خطأ في البحث',
+        'حدث خطأ أثناء البحث: $e',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSearching.value = false;
+    }
+  }
+
+  void _showResultsSheet(context) {
+    sheetOpen.value = true;
+
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          height: Get.height * 0.6,
+          padding: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // header with close icon
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        searchController.clear();
+                        searchQuery.value = '';
+                        searchResults.clear();
+                        if (sheetOpen.value) {
+                          if (Get.isBottomSheetOpen == true) Get.back();
+                          sheetOpen.value = false;
+                          isSearching.value = false;
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Obx(() {
+                  if (isSearching.value) {
+                    return Center(
+                      child: CircularProgressIndicator(color: Colors.blue[400]),
+                    );
+                  }
+                  final items = searchResults;
+                  if (items.isEmpty) {
+                    return const Center(child: Text('لا توجد نتائج'));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemBuilder: (_, i) {
+                      final book = items[i];
+                      return ListTile(
+                        title: Text(book.title),
+                        subtitle: book.free
+                            ? const Text('مجاني')
+                            : Text(
+                                'غير مجاني',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                        onTap: () {
+                          Get.to(
+                            () => PdfModel(
+                              pdfUrl: book.url,
+                              filename: '${book.title}.pdf',
+                            ),
+                          );
+                          if (sheetOpen.value) {
+                            if (Get.isBottomSheetOpen == true) Get.back();
+                            sheetOpen.value = false;
+                          }
+                        },
+                      );
+                    },
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemCount: items.length,
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    ).whenComplete(() {
+      sheetOpen.value = false;
+      isSearching.value = false;
+    });
+  }
+
+  /// Clear search results
+  void clearSearch() {
+    searchQuery.value = '';
+    searchController.clear();
+    searchResults.clear();
+    isSearching.value = false;
   }
 }

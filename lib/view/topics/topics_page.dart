@@ -100,7 +100,7 @@ class _TopicsPageState extends State<TopicsPage> {
                       duration: const Duration(milliseconds: 500),
                       delay: const Duration(milliseconds: 200),
                       child: _buildSectionHeader(
-                        "اخر المواضيع",
+                        "اخر المحتويات",
                         Icons.fire_truck,
                       ),
                     ),
@@ -165,7 +165,7 @@ class _TopicsPageState extends State<TopicsPage> {
         textInputAction: TextInputAction.search,
         onSubmitted: (q) => controller.onSearchSubmitted(q, context),
         decoration: InputDecoration(
-          hintText: 'ابحث عن موضوع',
+          hintText: 'ابحث عن محتوى',
           hintStyle: const TextStyle(color: Colors.black45),
           prefixIcon: const Icon(Icons.search, color: Colors.black54),
           border: InputBorder.none,
