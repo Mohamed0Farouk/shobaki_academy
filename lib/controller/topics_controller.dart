@@ -95,7 +95,7 @@ class TopicsController extends GetxController {
       // keep lists unchanged on error but show notification
       Get.snackbar(
         'خطأ',
-        'فشل في جلب المواضيع: $e',
+        'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
         snackPosition: SnackPosition.BOTTOM,
       );

@@ -73,7 +73,7 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          navlabel: 'تصفح الموضوع',
+          navlabel: 'تصفح المحتوى',
           navPage: TopicPage(topicId: id),
         );
       case CardTypes.lecture:

@@ -56,7 +56,6 @@ class AuthController extends GetxController {
 
     isGuestMode.value = localDb?.getBool('isGuestMode') ?? false;
     isLoggedIn.value = localDb?.getBool('isLoggedIn') ?? false;
-    isVerified.value = localDb?.getBool('isVerified') ?? false;
     inReview.value = localDb?.getBool('inReview') ?? false;
   }
 
@@ -69,16 +68,13 @@ class AuthController extends GetxController {
   Future<void> saveUserLocally(
     Map<String, dynamic> userData, {
     bool loggedIn = true,
-    bool verified = false,
     bool reviewer = false,
   }) async {
     final localDb = db.sharedPref;
     localDb?.setString('UserData', jsonEncode(userData));
     localDb?.setBool('isLoggedIn', loggedIn);
-    localDb?.setBool('isVerified', verified);
     localDb?.setBool('inReview', reviewer);
     isLoggedIn.value = loggedIn;
-    isVerified.value = verified;
     inReview.value = reviewer;
   }
 
@@ -207,7 +203,6 @@ class AuthController extends GetxController {
       await saveUserLocally(
         userData,
         loggedIn: true,
-        verified: true,
         reviewer: isReviewer,
       );
 
@@ -293,7 +288,6 @@ class AuthController extends GetxController {
       await saveUserLocally(
         userData,
         loggedIn: true,
-        verified: userData['verified'],
         reviewer: isReviewer,
       );
 
@@ -329,9 +323,9 @@ class AuthController extends GetxController {
         return true;
       }
 
-      final verified = userData['verified'];
+      isVerified.value = userData['verified'];
 
-      if (verified) {
+      if (isVerified.value) {
         Get.offAllNamed('/home');
         return true;
       } else {
@@ -406,7 +400,6 @@ class AuthController extends GetxController {
       await saveUserLocally(
         userData,
         loggedIn: true,
-        verified: false,
         reviewer: false,
       );
       Get.close(1);
@@ -427,7 +420,6 @@ class AuthController extends GetxController {
     localDb?.remove('UserData');
     localDb?.setBool('isGuestMode', false);
     localDb?.setBool('isLoggedIn', false);
-    localDb?.setBool('isVerified', false);
     localDb?.setBool('inReview', false);
     isGuestMode.value = false;
     isLoggedIn.value = false;
@@ -456,11 +448,9 @@ class AuthController extends GetxController {
       await localDb.remove('UserData');
       await localDb.setBool('isGuestMode', false);
       await localDb.setBool('isLoggedIn', false);
-      await localDb.setBool('isVerified', false);
       await localDb.setBool('inReview', false);
       isGuestMode.value = false;
       isLoggedIn.value = false;
-      isVerified.value = false;
       inReview.value = false;
     }
     final guestUser = {
@@ -479,7 +469,6 @@ class AuthController extends GetxController {
     await saveUserLocally(
       guestUser,
       loggedIn: true,
-      verified: true,
       reviewer: false,
     );
     localDb.setBool('isGuestMode', true);
@@ -492,11 +481,9 @@ class AuthController extends GetxController {
     final localDb = db.sharedPref;
     isGuestMode.value = false;
     isLoggedIn.value = false;
-    isVerified.value = false;
     inReview.value = false;
     await localDb?.setBool('isGuestMode', false);
     await localDb?.setBool('isLoggedIn', false);
-    await localDb?.setBool('isVerified', false);
     await localDb?.setBool('inReview', false);
     await localDb?.remove('UserData');
     Get.offAllNamed('/login');

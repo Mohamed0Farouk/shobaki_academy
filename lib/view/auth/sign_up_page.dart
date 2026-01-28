@@ -199,31 +199,38 @@ class _SignUpPageState extends State<SignUpPage> {
                                   const SizedBox(height: 16),
 
                                   // phone
-                                  TextFormField(
-                                    controller: phoneController,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium,
-                                    keyboardType: TextInputType.phone,
-                                    validator: (v) => (v == null || v.isEmpty)
-                                        ? 'الرجاء ادخال رقم الهاتف'
-                                        : null,
-                                    decoration: InputDecoration(
-                                      hintText: 'رقم الهاتف',
-                                      filled: true,
-                                      fillColor: Colors.grey[200],
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 16,
+                                  Directionality(
+                                    textDirection: TextDirection.ltr,
+                                    child: TextFormField(
+                                      controller: phoneController,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium,
+                                      keyboardType: TextInputType.phone,
+                                      validator: (v) => (v == null || v.isEmpty)
+                                          ? 'الرجاء ادخال رقم الهاتف'
+                                          : null,
+                                      decoration: InputDecoration(
+                                        hintTextDirection: TextDirection.rtl,
+                                        hintText: 'رقم الهاتف',
+                                        filled: true,
+
+                                        fillColor: Colors.grey[200],
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 16,
+                                            ),
+                                        suffixIcon: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: const Icon(
+                                            Icons.phone_android,
                                           ),
-                                      prefixIcon: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        ),
+                                        prefixIcon: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            const Icon(Icons.phone_android),
-                                            SizedBox(width: 4),
                                             Text(
                                               '+971 ',
                                               style: Theme.of(
@@ -232,10 +239,12 @@ class _SignUpPageState extends State<SignUpPage> {
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
                                       ),
                                     ),
                                   ),

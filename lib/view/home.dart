@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
         activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        label: 'المحتويات',
       ),
       BottomNavigationBarItem(
         label: 'الملازم',
@@ -174,7 +174,7 @@ class _HomePageState extends State<HomePage> {
 
     final normalSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
         activeIcon: Icons.home_filled,
       ),
@@ -213,7 +213,7 @@ class _HomePageState extends State<HomePage> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
         activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        label: 'المحتويات',
       ),
       const BottomNavigationBarItem(
         label: 'الملازم',
@@ -235,7 +235,7 @@ class _HomePageState extends State<HomePage> {
 
     final guestSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
         activeIcon: Icons.home_filled,
       ),
@@ -269,7 +269,7 @@ class _HomePageState extends State<HomePage> {
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
         activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        label: 'المحتويات',
       ),
       BottomNavigationBarItem(
         label: 'الملازم',
@@ -291,7 +291,7 @@ class _HomePageState extends State<HomePage> {
 
     final reviewSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
         activeIcon: Icons.home_filled,
       ),

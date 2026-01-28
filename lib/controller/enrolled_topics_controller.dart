@@ -123,7 +123,7 @@ class EnrolledTopicsController extends GetxController {
       projectLogger.e('Error loading enrolled topics: $e');
       Get.snackbar(
         'خطأ',
-        'فشل في جلب المواضيع: $e',
+        'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
         snackPosition: SnackPosition.BOTTOM,
       );
