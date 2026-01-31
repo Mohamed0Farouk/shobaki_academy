@@ -7,7 +7,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 import 'package:get/get.dart';
-
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
@@ -100,57 +101,6 @@ class VdoWatchingController extends GetxController {
         playbackInfo: playbackInfo,
         embedInfoOptions: const EmbedInfoOptions(autoplay: true),
       );
-
-      if (!kIsWeb) {
-        if (Platform.isAndroid || Platform.isIOS) {
-          // ===== Mobile SDK =====
-          webController = WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..addJavaScriptChannel(
-              "FlutterEvents",
-              onMessageReceived: (msg) => _onWebEvent(msg.message),
-            )
-            ..loadHtmlString(_webViewHtml(otp, playbackInfo));
-        }
-        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-          //await windowsController.initialize();
-
-          // ignore: unused_local_variable
-          final html =
-              '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: black;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://player.vdocipher.com/v2/?otp=$otp&playbackInfo=$playbackInfo"
-    allow="encrypted-media; fullscreen"
-    allowfullscreen>
-  </iframe>
-</body>
-</html>
-''';
-
-          //await windowsController.loadStringContent(html);
-        }
-      }
     } catch (e) {
       errorMessage.value = "Failed to load video";
       projectLogger.e("Video init error: $e");
@@ -185,14 +135,6 @@ class VdoWatchingController extends GetxController {
     projectLogger.e("VdoPlayer error: ${err.message}");
   }
 
-  void _onWebEvent(String event) {
-    if (event == "play") {
-      _onPlay();
-    } else if (event == "pause") {
-      _onPause();
-    }
-  }
-
   void _onPlay() {
     if (!_isPlaying) {
       _isPlaying = true;
@@ -217,60 +159,6 @@ class VdoWatchingController extends GetxController {
         viewDurationSeconds.value = _accumulatedSeconds;
       }
     }
-  }
-
-  String _webViewHtml(String otp, String playbackInfo) {
-    final encoded = playbackInfo;
-
-    return """
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body, html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
-      background: black;
-      overflow: hidden;
-    }
-    .wrapper {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      background: black;
-    }
-    .iframe-container {
-      padding-top: 56.25%; /* 16:9 aspect ratio */
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
-    iframe {
-      border: 0;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="iframe-container">
-      <iframe
-        src="https://player.vdocipher.com/v2/?otp=$otp&playbackInfo=$encoded"
-        allowfullscreen
-        allow="encrypted-media; fullscreen">
-      </iframe>
-    </div>
-  </div>
-</body>
-</html>
-""";
   }
 
   Future<void> _createInitialLog() async {
@@ -363,6 +251,358 @@ class VdoWatchingController extends GetxController {
     } catch (e) {
       projectLogger.e("Error while logging view: $e");
     }
+  }
+
+  String buildVdoHtml({
+    required String otp,
+    required String playbackInfo,
+    required String logId,
+    required String userId,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #embedBox {
+      width: 100%;
+      height: 100%;
+    }
+
+    #expired, #concurrent-warning {
+      display: none;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+    }
+
+    .message-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    #concurrent-warning {
+      background: rgba(0, 0, 0, 0.95);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="embedBox"></div>
+
+<div id="expired">
+  <div>
+    <div class="message-icon">⏱️</div>
+    <h2>Session Expired</h2>
+    <p>Please return to the app to continue watching.</p>
+  </div>
+</div>
+
+<div id="concurrent-warning">
+  <div>
+    <div class="message-icon">⚠️</div>
+    <h2>Another Video is Playing</h2>
+    <p>You are watching another video elsewhere. This session will be paused.</p>
+  </div>
+</div>
+
+<!-- VdoCipher Player SDK -->
+<script src="https://player.vdocipher.com/v2/api.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  const SESSION_DURATION = 3 * 60 * 60 * 1000; // 3 hours
+  const TRACKING_INTERVAL = 10 * 1000; // Track every 10 seconds
+  const CONCURRENT_CHECK_INTERVAL = 5 * 1000; // Check every 5 seconds
+  
+  const otp = decodeURIComponent("${Uri.encodeComponent(otp)}");
+  const playbackInfo = decodeURIComponent("${Uri.encodeComponent(playbackInfo)}");
+  const logId = "$logId";
+  const userId = "$userId";
+
+  const embedBox = document.getElementById("embedBox");
+  const expiredDiv = document.getElementById("expired");
+  const concurrentWarning = document.getElementById("concurrent-warning");
+  
+  let sessionStartTime = Date.now();
+  let sessionTimer = null;
+  let player = null;
+  let trackingInterval = null;
+  let concurrentCheckInterval = null;
+  let totalDurationSeconds = 0;
+  let lastTrackedSeconds = 0;
+  let isConcurrentSession = false;
+
+  function showExpired(message = null) {
+    embedBox.style.display = "none";
+    expiredDiv.style.display = "flex";
+    concurrentWarning.style.display = "none";
+    
+    if (message) {
+      expiredDiv.querySelector('p').textContent = message;
+    }
+
+    cleanup();
+  }
+
+  function showConcurrentWarning() {
+    if (!isConcurrentSession) {
+      isConcurrentSession = true;
+      concurrentWarning.style.display = "flex";
+      
+      // Pause the player
+      if (player) {
+        player.api.pause();
+      }
+      
+      
+    }
+  }
+
+  function hideConcurrentWarning() {
+    if (isConcurrentSession) {
+      isConcurrentSession = false;
+      concurrentWarning.style.display = "none";
+      
+      // Resume the player
+      if (player) {
+        player.api.play();
+      }
+      
+    }
+  }
+
+  function checkSessionExpiry() {
+    const elapsed = Date.now() - sessionStartTime;
+    if (elapsed >= SESSION_DURATION) {
+      showExpired('Please return to the app to continue watching.');
+    }
+  }
+
+  
+
+  async function checkCurrentlyWatching() {
+    try {
+      // This should be replaced with your actual API endpoint
+      const response = await fetch(`https://alshobakiapi-production.up.railway.app/api/check-log/\${logId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Check if currently_log flag is false
+        if (data.currently_log === false) {
+          showConcurrentWarning();
+        } else {
+          hideConcurrentWarning();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking concurrent session:', error);
+    }
+  }
+
+  async function trackViewDuration() {
+    if (!player || isConcurrentSession) return;
+
+    try {
+      const totalPlayed = await player.api.getTotalPlayed();
+      const currentSeconds = Math.floor(totalPlayed);
+      
+      // Only send if there's meaningful progress
+      if (currentSeconds > lastTrackedSeconds) {
+        lastTrackedSeconds = currentSeconds;
+        
+        // Calculate if threshold reached (e.g., 80% of video)
+        const thresholdReached = totalDurationSeconds > 0 && 
+          (currentSeconds / totalDurationSeconds) >= 0.8;
+
+        const logData = {
+          user_id: userId,
+          type: "video_view",
+          video_url: playbackInfo, // or extract video ID if needed
+          view_duration_seconds: currentSeconds,
+          viewed: thresholdReached,
+          video_total_duration_seconds: totalDurationSeconds,
+          data: {
+            video_url: playbackInfo,
+            view_duration_seconds: currentSeconds,
+            viewed: thresholdReached,
+            video_total_duration_seconds: totalDurationSeconds,
+          },
+        };
+
+        // Send to your API
+        await fetch('https://alshobakiapi-production.up.railway.app/api/track-view', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(logData)
+        });
+
+        console.log('View duration tracked:', currentSeconds, 'seconds');
+      }
+    } catch (error) {
+      console.error('Error tracking view duration:', error);
+    }
+  }
+
+  function cleanup() {
+    if (sessionTimer) clearTimeout(sessionTimer);
+    if (trackingInterval) clearInterval(trackingInterval);
+    if (concurrentCheckInterval) clearInterval(concurrentCheckInterval);
+    
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {}
+  }
+
+  // Initialize VdoCipher Player
+  window.addEventListener('load', function() {
+    try {
+      // Create iframe with VdoCipher player URL
+      const iframe = document.createElement('iframe');
+      iframe.id = 'vdo-player-iframe';
+      iframe.src = `https://player.vdocipher.com/v2/?otp=\${otp}&playbackInfo=\${playbackInfo}&theme=9ae8bbe8dd964ddc9bdb932cca1cb59a`;
+      iframe.style.border = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.allow = 'encrypted-media';
+      iframe.allowFullscreen = true;
+      embedBox.appendChild(iframe);
+
+      // Get player instance after iframe loads
+      iframe.onload = function() {
+        player = VdoPlayer.getInstance(iframe);
+        
+        // Get total duration when available
+        player.addEventListener('load', () => {
+          player.api.video.getDuration().then((duration) => {
+            totalDurationSeconds = Math.floor(duration);
+            console.log('Video duration:', totalDurationSeconds, 'seconds');
+            
+            
+          });
+        });
+
+        // Start tracking view duration every 10 seconds
+        trackingInterval = setInterval(trackViewDuration, TRACKING_INTERVAL);
+
+        // Start checking for concurrent sessions
+        concurrentCheckInterval = setInterval(checkCurrentlyWatching, CONCURRENT_CHECK_INTERVAL);
+
+        console.log('✅ VdoCipher player initialized with tracking');
+      };
+
+      // Start session expiration timer
+      sessionTimer = setTimeout(() => {
+        showExpired('Please return to the app to continue watching.');
+      }, SESSION_DURATION);
+
+    } catch (error) {
+      console.error('Failed to initialize player:', error);
+      showExpired('Failed to initialize video player.');
+    }
+  });
+
+  // Cleanup on page close
+  window.addEventListener('beforeunload', () => {
+    // Send final tracking update
+    if (player && !isConcurrentSession) {
+      trackViewDuration();
+    }
+    cleanup();
+  });
+
+  // Handle visibility change
+  let hiddenTime = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hiddenTime = Date.now();
+      // Track when user leaves
+      if (player && !isConcurrentSession) {
+        trackViewDuration();
+      }
+    } else if (hiddenTime) {
+      const timeHidden = Date.now() - hiddenTime;
+      // If away for more than 30 minutes, expire session
+      if (timeHidden > 30 * 60 * 1000) {
+        showExpired('Session expired due to inactivity.');
+      }
+      hiddenTime = null;
+    }
+  });
+
+  // Check session every minute
+  setInterval(checkSessionExpiry, 60 * 1000);
+
+})();
+</script>
+
+</body>
+</html>
+''';
+  }
+
+  Future<void> openVdoCipherDesktopPlayer({
+    required String otp,
+    required String playbackInfo,
+  }) async {
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      return;
+    }
+
+    final html = buildVdoHtml(
+      otp: otp,
+      playbackInfo: playbackInfo,
+      logId: _logId!,
+      userId: user["id"],
+    );
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/vdo_player.html');
+
+    await file.writeAsString(html, flush: true);
+
+    final uri = Uri.file(file.path);
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    Future.delayed(const Duration(minutes: 3), () {
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
+    });
   }
 
   /// Called when controller is being closed. Ensure we accumulate any active session and send a final update.
