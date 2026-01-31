@@ -56,11 +56,13 @@ class VideoPlayerView extends StatelessWidget {
 
         // Windows WebView
         if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-          ctrl.openVdoCipherDesktopPlayer(
-            otp: ctrl.embedInfo!.otp!,
-            playbackInfo: ctrl.embedInfo!.playbackInfo!,
-          );
-          //return Webview( ctrl.windowsController);
+          if (ctrl.initialized && ctrl.logInitialized) {
+            ctrl.openVdoCipherDesktopPlayer(
+              otp: ctrl.embedInfo!.otp!,
+              playbackInfo: ctrl.embedInfo!.playbackInfo!,
+            );
+          }
+          
           return Center(
             child: Text(
               "تم فتح مشغل الفيديو في المتصفح الافتراضي لديك.",

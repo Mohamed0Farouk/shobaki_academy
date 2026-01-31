@@ -306,42 +306,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              'للتواصل مع دعم المنصة  ',
-                              style: Theme.of(context).textTheme.bodySmall,
-                              softWrap: true,
-                            ),
-                            //TODO: update whatsapp number
-                            InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+502762100?text=${Uri.encodeFull('')}',
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: 5,
-                                children: [
-                                  Text(
-                                    'Whatapp',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.green),
-                                  ),
-                                  Image.asset(
-                                    'assets/logos/whatsapp.png',
-                                    width: 20,
-                                    height: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
                               'للحجز و الاستعلام ',
                               style: Theme.of(context).textTheme.bodySmall,
                               softWrap: true,
@@ -372,15 +336,53 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'للتواصل مع دعم المنصة  ',
+                              style: Theme.of(context).textTheme.bodySmall,
+                              softWrap: true,
+                            ),
+                            //TODO: update whatsapp number
+                            InkWell(
+                              onTap: () => _launchUrl(
+                                'https://wa.me/+502762100?text=${Uri.encodeFull('')}',
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                spacing: 5,
+                                children: [
+                                  Text(
+                                    'Whatapp',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.green),
+                                  ),
+                                  Image.asset(
+                                    'assets/logos/whatsapp.png',
+                                    width: 20,
+                                    height: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Wrap(
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             //TODO: update whatsapp number
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+?text=${Uri.encodeFull('')}',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://shobakiacademy.com/payments',
+                                ),
                               ),
                               child: Text(
                                 'سياسة الخصوصية و شروط الاستخدام  ',
@@ -393,7 +395,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             SizedBox(width: 12),
                             InkWell(
-                              onTap: () => showFirstLaunchDialog(),
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://shobakiacademy.com/payments',
+                                ),
+                              ),
                               child: Text(
                                 'عرض ارشادات الاستخدام',
                                 style: Theme.of(context).textTheme.bodySmall!
@@ -405,7 +411,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             SizedBox(width: 12),
                             InkWell(
-                              onTap: () => showPaymentMethodsDialog(),
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://shobakiacademy.com/payments',
+                                ),
+                              ),
                               child: Text(
                                 'عرض طرق الدفع ',
                                 style: Theme.of(context).textTheme.bodySmall!

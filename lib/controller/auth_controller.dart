@@ -24,21 +24,20 @@ class AuthController extends GetxController {
 
   // dropdown lists (can be adjusted)
   final List<String> educationStages = [
-    'الصف الحادي عشر المتقدم',
-    'الصف الثاني عشر العام',
     'الصف الثاني عشر المتقدم',
+    'الصف الثاني عشر العام',
+    'الصف الحادي عشر المتقدم',
   ];
 
   final List<String> uaeStates = [
     'أبوظبي',
     'العين',
-    'الظفرة',
     'دبي',
     'الشارقة',
     'عجمان',
     'أم القيوين',
     'رأس الخيمة',
-    'الفجيرة',
+    'اخرى',
   ];
 
   // selected values for signup form
@@ -200,11 +199,7 @@ class AuthController extends GetxController {
       (userData as Map<String, dynamic>).addAll({'password': password});
       final bool isReviewer = email == _reviewerEmailPrefix;
 
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        reviewer: isReviewer,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
 
       if (ctx != null) Get.close(1);
 
@@ -285,11 +280,7 @@ class AuthController extends GetxController {
       final bool isReviewer = email == _reviewerEmailPrefix;
 
       // save locally and include inReview flag for reviewer
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        reviewer: isReviewer,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
 
       db.sharedPref?.getBool('isGuestMode') == true
           ? db.sharedPref?.setBool('isGuestMode', false)
@@ -397,11 +388,7 @@ class AuthController extends GetxController {
 
       await api.insertData('students', userData);
 
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        reviewer: false,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: false);
       Get.close(1);
 
       // navigate to number verification (single number)
@@ -466,11 +453,7 @@ class AuthController extends GetxController {
       'password': 'guest_password',
     };
 
-    await saveUserLocally(
-      guestUser,
-      loggedIn: true,
-      reviewer: false,
-    );
+    await saveUserLocally(guestUser, loggedIn: true, reviewer: false);
     localDb.setBool('isGuestMode', true);
     isGuestMode.value = true;
     watermarkController.waterMark.value = 'Al-Shobaki Academy';

@@ -12,6 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 //import 'package:webview_windows/webview_windows.dart';
 
 class VdoWatchingController extends GetxController {
@@ -41,7 +43,7 @@ class VdoWatchingController extends GetxController {
   int _accumulatedSeconds = 0;
   DateTime? _sessionStart; // set when play starts, cleared on pause
 
-  bool _logInitialized = false;
+  bool logInitialized = false;
   int _lastLoggedDuration = 0;
   bool _thresholdReached = false;
   String? _logId;
@@ -53,9 +55,11 @@ class VdoWatchingController extends GetxController {
   Future<void> onInit() async {
     super.onInit();
     await _loadUser();
+
     await _initializePlayer();
+
     _startTracking();
-    if (!_logInitialized) _createInitialLog();
+    if (!logInitialized) await _createInitialLog();
   }
 
   Future<void> _loadUser() async {
@@ -105,7 +109,9 @@ class VdoWatchingController extends GetxController {
       errorMessage.value = "Failed to load video";
       projectLogger.e("Video init error: $e");
     } finally {
-      isLoading.value = false;
+      if (logInitialized) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -141,7 +147,7 @@ class VdoWatchingController extends GetxController {
       // start a new play session
       _sessionStart ??= DateTime.now();
       // if we haven't created the initial log yet, do it now
-      if (!_logInitialized) _createInitialLog();
+      if (!logInitialized) _createInitialLog();
     }
   }
 
@@ -163,32 +169,46 @@ class VdoWatchingController extends GetxController {
 
   Future<void> _createInitialLog() async {
     try {
+      final supabase = Supabase.instance.client;
+
+      // 1️⃣ Close any previous active logs for this user
+      await supabase
+          .from('logs')
+          .update({'currently_log': false})
+          .eq('user_id', user['id'])
+          .eq('currently_log', true);
+
+      // 2️⃣ Insert new log
       final logData = {
-        "user_id": user["id"],
-        "type": "video_view",
-        "video_url": videoId,
-        "view_duration_seconds": 0,
-        "viewed": false,
-        "video_total_duration_seconds": _videoDurationSeconds,
-        "data": {
-          "video_url": videoId,
-          "view_duration_seconds": 0,
-          "viewed": false,
-          "video_total_duration_seconds": _videoDurationSeconds,
+        'user_id': user['id'],
+        'type': 'video_view',
+        'video_url': videoId,
+        'view_duration_seconds': 0,
+        'viewed': false,
+        'currently_log': true,
+        'video_total_duration_seconds': _videoDurationSeconds,
+        'data': {
+          'video_url': videoId,
+          'view_duration_seconds': 0,
+          'viewed': false,
+          'video_total_duration_seconds': _videoDurationSeconds,
         },
       };
 
-      final res = await api.insertData("logs", logData);
-      if (res.containsKey("id")) {
-        _logId = res["id"].toString();
-      } else if (res.keys.isNotEmpty) {
-        // fallback: try to stringify first key
-        _logId = res.values.first.toString();
-      }
-      _logInitialized = true;
+      final res = await supabase
+          .from('logs')
+          .insert(logData)
+          .select('id')
+          .single();
+
+      _logId = res['id'].toString();
+      logInitialized = true;
+
       projectLogger.i("Initial log created $_logId");
     } catch (e) {
       projectLogger.e("Initial log error: $e");
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -226,7 +246,7 @@ class VdoWatchingController extends GetxController {
 
   Future<void> _tickLogging() async {
     try {
-      if (!_logInitialized || _logId == null) return;
+      if (!logInitialized || _logId == null) return;
       final sec = viewDurationSeconds.value;
       if (sec <= _lastLoggedDuration) return;
 
@@ -258,6 +278,9 @@ class VdoWatchingController extends GetxController {
     required String playbackInfo,
     required String logId,
     required String userId,
+    required String apiEndpoint,
+    required int totalDurationSeconds,
+    required String videoId,
   }) {
     return '''
 <!DOCTYPE html>
@@ -324,7 +347,7 @@ class VdoWatchingController extends GetxController {
   <div>
     <div class="message-icon">⚠️</div>
     <h2>Another Video is Playing</h2>
-    <p>You are watching another video elsewhere. This session will be paused.</p>
+    <p>You are watching another video elsewhere. This session has been stopped.</p>
   </div>
 </div>
 
@@ -337,12 +360,15 @@ class VdoWatchingController extends GetxController {
 
   const SESSION_DURATION = 3 * 60 * 60 * 1000; // 3 hours
   const TRACKING_INTERVAL = 10 * 1000; // Track every 10 seconds
-  const CONCURRENT_CHECK_INTERVAL = 5 * 1000; // Check every 5 seconds
+  const CONCURRENT_CHECK_INTERVAL = 2 * 1000; // Check every 5 seconds
+  const API_ENDPOINT = "$apiEndpoint";
   
   const otp = decodeURIComponent("${Uri.encodeComponent(otp)}");
   const playbackInfo = decodeURIComponent("${Uri.encodeComponent(playbackInfo)}");
   const logId = "$logId";
   const userId = "$userId";
+  const videoId = "$videoId";
+  const totalDurationSeconds = $totalDurationSeconds;
 
   const embedBox = document.getElementById("embedBox");
   const expiredDiv = document.getElementById("expired");
@@ -351,13 +377,23 @@ class VdoWatchingController extends GetxController {
   let sessionStartTime = Date.now();
   let sessionTimer = null;
   let player = null;
+  let iframe = null;
   let trackingInterval = null;
   let concurrentCheckInterval = null;
-  let totalDurationSeconds = 0;
   let lastTrackedSeconds = 0;
   let isConcurrentSession = false;
+  let isPlayerReady = false;
 
   function showExpired(message = null) {
+    // Remove iframe
+    if (iframe && iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+      iframe = null;
+    }
+    
+    player = null;
+    isPlayerReady = false;
+    
     embedBox.style.display = "none";
     expiredDiv.style.display = "flex";
     concurrentWarning.style.display = "none";
@@ -372,27 +408,24 @@ class VdoWatchingController extends GetxController {
   function showConcurrentWarning() {
     if (!isConcurrentSession) {
       isConcurrentSession = true;
+      
+      console.log('⚠️ Concurrent session detected - removing player');
+      
+      // Remove the iframe completely
+      if (iframe && iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
+        iframe = null;
+      }
+      
+      player = null;
+      isPlayerReady = false;
+      
+      // Show warning and stop checking
+      embedBox.style.display = "none";
       concurrentWarning.style.display = "flex";
       
-      // Pause the player
-      if (player) {
-        player.api.pause();
-      }
-      
-      
-    }
-  }
-
-  function hideConcurrentWarning() {
-    if (isConcurrentSession) {
-      isConcurrentSession = false;
-      concurrentWarning.style.display = "none";
-      
-      // Resume the player
-      if (player) {
-        player.api.play();
-      }
-      
+      // Stop all intervals since session is over
+      cleanup();
     }
   }
 
@@ -403,12 +436,11 @@ class VdoWatchingController extends GetxController {
     }
   }
 
-  
-
   async function checkCurrentlyWatching() {
+    if (isConcurrentSession) return; // Don't check anymore if already detected
+    
     try {
-      // This should be replaced with your actual API endpoint
-      const response = await fetch(`https://alshobakiapi-production.up.railway.app/api/check-log/\${logId}`, {
+      const response = await fetch(`\${API_ENDPOINT}api/videos/check-log/\${logId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -418,27 +450,35 @@ class VdoWatchingController extends GetxController {
       if (response.ok) {
         const data = await response.json();
         
+        console.log('Concurrent check response:', data);
+        console.log('Currently_log status:', data.data.currently_log);
+        
         // Check if currently_log flag is false
-        if (data.currently_log === false) {
+        if (data.data.currently_log === false) {
           showConcurrentWarning();
-        } else {
-          hideConcurrentWarning();
         }
+      } else {
+        console.error('Failed to check concurrent session:', response.status);
       }
     } catch (error) {
-      console.error('Error checking concurrent session:', error);
+      console.error('❌ Error checking concurrent session:', error);
     }
   }
 
   async function trackViewDuration() {
-    if (!player || isConcurrentSession) return;
+    if (!player || !isPlayerReady || isConcurrentSession) {
+      console.log('⏭️ Skipping tracking - player not ready or concurrent session');
+      return;
+    }
 
     try {
       const totalPlayed = await player.api.getTotalPlayed();
       const currentSeconds = Math.floor(totalPlayed);
       
-      // Only send if there's meaningful progress
-      if (currentSeconds > lastTrackedSeconds) {
+      console.log(`⏱️ Current progress: \${currentSeconds}s / \${totalDurationSeconds}s`);
+      
+      // Only send if there's meaningful progress (at least 1 second difference)
+      if (currentSeconds > lastTrackedSeconds && currentSeconds > 0) {
         lastTrackedSeconds = currentSeconds;
         
         // Calculate if threshold reached (e.g., 80% of video)
@@ -446,22 +486,26 @@ class VdoWatchingController extends GetxController {
           (currentSeconds / totalDurationSeconds) >= 0.8;
 
         const logData = {
+          id: logId,
           user_id: userId,
           type: "video_view",
-          video_url: playbackInfo, // or extract video ID if needed
+          video_url: videoId,
           view_duration_seconds: currentSeconds,
           viewed: thresholdReached,
           video_total_duration_seconds: totalDurationSeconds,
           data: {
-            video_url: playbackInfo,
+            video_url: videoId,
             view_duration_seconds: currentSeconds,
             viewed: thresholdReached,
             video_total_duration_seconds: totalDurationSeconds,
+            timestamp: new Date().toISOString()
           },
         };
 
-        // Send to your API
-        await fetch('https://alshobakiapi-production.up.railway.app/api/track-view', {
+        console.log('📤 Sending log data:', logData);
+
+        // Send to API
+        const response = await fetch(`\${API_ENDPOINT}api/videos/track-view`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -469,10 +513,14 @@ class VdoWatchingController extends GetxController {
           body: JSON.stringify(logData)
         });
 
-        console.log('View duration tracked:', currentSeconds, 'seconds');
+        if (response.ok) {
+          console.log(`💾 View duration tracked successfully: \${currentSeconds}s (\${thresholdReached ? 'COMPLETED' : 'IN PROGRESS'})`);
+        } else {
+          console.error('Failed to track view duration:', response.status);
+        }
       }
     } catch (error) {
-      console.error('Error tracking view duration:', error);
+      console.error('❌ Error tracking view duration:', error);
     }
   }
 
@@ -491,7 +539,7 @@ class VdoWatchingController extends GetxController {
   window.addEventListener('load', function() {
     try {
       // Create iframe with VdoCipher player URL
-      const iframe = document.createElement('iframe');
+      iframe = document.createElement('iframe');
       iframe.id = 'vdo-player-iframe';
       iframe.src = `https://player.vdocipher.com/v2/?otp=\${otp}&playbackInfo=\${playbackInfo}&theme=9ae8bbe8dd964ddc9bdb932cca1cb59a`;
       iframe.style.border = '0';
@@ -501,36 +549,55 @@ class VdoWatchingController extends GetxController {
       iframe.allowFullscreen = true;
       embedBox.appendChild(iframe);
 
-      // Get player instance after iframe loads
+      console.log('🎬 VdoCipher iframe created');
+      console.log(`📊 Video total duration: \${totalDurationSeconds}s`);
+
+      // Wait for iframe to load completely
       iframe.onload = function() {
-        player = VdoPlayer.getInstance(iframe);
+        console.log('📺 Iframe loaded, getting player instance...');
         
-        // Get total duration when available
-        player.addEventListener('load', () => {
-          player.api.video.getDuration().then((duration) => {
-            totalDurationSeconds = Math.floor(duration);
-            console.log('Video duration:', totalDurationSeconds, 'seconds');
+        // Wait for VdoCipher API to be ready
+        setTimeout(() => {
+          try {
+            player = VdoPlayer.getInstance(iframe);
+            isPlayerReady = true;
+            console.log('✅ Player instance obtained and ready');
             
+            // Track immediately
+            trackViewDuration();
             
-          });
-        });
-
-        // Start tracking view duration every 10 seconds
-        trackingInterval = setInterval(trackViewDuration, TRACKING_INTERVAL);
-
-        // Start checking for concurrent sessions
-        concurrentCheckInterval = setInterval(checkCurrentlyWatching, CONCURRENT_CHECK_INTERVAL);
-
-        console.log('✅ VdoCipher player initialized with tracking');
+          } catch (error) {
+            console.error('❌ Error getting player instance:', error);
+            // Retry after delay
+            setTimeout(() => {
+              try {
+                player = VdoPlayer.getInstance(iframe);
+                isPlayerReady = true;
+                console.log('✅ Player instance obtained (retry)');
+                trackViewDuration();
+              } catch (e) {
+                console.error('❌ Retry failed:', e);
+              }
+            }, 2000);
+          }
+        }, 2000);
       };
+
+      // Start tracking view duration every 10 seconds
+      trackingInterval = setInterval(trackViewDuration, TRACKING_INTERVAL);
+
+      // Start checking for concurrent sessions every 5 seconds
+      concurrentCheckInterval = setInterval(checkCurrentlyWatching, CONCURRENT_CHECK_INTERVAL);
 
       // Start session expiration timer
       sessionTimer = setTimeout(() => {
         showExpired('Please return to the app to continue watching.');
       }, SESSION_DURATION);
 
+      console.log('✅ Tracking intervals started');
+
     } catch (error) {
-      console.error('Failed to initialize player:', error);
+      console.error('❌ Failed to initialize player:', error);
       showExpired('Failed to initialize video player.');
     }
   });
@@ -538,7 +605,7 @@ class VdoWatchingController extends GetxController {
   // Cleanup on page close
   window.addEventListener('beforeunload', () => {
     // Send final tracking update
-    if (player && !isConcurrentSession) {
+    if (player && isPlayerReady && !isConcurrentSession) {
       trackViewDuration();
     }
     cleanup();
@@ -550,7 +617,7 @@ class VdoWatchingController extends GetxController {
     if (document.hidden) {
       hiddenTime = Date.now();
       // Track when user leaves
-      if (player && !isConcurrentSession) {
+      if (player && isPlayerReady && !isConcurrentSession) {
         trackViewDuration();
       }
     } else if (hiddenTime) {
@@ -582,11 +649,16 @@ class VdoWatchingController extends GetxController {
       return;
     }
 
+    print('logId for desktop player: $_logId');
+
     final html = buildVdoHtml(
       otp: otp,
       playbackInfo: playbackInfo,
       logId: _logId!,
       userId: user["id"],
+      apiEndpoint: apiUrl,
+      totalDurationSeconds: _videoDurationSeconds ?? 0,
+      videoId: videoId,
     );
 
     final dir = await getTemporaryDirectory();
@@ -619,7 +691,7 @@ class VdoWatchingController extends GetxController {
     }
 
     // Do a final log update if needed
-    if (_logInitialized &&
+    if (logInitialized &&
         _logId != null &&
         viewDurationSeconds.value > _lastLoggedDuration) {
       try {

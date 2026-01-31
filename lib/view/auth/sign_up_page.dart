@@ -2,6 +2,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:typewritertext/typewritertext.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -18,6 +19,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController schoolController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool isObscure = true;
+  bool agreeToPrivacy = false;
   late final AuthController auth;
 
   @override
@@ -137,12 +139,25 @@ class _SignUpPageState extends State<SignUpPage> {
                                       context,
                                     ).textTheme.bodyMedium,
                                     validator: (v) {
-                                      if (v != null && v.length < 9) {
-                                        return 'بلرجاء ادخال الاسم كاملاً';
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'الرجاء إدخال الاسم';
                                       }
-                                      return (v == null || v.isEmpty)
-                                          ? 'الرجاء ادخال الاسم'
-                                          : null;
+
+                                      if (v.trim().length < 9) {
+                                        return 'برجاء إدخال الاسم كاملاً';
+                                      }
+
+                                      final englishNameRegex = RegExp(
+                                        r'^[A-Za-z ]+$',
+                                      );
+
+                                      if (!englishNameRegex.hasMatch(
+                                        v.trim(),
+                                      )) {
+                                        return 'الاسم يجب أن يكون باللغة الإنجليزية فقط';
+                                      }
+
+                                      return null;
                                     },
                                     decoration: InputDecoration(
                                       label: Text(
@@ -153,7 +168,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                             .copyWith(color: Colors.grey),
                                       ),
                                       hintText:
-                                          'ادخل الاسم ثلاثي باللغة الانجليزية',
+                                          'ادخل الاسم الكامل باللغة الانجليزية',
                                       filled: true,
                                       fillColor: Colors.grey[200],
                                       contentPadding:
@@ -341,7 +356,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                                   const SizedBox(height: 16),
 
-                                  // uae state dropdown
                                   Obx(() {
                                     return DropdownButtonFormField<String>(
                                       style: Theme.of(
@@ -392,87 +406,101 @@ class _SignUpPageState extends State<SignUpPage> {
                                     );
                                   }),
 
+                                  const SizedBox(height: 16),
+
+                                  FormField<bool>(
+                                    validator: (v) => !agreeToPrivacy
+                                        ? 'يجب الموافقة على سياسة الخصوصية'
+                                        : null,
+                                    builder: (formFieldState) {
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: agreeToPrivacy,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    agreeToPrivacy =
+                                                        value ?? false;
+                                                  });
+                                                  formFieldState.didChange(
+                                                    value,
+                                                  );
+                                                },
+                                              ),
+                                              Expanded(
+                                                child: InkWell(
+                                                  onTap: () async {
+                                                    final Uri url = Uri.parse(
+                                                      'https://www.alshobaki.com/privacy-policy',
+                                                    );
+                                                    if (await canLaunchUrl(
+                                                      url,
+                                                    )) {
+                                                      await launchUrl(
+                                                        url,
+                                                        mode: LaunchMode
+                                                            .externalApplication,
+                                                      );
+                                                    }
+                                                  },
+                                                  child: RichText(
+                                                    text: TextSpan(
+                                                      children: [
+                                                        TextSpan(
+                                                          text: 'اوافق على ',
+                                                          style: Theme.of(
+                                                            context,
+                                                          ).textTheme.bodySmall,
+                                                        ),
+                                                        TextSpan(
+                                                          text:
+                                                              'سياسة الخصوصية',
+                                                          style: Theme.of(context)
+                                                              .textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                                color: Theme.of(
+                                                                  context,
+                                                                ).primaryColor,
+                                                                decoration:
+                                                                    TextDecoration
+                                                                        .underline,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (formFieldState.hasError)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 8.0,
+                                                right: 12.0,
+                                              ),
+                                              child: Text(
+                                                formFieldState.errorText ?? '',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      color: Colors.red,
+                                                    ),
+                                              ),
+                                            ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+
                                   const SizedBox(height: 12),
 
-                                  // subscription dropdown (if re-enabled)
-                                  // Obx(() {
-                                  //   return DropdownButtonFormField<String>(
-                                  //     value:
-                                  //         auth.selectedSubscription.value.isEmpty
-                                  //         ? null
-                                  //         : auth.selectedSubscription.value,
-                                  //     items: auth.subscriptionOptions
-                                  //         .map(
-                                  //           (s) => DropdownMenuItem(
-                                  //             value: s,
-                                  //             child: Text(
-                                  //               s,
-                                  //               textAlign: TextAlign.right,
-                                  //             ),
-                                  //           ),
-                                  //         )
-                                  //         .toList(),
-                                  //     onChanged: auth.setSubscription,
-                                  //     decoration: InputDecoration(
-                                  //       hintText: 'نوع الاشتراك',
-                                  //       hintStyle: Theme.of(context)
-                                  //           .textTheme
-                                  //           .bodyMedium!
-                                  //           .copyWith(color: Colors.grey),
-                                  //       filled: true,
-                                  //       fillColor: Colors.grey[200],
-                                  //       contentPadding:
-                                  //           const EdgeInsets.symmetric(
-                                  //             horizontal: 12,
-                                  //             vertical: 14,
-                                  //           ),
-                                  //       prefixIcon: const Icon(Icons.star_border),
-                                  //       border: OutlineInputBorder(
-                                  //         borderRadius: BorderRadius.circular(12),
-                                  //         borderSide: BorderSide.none,
-                                  //       ),
-                                  //     ),
-                                  //     validator: (v) => (v == null || v.isEmpty)
-                                  //         ? 'اختر نوع الاشتراك'
-                                  //         : null,
-                                  //   );
-                                  // }),
-
-                                  // const SizedBox(height: 12),
-                                  // SizedBox(
-                                  //   height: 48,
-                                  //   child: ElevatedButton(
-                                  //     style: ElevatedButton.styleFrom(
-                                  //       backgroundColor: primary,
-                                  //       shape: RoundedRectangleBorder(
-                                  //         borderRadius: BorderRadius.circular(
-                                  //           12,
-                                  //         ),
-                                  //       ),
-                                  //     ),
-                                  //     child: Row(
-                                  //       mainAxisSize: MainAxisSize.min,
-                                  //       spacing: 15,
-                                  //       children: [
-                                  //         Text(
-                                  //           'تسجيل بصمة الاصبع',
-                                  //           style: Theme.of(context)
-                                  //               .textTheme
-                                  //               .bodyLarge
-                                  //               ?.copyWith(color: Colors.white),
-                                  //         ),
-                                  //         const Icon(
-                                  //           Icons.fingerprint,
-                                  //           size: 28,
-                                  //         ),
-                                  //       ],
-                                  //     ),
-                                  //     onPressed: () async {
-                                  //       await auth.gatherFingerprint();
-                                  //     },
-                                  //   ),
-                                  // ),
-                                  // const SizedBox(height: 16),
                                   SizedBox(
                                     width: double.infinity,
                                     height: 48,

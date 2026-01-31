@@ -318,7 +318,7 @@ void showBookSubscriptionDialog({
 
   Get.dialog(
     AlertDialog(
-      title: const Text('اشترك في الملازم', textAlign: TextAlign.center),
+      title: const Text('لتحميل الملازم', textAlign: TextAlign.center),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
