@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
 
     _init();
     _loadLocalUserName();
-    _checkFirstLaunch(); // 👈 HERE
+    //_checkFirstLaunch(); // 👈 HERE
   }
 
   Future<void> showFirstLaunchDialog({bool dismissible = true}) {
