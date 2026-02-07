@@ -312,8 +312,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             //TODO: update whatsapp number
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -348,8 +350,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             //TODO: update whatsapp number
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+971502762100?text=${Uri.encodeFull('')}',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://wa.me/+971502762100?text=${Uri.encodeFull('')}',
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -476,8 +480,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             //   ),
                             // ),
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://www.instagram.com/mohamed.farouk.dev?igsh=azc5M2R3NjUwNXpw',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://www.instagram.com/mohamed.farouk.dev?igsh=azc5M2R3NjUwNXpw',
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
