@@ -41,7 +41,7 @@ class BooksController extends GetxController {
   final ApiClient _api = ApiClient();
   final LocalDB _localDb = Get.find<LocalDB>();
 
-  final RxList<Book> books = <Book>[].obs;
+  final RxList books = <Book>[].obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxBool showFAB = false.obs;
@@ -118,7 +118,6 @@ class BooksController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
-
       if (userData != null && userData!['stage'] != null) {
         final response = await _api.fetchWithConditions(
           'books',
@@ -133,6 +132,15 @@ class BooksController extends GetxController {
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
             .toList();
       }
+
+      // Sort by created_at from oldest to newest
+      // ignore: invalid_use_of_protected_member
+      books.value.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return a.createdAt!.compareTo(b.createdAt!);
+      });
     } catch (e) {
       errorMessage.value = 'فشل تحميل الملازم: $e';
       Get.log('Error fetching books: $e', isError: true);

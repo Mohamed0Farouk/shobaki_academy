@@ -145,7 +145,7 @@ class _HomePageState extends State<HomePage> {
     final normalItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
+        activeIcon: Icon(Icons.home_rounded),
         label: 'المحتويات',
       ),
       BottomNavigationBarItem(
@@ -166,9 +166,9 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
@@ -176,7 +176,7 @@ class _HomePageState extends State<HomePage> {
       _SidebarItem(
         label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -195,9 +195,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
@@ -212,7 +212,7 @@ class _HomePageState extends State<HomePage> {
     final guestItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
+        activeIcon: Icon(Icons.home_rounded),
         label: 'المحتويات',
       ),
       const BottomNavigationBarItem(
@@ -227,9 +227,9 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
@@ -237,7 +237,7 @@ class _HomePageState extends State<HomePage> {
       _SidebarItem(
         label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -251,9 +251,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
@@ -268,7 +268,7 @@ class _HomePageState extends State<HomePage> {
     final reviewItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
+        activeIcon: Icon(Icons.home_rounded),
         label: 'المحتويات',
       ),
       BottomNavigationBarItem(
@@ -283,9 +283,9 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
@@ -293,7 +293,7 @@ class _HomePageState extends State<HomePage> {
       _SidebarItem(
         label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -307,9 +307,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
