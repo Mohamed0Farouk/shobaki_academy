@@ -255,7 +255,7 @@ void showSubscriptionDialog({
             children: [
               InkWell(
                 onTap: () => _launchUrl(
-                  'https://wa.me/+971508124370?text=${Uri.encodeFull('اريد الاشتراك في $topicName بمبلغ $amount درهم')}',
+                  'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

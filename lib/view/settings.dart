@@ -349,7 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             //TODO: update whatsapp number
                             InkWell(
                               onTap: () => _launchUrl(
-                                'https://wa.me/+502762100?text=${Uri.encodeFull('')}',
+                                'https://wa.me/+971502762100?text=${Uri.encodeFull('')}',
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -397,34 +397,41 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                             ),
-                            InkWell(
-                              onTap: () => launchUrl(
-                                Uri.parse(
-                                  'https://alshobakiacademy.com/guidelines',
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+
+                              child: InkWell(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://alshobakiacademy.com/guidelines',
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                'عرض ارشادات الاستخدام',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                softWrap: true,
+                                child: Text(
+                                  'عرض ارشادات الاستخدام',
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                  softWrap: true,
+                                ),
                               ),
                             ),
-                            InkWell(
-                              onTap: () => launchUrl(
-                                Uri.parse(
-                                  'https://alshobakiacademy.com/payment',
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              child: InkWell(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://alshobakiacademy.com/payment',
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                'عرض طرق الدفع ',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                softWrap: true,
+                                child: Text(
+                                  'عرض طرق الدفع ',
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                  softWrap: true,
+                                ),
                               ),
                             ),
                           ],

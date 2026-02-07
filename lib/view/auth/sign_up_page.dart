@@ -435,7 +435,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                                 child: InkWell(
                                                   onTap: () async {
                                                     final Uri url = Uri.parse(
-                                                      'https://www.alshobaki.com/privacy-policy',
+                                                      'https://alshobakiacademy.com/privacy',
                                                     );
                                                     if (await canLaunchUrl(
                                                       url,
