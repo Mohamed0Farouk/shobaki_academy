@@ -242,11 +242,10 @@ class _TopicsPageState extends State<TopicsPage> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 12,
             crossAxisSpacing: 10,
+
             childAspectRatio: 0.9,
           ),
-          itemCount: items.length > threshold
-              ? threshold
-              : items.length, // Limit to threshold
+          itemCount: items.length,
           itemBuilder: (context, index) {
             return BounceInUp(
               from: 50,
@@ -262,33 +261,33 @@ class _TopicsPageState extends State<TopicsPage> {
             );
           },
         ),
-        if (items.length > threshold)
-          SizedBox(
-            height: 160, // Adjusted height for horizontal scrolling
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemBuilder: (context, index) {
-                final adjustedIndex = index + threshold;
-                if (adjustedIndex >= items.length) return const SizedBox();
-                return FadeInRight(
-                  delay: Duration(milliseconds: 100 + (adjustedIndex * 50)),
-                  duration: const Duration(milliseconds: 500),
-                  child: _buildModernTopicCard(
-                    context,
-                    items[adjustedIndex]['title'] ?? '',
-                    items[adjustedIndex]['thumbnail'] ??
-                        'https://placehold.co/300/png',
-                    () => controller.onSelectTopic(items[adjustedIndex]),
-                    adjustedIndex,
-                  ),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemCount:
-                  items.length - threshold, // Only items beyond threshold
-            ),
-          ),
+        // if (items.length > threshold)
+        //   SizedBox(
+        //     height: 160, // Adjusted height for horizontal scrolling
+        //     child: ListView.separated(
+        //       scrollDirection: Axis.horizontal,
+        //       physics: const BouncingScrollPhysics(),
+        //       itemBuilder: (context, index) {
+        //         final adjustedIndex = index + threshold;
+        //         if (adjustedIndex >= items.length) return const SizedBox();
+        //         return FadeInRight(
+        //           delay: Duration(milliseconds: 100 + (adjustedIndex * 50)),
+        //           duration: const Duration(milliseconds: 500),
+        //           child: _buildModernTopicCard(
+        //             context,
+        //             items[adjustedIndex]['title'] ?? '',
+        //             items[adjustedIndex]['thumbnail'] ??
+        //                 'https://placehold.co/300/png',
+        //             () => controller.onSelectTopic(items[adjustedIndex]),
+        //             adjustedIndex,
+        //           ),
+        //         );
+        //       },
+        //       separatorBuilder: (_, __) => const SizedBox(width: 12),
+        //       itemCount:
+        //           items.length - threshold, // Only items beyond threshold
+        //     ),
+        //   ),
       ],
     );
   }
