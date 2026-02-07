@@ -387,11 +387,11 @@ class TopicContentPage extends StatelessWidget {
                   Icons.menu_book,
                   'المحاضرات: $lecturesCount',
                 ),
-                _infoChip(
-                  context,
-                  Icons.calendar_today,
-                  'تاريخ: ${_formatDate(createdAt)}',
-                ),
+                // _infoChip(
+                //   context,
+                //   Icons.calendar_today,
+                //   'تاريخ: ${_formatDate(createdAt)}',
+                // ),
                 _infoChip(context, Icons.tag, 'المرحلة: $stage'),
                 // Hide price in review mode
                 // if (!inReview)
