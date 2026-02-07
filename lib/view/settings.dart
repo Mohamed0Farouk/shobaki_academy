@@ -376,28 +376,31 @@ class _SettingsPageState extends State<SettingsPage> {
                         Wrap(
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 16,
+
                           children: [
-                            //TODO: update whatsapp number
-                            InkWell(
-                              onTap: () => launchUrl(
-                                Uri.parse(
-                                  'https://shobakiacademy.com/payments',
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              child: InkWell(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://alshobakiacademy.com/privacy',
+                                  ),
+                                ),
+                                child: Text(
+                                  'سياسة الخصوصية و شروط الاستخدام  ',
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                  softWrap: true,
                                 ),
                               ),
-                              child: Text(
-                                'سياسة الخصوصية و شروط الاستخدام  ',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                softWrap: true,
-                              ),
                             ),
-                            SizedBox(width: 12),
                             InkWell(
                               onTap: () => launchUrl(
                                 Uri.parse(
-                                  'https://shobakiacademy.com/payments',
+                                  'https://alshobakiacademy.com/guidelines',
                                 ),
                               ),
                               child: Text(
@@ -409,11 +412,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                 softWrap: true,
                               ),
                             ),
-                            SizedBox(width: 12),
                             InkWell(
                               onTap: () => launchUrl(
                                 Uri.parse(
-                                  'https://shobakiacademy.com/payments',
+                                  'https://alshobakiacademy.com/payment',
                                 ),
                               ),
                               child: Text(

@@ -164,30 +164,33 @@ class BooksPage extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller.searchController,
-        textInputAction: TextInputAction.search,
-        onSubmitted: (q) => controller.onSearchSubmitted(q, context),
-        decoration: InputDecoration(
-          hintText: 'ابحث عن ملزمة',
-          hintStyle: const TextStyle(color: Colors.black45),
-          prefixIcon: const Icon(Icons.search, color: Colors.black54),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 14 : 10,
-            vertical: isDesktop ? 8 : 6,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blue.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: controller.searchController,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (q) => controller.onSearchSubmitted(q, context),
+          decoration: InputDecoration(
+            hintText: 'ابحث عن ملزمة',
+            hintStyle: const TextStyle(color: Colors.black45),
+            prefixIcon: const Icon(Icons.search, color: Colors.black54),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 14 : 10,
+              vertical: isDesktop ? 8 : 6,
+            ),
           ),
         ),
       ),
@@ -267,6 +270,7 @@ class _BookListTile extends StatefulWidget {
 
 class _BookListTileState extends State<_BookListTile> {
   late Future<bool> _hasSubscriptionFuture;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -321,116 +325,191 @@ class _BookListTileState extends State<_BookListTile> {
     final isDesktop =
         Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _onTileTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: isDesktop ? 16 : 12,
-            horizontal: isDesktop ? 16 : 8,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: EdgeInsets.symmetric(
+          horizontal: isDesktop ? 16 : 12,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _isHovered
+                ? Theme.of(context).primaryColor.withOpacity(0.4)
+                : Colors.grey.shade200,
+            width: 1.5,
           ),
-          child: Row(
-            children: [
-              // Title and badges
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(
+                context,
+              ).primaryColor.withOpacity(_isHovered ? 0.12 : 0.06),
+              blurRadius: _isHovered ? 16 : 8,
+              offset: Offset(0, _isHovered ? 6 : 3),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _onTileTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Padding(
+                padding: EdgeInsets.all(isDesktop ? 20 : 16),
+                child: Row(
                   children: [
-                    Text(
-                      widget.book.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                    // Book icon with border (now on the right)
+                    Container(
+                      width: isDesktop ? 56 : 48,
+                      height: isDesktop ? 56 : 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.2),
+                          width: 1.5,
+                        ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        Icons.menu_book_rounded,
+                        color: Theme.of(context).primaryColor,
+                        size: isDesktop ? 28 : 24,
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        if (!widget.isReviewer && widget.book.free)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green[400],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(
-                                  Icons.lock_open_rounded,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'مجاني',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    const SizedBox(width: 16),
+
+                    // Title and badges
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.book.title,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            textDirection: TextDirection.rtl,
                           ),
-                        if (!widget.isReviewer && !widget.book.free)
-                          FutureBuilder<bool>(
-                            future: _hasSubscriptionFuture,
-                            builder: (context, snapshot) {
-                              final hasSubscription = snapshot.data ?? false;
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: hasSubscription
-                                      ? Colors.green[400]
-                                      : Colors.red[400],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      hasSubscription
-                                          ? Icons.lock_open_rounded
-                                          : Icons.lock,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      hasSubscription ? 'مفتوح' : 'مقفل',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                      ],
+                          const SizedBox(height: 10),
+                          _buildStatusBadge(),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // Arrow icon (now pointing left)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.15),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Arrow icon
-              Icon(
-                Icons.arrow_forward_ios,
-                size: isDesktop ? 20 : 16,
-                color: Colors.grey[400],
-              ),
-            ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge() {
+    if (widget.isReviewer) {
+      return const SizedBox.shrink();
+    }
+
+    if (widget.book.free) {
+      return _StatusBadge(
+        icon: Icons.lock_open_rounded,
+        label: 'مجاني',
+        color: const Color(0xFF10B981), // Modern green
+      );
+    }
+
+    return FutureBuilder<bool>(
+      future: _hasSubscriptionFuture,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _StatusBadge(
+            icon: Icons.hourglass_empty_rounded,
+            label: 'جاري التحميل...',
+            color: Colors.grey.shade600,
+          );
+        }
+
+        final hasSubscription = snapshot.data!;
+        return _StatusBadge(
+          icon: hasSubscription ? Icons.lock_open_rounded : Icons.lock_rounded,
+          label: hasSubscription ? 'مفتوح' : 'مقفل',
+          color: hasSubscription
+              ? const Color(0xFF10B981) // Green
+              : const Color(0xFFF59E0B), // Amber/Orange
+        );
+      },
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _StatusBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.25), width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -81,15 +81,33 @@ class TopicsController extends GetxController {
         'topics',
         filters: latestFilters.isEmpty ? null : latestFilters,
         orderBy: 'created_at',
-        ascending: false,
+        ascending: true,
       );
 
+      // Sort recommendations by created_at (newest to oldest)
       recommendations.assignAll(
-        recResp.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        (recResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          ..sort((a, b) {
+            if (a['created_at'] == null && b['created_at'] == null) return 0;
+            if (a['created_at'] == null) return 1;
+            if (b['created_at'] == null) return -1;
+            return DateTime.parse(
+              b['created_at'].toString(),
+            ).compareTo(DateTime.parse(a['created_at'].toString()));
+          })),
       );
 
+      // Sort latestTopics by created_at (newest to oldest)
       latestTopics.assignAll(
-        latestResp.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        (latestResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          ..sort((a, b) {
+            if (a['created_at'] == null && b['created_at'] == null) return 0;
+            if (a['created_at'] == null) return 1;
+            if (b['created_at'] == null) return -1;
+            return DateTime.parse(
+              b['created_at'].toString(),
+            ).compareTo(DateTime.parse(a['created_at'].toString()));
+          })),
       );
     } catch (e) {
       // keep lists unchanged on error but show notification
