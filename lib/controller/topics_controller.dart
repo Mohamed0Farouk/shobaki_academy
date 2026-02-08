@@ -123,11 +123,11 @@ class TopicsController extends GetxController {
   }
 
   /// Called when user presses the keyboard "done" button
-  void onSearchSubmitted(String value, context) {
-    _doSearch(value, context);
+  void onSearchSubmitted(String value, context, bool inReview) {
+    _doSearch(value, context, inReview);
   }
 
-  Future<void> _doSearch(String q, context) async {
+  Future<void> _doSearch(String q, context, inReview) async {
     final query = q.trim();
     if (query.isEmpty) {
       results.clear();
@@ -141,7 +141,7 @@ class TopicsController extends GetxController {
     }
 
     if (!sheetOpen.value) {
-      _showResultsSheet(context);
+      _showResultsSheet(context, inReview);
     }
 
     isSearching.value = true;
@@ -193,7 +193,7 @@ class TopicsController extends GetxController {
     }
   }
 
-  void _showResultsSheet(context) {
+  void _showResultsSheet(context, bool inReview) {
     sheetOpen.value = true;
 
     Get.bottomSheet(
@@ -256,7 +256,7 @@ class TopicsController extends GetxController {
                               )
                             : null,
                         onTap: () {
-                          onSelectTopic(item);
+                          onSelectTopic(item, inReview);
                           if (sheetOpen.value) {
                             if (Get.isBottomSheetOpen == true) Get.back();
                             sheetOpen.value = false;
@@ -282,13 +282,17 @@ class TopicsController extends GetxController {
   }
 
   /// Handle topic selection (navigate). Adjust route/name to your app.
-  void onSelectTopic(Map<String, dynamic> topic) {
+  void onSelectTopic(Map<String, dynamic> topic, bool inReview) {
     // Example: navigate to a detail route; change to your real route/widget
     // Get.toNamed('/topicDetail', arguments: topic);
     // For now, just print and close sheet if open
     debugPrint('Selected topic: ${topic['id'] ?? topic['title']}');
     Get.to(
-      () => TopicContentPage(topicId: topic['id'], isGuest: isGuest.value),
+      () => TopicContentPage(
+        topicId: topic['id'],
+        isGuest: isGuest.value,
+        inReview: inReview,
+      ),
       transition: Transition.downToUp,
     );
   }

@@ -818,19 +818,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _launchUrl(url) async {
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      Get.snackbar(
-        'Error',
-        'Couldn\'t Launch Whatsapp',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.yellow.withOpacity(0.5),
-      );
-    }
-  }
-
   Widget _tile(IconData icon, String label, String value) {
     return ListTile(
       leading: Icon(icon, color: Colors.blueGrey, size: 30),

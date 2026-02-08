@@ -163,7 +163,8 @@ class _TopicsPageState extends State<TopicsPage> {
       child: TextField(
         controller: controller.searchController,
         textInputAction: TextInputAction.search,
-        onSubmitted: (q) => controller.onSearchSubmitted(q, context),
+        onSubmitted: (q) =>
+            controller.onSearchSubmitted(q, context, widget.inReview),
         decoration: InputDecoration(
           hintText: 'ابحث عن محتوى',
           hintStyle: const TextStyle(color: Colors.black45),
@@ -231,8 +232,6 @@ class _TopicsPageState extends State<TopicsPage> {
   /// RESPONSIVE GRID LAYOUT (Desktop)
   /// ===================================
   Widget _buildResponsiveGrid(List<dynamic> items, int crossAxisCount) {
-    final threshold = crossAxisCount * 2; // Threshold for rows before scrolling
-
     return Column(
       children: [
         GridView.builder(
@@ -255,7 +254,7 @@ class _TopicsPageState extends State<TopicsPage> {
                 context,
                 items[index]['title'] ?? '',
                 items[index]['thumbnail'] ?? 'https://placehold.co/300/png',
-                () => controller.onSelectTopic(items[index]),
+                () => controller.onSelectTopic(items[index], widget.inReview),
                 index,
               ),
             );
@@ -316,7 +315,7 @@ class _TopicsPageState extends State<TopicsPage> {
               context,
               items[index]['title'] ?? '',
               items[index]['thumbnail'] ?? 'https://placehold.co/300/png',
-              () => controller.onSelectTopic(items[index]),
+              () => controller.onSelectTopic(items[index], widget.inReview),
               index,
             ),
           );

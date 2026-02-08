@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/subscription_controller.dart';
@@ -351,9 +350,9 @@ class TopicContentPage extends StatelessWidget {
     final lecturesCount = (topic['lectures'] is List)
         ? (topic['lectures'] as List).length
         : 0;
-    final createdAt = topic['created_at'];
+    //final createdAt = topic['created_at'];
     final stage = (topic['stage'] ?? '-').toString();
-    final price = topic['price'];
+    //final price = topic['price'];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -576,25 +575,25 @@ class TopicContentPage extends StatelessWidget {
     );
   }
 
-  String _formatDate(dynamic date) {
-    try {
-      return intl.DateFormat(
-        'yyyy/MM/dd',
-      ).format(DateTime.parse(date.toString()));
-    } catch (_) {
-      return '-';
-    }
-  }
+  // String _formatDate(dynamic date) {
+  //   try {
+  //     return intl.DateFormat(
+  //       'yyyy/MM/dd',
+  //     ).format(DateTime.parse(date.toString()));
+  //   } catch (_) {
+  //     return '-';
+  //   }
+  // }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final p = (price ?? 0) as num;
-      // original code stored price in cents, but safe fallback to raw if small
-      return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
-    } catch (_) {
-      return '0 AED';
-    }
-  }
+  // String _formatPrice(dynamic price) {
+  //   try {
+  //     final p = (price ?? 0) as num;
+  //     // original code stored price in cents, but safe fallback to raw if small
+  //     return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
+  //   } catch (_) {
+  //     return '0 AED';
+  //   }
+  // }
 
   Map? _getUserData() {
     try {

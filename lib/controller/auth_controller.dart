@@ -46,7 +46,8 @@ class AuthController extends GetxController {
   //RxString selectedSubscription = ''.obs;
 
   // special test reviewer account id/email prefix
-  static const _reviewerEmailPrefix = 'appletestaccount#11111111111@gmail.com';
+  static const reviewerEmailPrefix =
+      'appletestaccount#97111111111111@gmail.com';
 
   @override
   void onInit() {
@@ -197,7 +198,7 @@ class AuthController extends GetxController {
       }
 
       (userData as Map<String, dynamic>).addAll({'password': password});
-      final bool isReviewer = email == _reviewerEmailPrefix;
+      final bool isReviewer = email == reviewerEmailPrefix;
 
       await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
 
@@ -253,7 +254,7 @@ class AuthController extends GetxController {
       // device fingerprint check
       final currentFingerprint = await DeviceFingerprint.getFingerprint();
       final dbFingerprint = userData['device_fingerprint'];
-      if (email != _reviewerEmailPrefix) {
+      if (email != reviewerEmailPrefix) {
         if (dbFingerprint == null || (dbFingerprint as String).isEmpty) {
           // If the account has no device_fingerprint, set it now to lock account to this device.
           await api.updateData(
@@ -277,7 +278,7 @@ class AuthController extends GetxController {
 
       // attach password and determine reviewer flag
       (userData as Map<String, dynamic>).addAll({'password': password});
-      final bool isReviewer = email == _reviewerEmailPrefix;
+      final bool isReviewer = email == reviewerEmailPrefix;
 
       // save locally and include inReview flag for reviewer
       await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
