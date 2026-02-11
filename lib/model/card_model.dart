@@ -10,7 +10,6 @@ import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
 import 'package:shobaki_academy/view/sub/homework_page.dart';
 import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
-import 'package:shobaki_academy/view/topics/topic_content_page.dart';
 
 enum CardTypes {
   topic,
@@ -30,6 +29,7 @@ class CardModel extends StatelessWidget {
   final String title;
   final String description;
   final Widget? note;
+  final String? navLabel;
   final String id;
   final String? topicId;
   final String? url;
@@ -47,6 +47,7 @@ class CardModel extends StatelessWidget {
     required this.description,
     required this.id,
     this.note,
+    this.navLabel,
     this.nav,
     this.url,
     this.subTopicKey,
@@ -65,8 +66,8 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          navlabel: 'تعلم المزيد',
-          navPage: nav == null ? TopicContentPage(topicId: id) : nav!,
+          navlabel: navLabel,
+          navPage: nav,
         );
       case CardTypes.enrolledTopic:
         return _SimpleCard(
@@ -81,7 +82,7 @@ class CardModel extends StatelessWidget {
           title: title,
           description: description,
           thumbnail: thumbnail,
-          navlabel: 'تصفح المحاضرة',
+          navlabel: navLabel,
           navPage: LectureContentPage(lectureId: id, topicId: topicId),
         );
       case CardTypes.video:
@@ -140,9 +141,9 @@ class _SimpleCard extends StatelessWidget {
   final String title;
   final String description;
   final String? thumbnail;
-  final String navlabel;
+  final String? navlabel;
   final Widget? note;
-  final Widget navPage;
+  final Widget? navPage;
   final int? questionsNumber;
   final int? examDuration;
   final int? grade;
@@ -215,20 +216,22 @@ class _SimpleCard extends StatelessWidget {
               child: Material(
                 color: Colors.white,
                 child: InkWell(
-                  onTap: () {
-                    if (navPage is LectureContentPage) {
-                      Get.offAll(
-                        () => navPage,
-                        transition: Transition.fade,
-                        duration: const Duration(milliseconds: 350),
-                      );
-                    }
-                    Get.to(
-                      () => navPage,
-                      transition: Transition.fade,
-                      duration: const Duration(milliseconds: 350),
-                    );
-                  },
+                  onTap: navPage != null
+                      ? () {
+                          if (navPage is LectureContentPage) {
+                            Get.offAll(
+                              () => navPage,
+                              transition: Transition.fade,
+                              duration: const Duration(milliseconds: 350),
+                            );
+                          }
+                          Get.to(
+                            () => navPage,
+                            transition: Transition.fade,
+                            duration: const Duration(milliseconds: 350),
+                          );
+                        }
+                      : null,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       return Column(
@@ -459,80 +462,88 @@ class _SimpleCard extends StatelessWidget {
                                           const SizedBox(width: 6),
 
                                           /// Action Button
-                                          Flexible(
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
-                                              children: [
-                                                Material(
-                                                  color: Colors.transparent,
-                                                  child: InkWell(
-                                                    onTap: () {
-                                                      Get.to(
-                                                        () => navPage,
-                                                        transition: Transition
-                                                            .leftToRightWithFade,
-                                                        duration:
-                                                            const Duration(
-                                                              milliseconds: 450,
-                                                            ),
-                                                        preventDuplicates:
-                                                            false,
-                                                      );
-                                                    },
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    child: Container(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                            horizontal:
-                                                                buttonPadH,
-                                                            vertical:
-                                                                buttonPadV,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: primary,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: primary
-                                                                .withOpacity(
-                                                                  0.3,
+                                          navlabel != null
+                                              ? Flexible(
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
+                                                    children: [
+                                                      Material(
+                                                        color:
+                                                            Colors.transparent,
+                                                        child: InkWell(
+                                                          onTap: () {
+                                                            Get.to(
+                                                              () => navPage,
+                                                              transition: Transition
+                                                                  .leftToRightWithFade,
+                                                              duration:
+                                                                  const Duration(
+                                                                    milliseconds:
+                                                                        450,
+                                                                  ),
+                                                              preventDuplicates:
+                                                                  false,
+                                                            );
+                                                          },
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                          child: Container(
+                                                            padding:
+                                                                EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      buttonPadH,
+                                                                  vertical:
+                                                                      buttonPadV,
                                                                 ),
-                                                            blurRadius: 4,
-                                                            offset:
-                                                                const Offset(
-                                                                  0,
-                                                                  2,
+                                                            decoration: BoxDecoration(
+                                                              color: primary,
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                              boxShadow: [
+                                                                BoxShadow(
+                                                                  color: primary
+                                                                      .withOpacity(
+                                                                        0.3,
+                                                                      ),
+                                                                  blurRadius: 4,
+                                                                  offset:
+                                                                      const Offset(
+                                                                        0,
+                                                                        2,
+                                                                      ),
                                                                 ),
+                                                              ],
+                                                            ),
+                                                            child: Text(
+                                                              navlabel!,
+                                                              style: TextStyle(
+                                                                fontSize:
+                                                                    buttonFontSize,
+                                                                color: Colors
+                                                                    .white,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
                                                           ),
-                                                        ],
-                                                      ),
-                                                      child: Text(
-                                                        navlabel,
-                                                        style: TextStyle(
-                                                          fontSize:
-                                                              buttonFontSize,
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.w600,
                                                         ),
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
                                                       ),
-                                                    ),
+                                                    ],
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                                )
+                                              : SizedBox.shrink(),
                                         ],
                                       ),
                                     ],

@@ -125,7 +125,7 @@ class SubscriptionController extends GetxController {
       final codeData = codeResult[0] as Map<String, dynamic>;
 
       // Check if code is limited and has remaining uses
-      if (codeData['limited'] == true && codeData['remain_uses'] <= 0) {
+      if (codeData['limited'] == true && codeData['remain_uses'] >= 0) {
         Get.back(); // Close loading dialog
         Get.snackbar(
           'توجد مشكلة',
@@ -135,15 +135,6 @@ class SubscriptionController extends GetxController {
           duration: const Duration(seconds: 3),
         );
         return;
-      }
-
-      // Deduct use if limited
-      if (codeData['limited'] == true) {
-        await api.updateData(
-          'student_codes',
-          {'remain_uses': (codeData['remain_uses'] as int) - 1},
-          {'id': codeData['id']},
-        );
       }
 
       // Insert book subscription (no topic_id, just subscription_type: "books")
