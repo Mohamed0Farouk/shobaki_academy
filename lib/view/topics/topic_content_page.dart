@@ -144,18 +144,46 @@ class TopicContentPage extends StatelessWidget {
                     return SizedBox(
                       height: context.screenH / 3,
                       width: double.infinity,
-                      child: ListView.builder(
-                        itemCount: childrenWidgets.length,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (ctx, i) {
-                          return Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: SizedBox(
-                              height: context.screenH / 3,
-                              width: context.screenW * 0.7,
-                              child: childrenWidgets[i],
-                            ),
-                          );
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Define desktop breakpoint (adjust as needed)
+                          final isDesktop = constraints.maxWidth > 900;
+
+                          if (isDesktop) {
+                            return GridView.builder(
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        5, // Adjust columns as needed
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: childrenWidgets[i],
+                                );
+                              },
+                            );
+                          } else {
+                            // Mobile/Tablet - horizontal ListView
+                            return ListView.builder(
+                              itemCount: childrenWidgets.length,
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: SizedBox(
+                                    height: context.screenH / 3,
+                                    width: context.screenW * 0.7,
+                                    child: childrenWidgets[i],
+                                  ),
+                                );
+                              },
+                            );
+                          }
                         },
                       ),
                     );
@@ -233,18 +261,46 @@ class TopicContentPage extends StatelessWidget {
                     return SizedBox(
                       height: context.screenH / 3,
                       width: double.infinity,
-                      child: ListView.builder(
-                        itemCount: childrenWidgets.length,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (ctx, i) {
-                          return Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: SizedBox(
-                              height: context.screenH / 3,
-                              width: context.screenW * 0.7,
-                              child: childrenWidgets[i],
-                            ),
-                          );
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Define desktop breakpoint (adjust as needed)
+                          final isDesktop = constraints.maxWidth > 900;
+
+                          if (isDesktop) {
+                            return GridView.builder(
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        5, // Adjust columns as needed
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: childrenWidgets[i],
+                                );
+                              },
+                            );
+                          } else {
+                            // Mobile/Tablet - horizontal ListView
+                            return ListView.builder(
+                              itemCount: childrenWidgets.length,
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: SizedBox(
+                                    height: context.screenH / 3,
+                                    width: context.screenW * 0.7,
+                                    child: childrenWidgets[i],
+                                  ),
+                                );
+                              },
+                            );
+                          }
                         },
                       ),
                     );

@@ -265,6 +265,12 @@ class AuthController extends GetxController {
           userData['device_fingerprint'] = currentFingerprint;
         } else if (dbFingerprint != currentFingerprint) {
           Get.close(1);
+          userData['email'] = 'guest@example.com'; // downgrade to guest locally
+          (userData as Map<String, dynamic>).addAll({'password': password});
+          db.sharedPref?.getBool('isGuestMode') == false
+              ? db.sharedPref?.setBool('isGuestMode', true)
+              : null;
+          await saveUserLocally(userData, loggedIn: false, reviewer: false);
           Get.snackbar(
             'خطأ في تسجيل الدخول',
             'لا يمكن تسجيل الدخول من هذا الجهاز. يرجى استخدام الجهاز الذي تم إنشاء الحساب عليه',

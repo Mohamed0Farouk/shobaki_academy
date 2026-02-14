@@ -276,16 +276,14 @@ class BooksController extends GetxController {
                         title: Text(book.title),
                         subtitle: isReviewer.value
                             ? SizedBox.shrink()
-                            : (
-                                    book.free
-                                        ? const Text('مجاني')
-                                        : Text(
-                                            'غير مجاني',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                  )
-                                  as Widget?,
+                            : book.free
+                            ? const Text('مجاني')
+                            : Text(
+                                'غير مجاني',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+
                         onTap: () => _onTileTap(
                           book,
                           context,

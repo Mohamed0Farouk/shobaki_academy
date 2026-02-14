@@ -241,8 +241,7 @@ class _TopicsPageState extends State<TopicsPage> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 12,
             crossAxisSpacing: 10,
-
-            childAspectRatio: 0.9,
+            childAspectRatio: 0.75,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {

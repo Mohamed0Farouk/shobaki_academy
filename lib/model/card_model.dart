@@ -474,7 +474,7 @@ class _SimpleCard extends StatelessWidget {
                                                         child: InkWell(
                                                           onTap: () {
                                                             Get.to(
-                                                              () => navPage,
+                                                              () => navPage!,
                                                               transition: Transition
                                                                   .leftToRightWithFade,
                                                               duration:
