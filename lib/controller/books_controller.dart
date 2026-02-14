@@ -1,6 +1,7 @@
 // lib/controller/books_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
@@ -84,7 +85,7 @@ class BooksController extends GetxController {
 
         // Check if reviewer (special test account)
         isReviewer.value =
-            userEmail.value == 'appletestaccount#11111111111@gmail.com';
+            userEmail.value == 'appletestaccount#97111111111111@gmail.com';
 
         Get.log('User loaded - Email: ${userEmail.value}, ID: ${userId.value}');
       }
@@ -273,25 +274,22 @@ class BooksController extends GetxController {
                       final book = items[i];
                       return ListTile(
                         title: Text(book.title),
-                        subtitle: book.free
+                        subtitle: isReviewer.value
+                            ? SizedBox.shrink()
+                            : book.free
                             ? const Text('مجاني')
                             : Text(
                                 'غير مجاني',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                        onTap: () {
-                          Get.to(
-                            () => PdfModel(
-                              pdfUrl: book.url,
-                              filename: '${book.title}.pdf',
-                            ),
-                          );
-                          if (sheetOpen.value) {
-                            if (Get.isBottomSheetOpen == true) Get.back();
-                            sheetOpen.value = false;
-                          }
-                        },
+
+                        onTap: () => _onTileTap(
+                          book,
+                          context,
+                          isGuest.value,
+                          isReviewer.value,
+                        ),
                       );
                     },
                     separatorBuilder: (_, __) => const Divider(),
@@ -309,6 +307,33 @@ class BooksController extends GetxController {
       sheetOpen.value = false;
       isSearching.value = false;
     });
+  }
+
+  void _onTileTap(book, context, isGuest, isReviewer) async {
+    if (isReviewer) {
+      Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      return;
+    }
+
+    if (book.free) {
+      Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      return;
+    }
+
+    if (isGuest) {
+      showGuestAnnotationDialog(context: context);
+    } else {
+      final hasSubscription = await checkBookSubscription();
+      if (hasSubscription) {
+        Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      } else {
+        showBookSubscriptionDialog(
+          api: ApiClient(),
+          userId: userId.value,
+          context: context,
+        );
+      }
+    }
   }
 
   /// Clear search results

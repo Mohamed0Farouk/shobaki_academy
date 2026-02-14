@@ -57,9 +57,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    final params = Get.parameters;
-    inReviewParam = params['inReview'] == 'true';
-
     final localDb = Get.find<LocalDB>();
     final prefs = localDb.sharedPref!;
 
@@ -73,6 +70,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     guestParam = _user?['email'] == 'guest@example.com';
+    inReviewParam = _user?['email'] == AuthController.reviewerEmailPrefix;
 
     _init();
     _loadLocalUserName();
@@ -94,26 +92,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _checkFirstLaunch() async {
-    final localDb = Get.find<LocalDB>();
-    final prefs = localDb.sharedPref!;
+  // Future<void> _checkFirstLaunch() async {
+  //   final localDb = Get.find<LocalDB>();
+  //   final prefs = localDb.sharedPref!;
 
-    const key = 'first_launch_done';
+  //   const key = 'first_launch_done';
 
-    final isFirstLaunch = !(prefs.getBool(key) ?? false);
+  //   final isFirstLaunch = !(prefs.getBool(key) ?? false);
 
-    print(isFirstLaunch ? 'first launch' : 'not first launch');
+  //   print(isFirstLaunch ? 'first launch' : 'not first launch');
 
-    print('added');
-    if (isFirstLaunch) {
-      // Wait until UI is ready
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showFirstLaunchDialog();
-      });
+  //   print('added');
+  //   if (isFirstLaunch) {
+  //     // Wait until UI is ready
+  //     WidgetsBinding.instance.addPostFrameCallback((_) {
+  //       showFirstLaunchDialog();
+  //     });
 
-      await prefs.setBool(key, true);
-    }
-  }
+  //     await prefs.setBool(key, true);
+  //   }
+  // }
 
   Future<void> _init() async {
     await _buildPagesAndItems();
@@ -129,7 +127,8 @@ class _HomePageState extends State<HomePage> {
     final res = await api.fetchData('application_manfist');
     final manifest = res.isNotEmpty ? res[0] : <String, dynamic>{};
 
-    final bool inReviewMode = manifest['in_review'] as bool? ?? false;
+    bool inReviewMode = manifest['in_review'] as bool? ?? false;
+    inReviewMode = inReviewMode || inReviewParam;
     final bool useHomeworksAndExams =
         manifest['use_homeworks_and_exams'] as bool? ?? false;
 

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/subscription_controller.dart';
@@ -113,6 +112,84 @@ class TopicContentPage extends StatelessWidget {
               children: [
                 _detailsCard(context, topic, description, subs, user, api),
                 const SizedBox(height: 20),
+                Text(
+                  'المحاضرات المتضمنة',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 12),
+
+                FutureBuilder<List<Widget>>(
+                  future: _lecturesHandler(
+                    topic['lectures'],
+                    topic['thumbnail'],
+                  ),
+                  builder: (context, snapshot) {
+                    final childrenWidgets = snapshot.data ?? [];
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return loading(context);
+                    }
+                    if (childrenWidgets.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: Text(
+                            'لا توجد محاضرات ',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      );
+                    }
+                    return SizedBox(
+                      height: context.screenH / 3,
+                      width: double.infinity,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Define desktop breakpoint (adjust as needed)
+                          final isDesktop = constraints.maxWidth > 900;
+
+                          if (isDesktop) {
+                            return GridView.builder(
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        5, // Adjust columns as needed
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: childrenWidgets[i],
+                                );
+                              },
+                            );
+                          } else {
+                            // Mobile/Tablet - horizontal ListView
+                            return ListView.builder(
+                              itemCount: childrenWidgets.length,
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: SizedBox(
+                                    height: context.screenH / 3,
+                                    width: context.screenW * 0.7,
+                                    child: childrenWidgets[i],
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -184,18 +261,46 @@ class TopicContentPage extends StatelessWidget {
                     return SizedBox(
                       height: context.screenH / 3,
                       width: double.infinity,
-                      child: ListView.builder(
-                        itemCount: childrenWidgets.length,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (ctx, i) {
-                          return Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: SizedBox(
-                              height: context.screenH / 3.2,
-                              width: context.screenW / 2,
-                              child: childrenWidgets[i],
-                            ),
-                          );
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Define desktop breakpoint (adjust as needed)
+                          final isDesktop = constraints.maxWidth > 900;
+
+                          if (isDesktop) {
+                            return GridView.builder(
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount:
+                                        5, // Adjust columns as needed
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: childrenWidgets[i],
+                                );
+                              },
+                            );
+                          } else {
+                            // Mobile/Tablet - horizontal ListView
+                            return ListView.builder(
+                              itemCount: childrenWidgets.length,
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (ctx, i) {
+                                return Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: SizedBox(
+                                    height: context.screenH / 3,
+                                    width: context.screenW * 0.7,
+                                    child: childrenWidgets[i],
+                                  ),
+                                );
+                              },
+                            );
+                          }
                         },
                       ),
                     );
@@ -351,9 +456,14 @@ class TopicContentPage extends StatelessWidget {
     final lecturesCount = (topic['lectures'] is List)
         ? (topic['lectures'] as List).length
         : 0;
-    final createdAt = topic['created_at'];
+
+    final childrenCount = (topic['children'] is List)
+        ? (topic['children'] as List).length
+        : 0;
+
+    //final createdAt = topic['created_at'];
     final stage = (topic['stage'] ?? '-').toString();
-    final price = topic['price'];
+    //final price = topic['price'];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -382,11 +492,17 @@ class TopicContentPage extends StatelessWidget {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
-                _infoChip(
-                  context,
-                  Icons.menu_book,
-                  'المحاضرات: $lecturesCount',
-                ),
+                childrenCount != 0
+                    ? _infoChip(
+                        context,
+                        Icons.folder,
+                        'المحتويات الفرعية: $childrenCount',
+                      )
+                    : _infoChip(
+                        context,
+                        Icons.menu_book,
+                        'المحاضرات: $lecturesCount',
+                      ),
                 // _infoChip(
                 //   context,
                 //   Icons.calendar_today,
@@ -576,25 +692,25 @@ class TopicContentPage extends StatelessWidget {
     );
   }
 
-  String _formatDate(dynamic date) {
-    try {
-      return intl.DateFormat(
-        'yyyy/MM/dd',
-      ).format(DateTime.parse(date.toString()));
-    } catch (_) {
-      return '-';
-    }
-  }
+  // String _formatDate(dynamic date) {
+  //   try {
+  //     return intl.DateFormat(
+  //       'yyyy/MM/dd',
+  //     ).format(DateTime.parse(date.toString()));
+  //   } catch (_) {
+  //     return '-';
+  //   }
+  // }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final p = (price ?? 0) as num;
-      // original code stored price in cents, but safe fallback to raw if small
-      return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
-    } catch (_) {
-      return '0 AED';
-    }
-  }
+  // String _formatPrice(dynamic price) {
+  //   try {
+  //     final p = (price ?? 0) as num;
+  //     // original code stored price in cents, but safe fallback to raw if small
+  //     return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
+  //   } catch (_) {
+  //     return '0 AED';
+  //   }
+  // }
 
   Map? _getUserData() {
     try {
@@ -637,15 +753,49 @@ class TopicContentPage extends StatelessWidget {
             duration: const Duration(milliseconds: 600),
             child: CardModel(
               type: CardTypes.topic,
-              thumbnail: thumbnail,
+              thumbnail: topic["thumbnail"],
               title: topic['title'] ?? '',
               description: topic['description'] ?? '',
               id: topic['id'] ?? '',
-              nav: TopicContentPage(
-                topicId: topicId,
-                isGuest: isGuest,
-                inReview: inReview,
-              ),
+              nav: null, // No navigation on subtopic cards in parent view
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<Widget>> _lecturesHandler(
+    List? lectures,
+    String? thumbnail,
+  ) async {
+    final lecturesData = <Map>[];
+    if (lectures == null) return [];
+    for (var id in lectures) {
+      try {
+        final res = await ApiClient().fetchWithConditions(
+          'lectures',
+          filters: {'id': id},
+        );
+        if (res.isNotEmpty) {
+          lecturesData.add(Map<String, dynamic>.from(res[0] as Map));
+        }
+      } catch (_) {
+        // ignore failed fetch for a child
+      }
+    }
+
+    return lecturesData
+        .map(
+          (lecture) => FadeInUp(
+            from: 100,
+            duration: const Duration(milliseconds: 600),
+            child: CardModel(
+              type: CardTypes.lecture,
+              thumbnail: lecture["thumbnail"],
+              title: lecture['title'] ?? '',
+              description: lecture['description'] ?? '',
+              id: lecture['id'] ?? '',
+              nav: null, // No navigation on subtopic cards in parent view
             ),
           ),
         )

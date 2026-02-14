@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
@@ -81,6 +83,8 @@ class _PdfModelState extends State<PdfModel> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Obx(() {
+                    final isMobile = Platform.isAndroid || Platform.isIOS;
+
                     return controller.isDownloading.value
                         ? const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
@@ -95,12 +99,14 @@ class _PdfModelState extends State<PdfModel> {
                               ),
                             ),
                           )
-                        : IconButton(
+                        : !isMobile
+                        ? IconButton(
                             icon: const Icon(Icons.download),
                             onPressed: () =>
                                 controller.downloadPdf(_pdfUrl, _filename),
                             tooltip: 'تحميل PDF',
-                          );
+                          )
+                        : const SizedBox.shrink();
                   }),
                 ),
               ],

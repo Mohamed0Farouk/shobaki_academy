@@ -121,6 +121,20 @@ class BooksPage extends StatelessWidget {
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final book = controller.books[index];
+                  if (index == controller.books.length - 1) {
+                    // Add extra space at the end for better UX on mobile
+                    return Column(
+                      children: [
+                        _BookListTile(
+                          book: book,
+                          isGuest: controller.isGuest.value,
+                          isReviewer: controller.isReviewer.value,
+                          controller: controller,
+                        ),
+                        const SizedBox(height: 80),
+                      ],
+                    );
+                  }
                   return _BookListTile(
                     book: book,
                     isGuest: controller.isGuest.value,

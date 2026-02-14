@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:animate_do/animate_do.dart';
@@ -5,19 +7,27 @@ import 'package:shobaki_academy/controller/enrolled_topics_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/theme.dart';
 
-class EnrolledTopicsPage extends StatelessWidget {
-  EnrolledTopicsPage({super.key, this.guest = false});
+class EnrolledTopicsPage extends StatefulWidget {
+  const EnrolledTopicsPage({super.key, this.guest = false});
 
-  final controller = Get.put(EnrolledTopicsController(), permanent: true);
   final bool guest;
 
   @override
-  Widget build(BuildContext context) {
-    controller.isGuest.value = guest;
-    if (!guest) {
-      controller.loadenrolledtopics();
-    }
+  State<EnrolledTopicsPage> createState() => _EnrolledTopicsPageState();
+}
 
+class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
+  final controller = Get.put(EnrolledTopicsController(), permanent: true);
+
+  @override
+  void initState() {
+    controller.loadenrolledtopics();
+
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
     final crossAxisCount = isDesktop
@@ -89,8 +99,8 @@ class EnrolledTopicsPage extends StatelessWidget {
 
                     // Combine recommended and latest topics
                     final allTopics = [
-                      ...controller.recommendations,
-                      ...controller.latestenrolledtopics,
+                      ...controller.recommendations.value,
+                      ...controller.latestenrolledtopics.value,
                     ];
 
                     if (allTopics.isEmpty) {
