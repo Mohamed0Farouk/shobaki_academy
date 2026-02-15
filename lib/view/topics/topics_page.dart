@@ -536,6 +536,7 @@ class _HoverableCardState extends State<_HoverableCard>
                         child: Text(
                           widget.title,
                           maxLines: 3,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
