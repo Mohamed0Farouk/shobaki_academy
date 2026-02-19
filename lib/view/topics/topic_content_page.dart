@@ -141,35 +141,34 @@ class TopicContentPage extends StatelessWidget {
                         ),
                       );
                     }
-                    return SizedBox(
-                      height: context.screenH / 3,
-                      width: double.infinity,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Define desktop breakpoint (adjust as needed)
-                          final isDesktop = constraints.maxWidth > 900;
-
-                          if (isDesktop) {
-                            return GridView.builder(
-                              itemCount: childrenWidgets.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount:
-                                        5, // Adjust columns as needed
-                                    childAspectRatio: 0.75,
-                                    crossAxisSpacing: 8,
-                                    mainAxisSpacing: 8,
-                                  ),
-                              itemBuilder: (ctx, i) {
-                                return Directionality(
-                                  textDirection: TextDirection.rtl,
-                                  child: childrenWidgets[i],
-                                );
-                              },
-                            );
-                          } else {
-                            // Mobile/Tablet - horizontal ListView
-                            return ListView.builder(
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Define desktop breakpoint (adjust as needed)
+                        final isDesktop = constraints.maxWidth > 900;
+                        if (isDesktop) {
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: childrenWidgets.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 5,
+                                  mainAxisExtent: context.screenH / 2.5,
+                                  crossAxisSpacing: 12,
+                                ),
+                            itemBuilder: (ctx, i) {
+                              return Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: childrenWidgets[i],
+                              );
+                            },
+                          );
+                        } else {
+                          // Mobile/Tablet - horizontal ListView
+                          return SizedBox(
+                            height: context.screenH / 3,
+                            width: double.infinity,
+                            child: ListView.builder(
                               itemCount: childrenWidgets.length,
                               scrollDirection: Axis.horizontal,
                               itemBuilder: (ctx, i) {
@@ -177,15 +176,15 @@ class TopicContentPage extends StatelessWidget {
                                   textDirection: TextDirection.rtl,
                                   child: SizedBox(
                                     height: context.screenH / 3,
-                                    width: context.screenW * 0.7,
+                                    width: context.screenW * 0.4,
                                     child: childrenWidgets[i],
                                   ),
                                 );
                               },
-                            );
-                          }
-                        },
-                      ),
+                            ),
+                          );
+                        }
+                      },
                     );
                   },
                 ),
@@ -258,35 +257,35 @@ class TopicContentPage extends StatelessWidget {
                         ),
                       );
                     }
-                    return SizedBox(
-                      height: context.screenH / 3,
-                      width: double.infinity,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          // Define desktop breakpoint (adjust as needed)
-                          final isDesktop = constraints.maxWidth > 900;
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Define desktop breakpoint (adjust as needed)
+                        final isDesktop = constraints.maxWidth > 900;
 
-                          if (isDesktop) {
-                            return GridView.builder(
-                              itemCount: childrenWidgets.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount:
-                                        5, // Adjust columns as needed
-                                    childAspectRatio: 0.75,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                  ),
-                              itemBuilder: (ctx, i) {
-                                return Directionality(
-                                  textDirection: TextDirection.rtl,
-                                  child: childrenWidgets[i],
-                                );
-                              },
-                            );
-                          } else {
-                            // Mobile/Tablet - horizontal ListView
-                            return ListView.builder(
+                        if (isDesktop) {
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: childrenWidgets.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 5,
+                                  mainAxisExtent: context.screenH / 2.5,
+                                  crossAxisSpacing: 12,
+                                ),
+                            itemBuilder: (ctx, i) {
+                              return Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: childrenWidgets[i],
+                              );
+                            },
+                          );
+                        } else {
+                          // Mobile/Tablet - horizontal ListView
+                          return SizedBox(
+                            height: context.screenH / 3,
+                            width: double.infinity,
+                            child: ListView.builder(
                               itemCount: childrenWidgets.length,
                               scrollDirection: Axis.horizontal,
                               itemBuilder: (ctx, i) {
@@ -294,15 +293,15 @@ class TopicContentPage extends StatelessWidget {
                                   textDirection: TextDirection.rtl,
                                   child: SizedBox(
                                     height: context.screenH / 3,
-                                    width: context.screenW * 0.7,
+                                    width: context.screenW * 0.4,
                                     child: childrenWidgets[i],
                                   ),
                                 );
                               },
-                            );
-                          }
-                        },
-                      ),
+                            ),
+                          );
+                        }
+                      },
                     );
                   },
                 ),
@@ -463,7 +462,7 @@ class TopicContentPage extends StatelessWidget {
 
     //final createdAt = topic['created_at'];
     final stage = (topic['stage'] ?? '-').toString();
-    //final price = topic['price'];
+    final price = topic['price'];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -510,23 +509,12 @@ class TopicContentPage extends StatelessWidget {
                 // ),
                 _infoChip(context, Icons.tag, 'المرحلة: $stage'),
                 // Hide price in review mode
-                // if (!inReview)
-                //   _infoChip(
-                //     context,
-                //     Icons.price_check,
-                //     'السعر: ${_formatPrice(price)}',
-                //   ),
+                if (!inReview && price > 0)
+                  _infoChip(context, Icons.price_check, 'السعر: ${price} AED'),
               ],
             ),
             const SizedBox(height: 16),
             Center(child: _actionButton(context, topic, subs, user, api)),
-            if (showChildrenHeader) const SizedBox(height: 20),
-            if (showChildrenHeader)
-              Text(
-                'المحتويات الفرعية',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.right,
-              ),
           ],
         ),
       ),
@@ -617,6 +605,7 @@ class TopicContentPage extends StatelessWidget {
       ),
       label: Text(
         label,
+        textAlign: TextAlign.center,
         style: Theme.of(
           context,
         ).textTheme.bodyLarge?.copyWith(color: Colors.white),

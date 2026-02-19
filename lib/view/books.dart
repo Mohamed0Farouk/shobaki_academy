@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/books_controller.dart';
@@ -125,21 +126,29 @@ class BooksPage extends StatelessWidget {
                     // Add extra space at the end for better UX on mobile
                     return Column(
                       children: [
-                        _BookListTile(
-                          book: book,
-                          isGuest: controller.isGuest.value,
-                          isReviewer: controller.isReviewer.value,
-                          controller: controller,
+                        FadeInLeft(
+                          duration: Duration(milliseconds: 450 + (index * 100)),
+                          from: 100,
+                          child: _BookListTile(
+                            book: book,
+                            isGuest: controller.isGuest.value,
+                            isReviewer: controller.isReviewer.value,
+                            controller: controller,
+                          ),
                         ),
                         const SizedBox(height: 80),
                       ],
                     );
                   }
-                  return _BookListTile(
-                    book: book,
-                    isGuest: controller.isGuest.value,
-                    isReviewer: controller.isReviewer.value,
-                    controller: controller,
+                  return FadeInLeft(
+                    duration: Duration(milliseconds: 450 + (index * 100)),
+                    from: 100,
+                    child: _BookListTile(
+                      book: book,
+                      isGuest: controller.isGuest.value,
+                      isReviewer: controller.isReviewer.value,
+                      controller: controller,
+                    ),
                   );
                 },
               );

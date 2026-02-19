@@ -47,6 +47,7 @@ class VideoPlayerView extends StatelessWidget {
         if (Platform.isAndroid || Platform.isIOS) {
           return VdoPlayer(
             embedInfo: ctrl.embedInfo!,
+
             onPlayerCreated: (controller) => ctrl.onPlayerCreated(controller),
             onFullscreenChange: ctrl.onFullscreenChange,
             onError: ctrl.onVdoError,
@@ -62,7 +63,7 @@ class VideoPlayerView extends StatelessWidget {
               playbackInfo: ctrl.embedInfo!.playbackInfo!,
             );
           }
-          
+
           return Center(
             child: Text(
               "تم فتح مشغل الفيديو في المتصفح الافتراضي لديك.",

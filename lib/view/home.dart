@@ -795,7 +795,13 @@ class _HomePageState extends State<HomePage> {
               children: [
                 const Icon(Icons.lock_outline),
                 const SizedBox(width: 8),
-                const Expanded(child: Text('سجل دخولك للوصول لكل الميزات')),
+                Expanded(
+                  child: Text(
+                    'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات ',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
                 TextButton(
                   onPressed: () {
                     loadingDilog(context);
@@ -804,9 +810,11 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   style: TextButton.styleFrom(backgroundColor: Colors.orange),
-                  child: const Text(
+                  child: Text(
                     'دخول',
-                    style: TextStyle(color: Colors.white),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(color: Colors.white),
                   ),
                 ),
               ],
