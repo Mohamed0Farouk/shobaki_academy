@@ -122,21 +122,6 @@ class SubscriptionController extends GetxController {
         return;
       }
 
-      final codeData = codeResult[0] as Map<String, dynamic>;
-
-      // Check if code is limited and has remaining uses
-      if (codeData['limited'] == true && codeData['remain_uses'] >= 0) {
-        Get.back(); // Close loading dialog
-        Get.snackbar(
-          'توجد مشكلة',
-          'الكود قد استُخدم بالكامل',
-          backgroundColor: Colors.red,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 3),
-        );
-        return;
-      }
-
       // Insert book subscription (no topic_id, just subscription_type: "books")
       await api.insertData('students_subscriptions', {
         'student_id': userId,

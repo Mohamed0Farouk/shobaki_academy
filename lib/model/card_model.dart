@@ -299,6 +299,7 @@ class _SimpleCard extends StatelessWidget {
                                             Expanded(
                                               child: Text(
                                                 title,
+                                                textAlign: TextAlign.center,
                                                 style: TextStyle(
                                                   fontSize: titleSize,
                                                   fontWeight: FontWeight.bold,

@@ -150,9 +150,11 @@ class TopicsController extends GetxController {
 
       final titleFilters = <String, dynamic>{
         'title': {'operator': 'ilike', 'value': pattern},
+        'hidden': false,
       };
       final descFilters = <String, dynamic>{
         'description': {'operator': 'ilike', 'value': pattern},
+        'hidden': false,
       };
 
       if (_userStage != null && _userStage!.isNotEmpty) {

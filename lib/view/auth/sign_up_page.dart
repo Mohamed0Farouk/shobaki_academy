@@ -191,9 +191,15 @@ class _SignUpPageState extends State<SignUpPage> {
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodyMedium,
-                                    validator: (v) => (v == null || v.isEmpty)
-                                        ? 'الرجاء ادخال اسم المدرسة'
-                                        : null,
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) {
+                                        return 'الرجاء ادخال اسم المدرسة';
+                                      }
+                                      if (v.length < 6) {
+                                        return 'الرجاء ادخال اسم المدرسة كاملاً';
+                                      }
+                                      return null;
+                                    },
                                     decoration: InputDecoration(
                                       hintText: 'اسم المدرسة',
                                       filled: true,

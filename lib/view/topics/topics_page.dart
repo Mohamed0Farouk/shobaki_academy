@@ -53,12 +53,12 @@ class _TopicsPageState extends State<TopicsPage> {
                   vertical: isDesktop ? 12 : 6,
                 ),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     /// -------------------------
                     /// MODERN SEARCH BAR
                     /// -------------------------
                     _buildModernSearchBar(context),
-
                     SizedBox(height: isDesktop ? 8 : 32),
 
                     /// -------------------------
@@ -241,7 +241,7 @@ class _TopicsPageState extends State<TopicsPage> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 12,
             crossAxisSpacing: 10,
-            childAspectRatio: 0.75,
+            childAspectRatio: 0.80,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
@@ -536,6 +536,7 @@ class _HoverableCardState extends State<_HoverableCard>
                         child: Text(
                           widget.title,
                           maxLines: 3,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
