@@ -49,7 +49,7 @@ class _TopicPageState extends State<TopicPage> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
               return Directionality(
-                textDirection: TextDirection.rtl,
+                textDirection: TextDirection.ltr,
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: isDesktop ? 20 : 10,
@@ -91,7 +91,7 @@ class _TopicPageState extends State<TopicPage> {
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 12,
         crossAxisSpacing: 10,
-        //childAspectRatio: 1.3,
+        childAspectRatio: 0.75,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -147,6 +147,7 @@ class _TopicPageState extends State<TopicPage> {
           child: CardModel(
             type: CardTypes.enrolledTopic,
             title: element['title'],
+            thumbnail: element['thumbnail'],
             description: element['description'],
             id: element['id'],
           ),
@@ -156,142 +157,6 @@ class _TopicPageState extends State<TopicPage> {
 
     return widgets;
   }
-
-  // Future<List<Widget>> lecturesHandler(context, lecturesList) async {
-  //   final ApiClient api = ApiClient();
-
-  //   final LocalDB services = Get.find();
-  //   final localDb = services.sharedPref;
-
-  //   final jsonUserData = localDb!.getString('UserData');
-  //   final Map userData = jsonDecode(jsonUserData!);
-
-  //   final data = [];
-
-  //   final List<Widget> widgets = [];
-
-  //   for (var element in lecturesList) {
-  //     final fetchedLectureData = await api.fetchWithConditions(
-  //       'lectures',
-  //       filters: {'id': element},
-  //     );
-  //     data.add(fetchedLectureData[0]);
-  //   }
-
-  //   if (data.isNotEmpty) {
-  //     final List<Map<String, dynamic>> sortedData = data
-  //         .map((item) => item as Map<String, dynamic>)
-  //         .toList();
-
-  //     sortedData.sort((a, b) {
-  //       final aDate = DateTime.parse(a['created_at']);
-  //       final bDate = DateTime.parse(b['created_at']);
-  //       return aDate.compareTo(bDate);
-  //     });
-
-  //     for (int idx = 0; idx < sortedData.length; idx++) {
-  //       final element = sortedData[idx];
-  //       final delayMs = 50 + (idx * 80);
-
-  //       if (element['exam_to_open'] != null) {
-  //         final studentSolvedExam = await api.fetchWithConditions(
-  //           'students_solved_exams',
-  //           filters: {
-  //             'student_id': userData['id'],
-  //             'exam_id': element['exam_to_open'],
-  //           },
-  //         );
-  //         if (studentSolvedExam.isNotEmpty) {
-  //           widgets.add(
-  //             FadeInUp(
-  //               from: 100,
-  //               duration: const Duration(milliseconds: 600),
-  //               delay: Duration(milliseconds: delayMs),
-  //               child: AnimatedContainer(
-  //                 duration: const Duration(milliseconds: 300),
-  //                 child: CardModel(
-  //                   type: CardTypes.lecture,
-  //                   id: element['id'],
-  //                   topicId: widget.topicId,
-  //                   title: element['title'],
-  //                   description: element['description'],
-  //                 ),
-  //               ),
-  //             ),
-  //           );
-  //         } else {
-  //           widgets.add(
-  //             FadeInUp(
-  //               from: 100,
-  //               duration: const Duration(milliseconds: 600),
-  //               delay: Duration(milliseconds: delayMs),
-  //               child: SizedBox(
-  //                 child: Stack(
-  //                   children: [
-  //                     CardModel(
-  //                       type: CardTypes.lecture,
-  //                       id: element['id'],
-  //                       topicId: widget.topicId,
-  //                       title: element['title'],
-  //                       description: element['description'],
-  //                     ),
-  //                     Positioned.fill(
-  //                       child: Card(
-  //                         shadowColor: Colors.black.withOpacity(0.12),
-  //                         elevation: 4,
-  //                         shape: RoundedRectangleBorder(
-  //                           borderRadius: BorderRadius.circular(25),
-  //                         ),
-  //                         color: Colors.black.withOpacity(0.5),
-  //                         child: Row(
-  //                           mainAxisAlignment: MainAxisAlignment.center,
-  //                           children: [
-  //                             SizedBox(
-  //                               width: 300,
-  //                               child: Text(
-  //                                 'قم بحل الاختبار السابق لفتح هذه المحاضرة',
-  //                                 maxLines: 3,
-  //                                 textAlign: TextAlign.center,
-  //                                 style: Theme.of(context).textTheme.bodyLarge!
-  //                                     .copyWith(color: Colors.white),
-  //                               ),
-  //                             ),
-  //                             const SizedBox(width: 15),
-  //                             const Icon(
-  //                               Icons.lock_rounded,
-  //                               color: Colors.white,
-  //                             ),
-  //                           ],
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   ],
-  //                 ),
-  //               ),
-  //             ),
-  //           );
-  //         }
-  //       } else {
-  //         widgets.add(
-  //           FadeInUp(
-  //             from: 100,
-  //             duration: const Duration(milliseconds: 600),
-  //             delay: Duration(milliseconds: delayMs),
-  //             child: CardModel(
-  //               type: CardTypes.lecture,
-  //               id: element['id'],
-  //               thumbnail: element['thumbnail'],
-  //               topicId: widget.topicId,
-  //               title: element['title'],
-  //               description: element['description'],
-  //             ),
-  //           ),
-  //         );
-  //       }
-  //     }
-  //   }
-  //   return widgets;
-  // }
 
   Future<List<Widget>> lecturesHandler(context, lecturesList) async {
     final ApiClient api = ApiClient();
