@@ -146,41 +146,41 @@ class TopicContentPage extends StatelessWidget {
                         // Define desktop breakpoint (adjust as needed)
                         final isDesktop = constraints.maxWidth > 900;
                         if (isDesktop) {
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: childrenWidgets.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 5,
-                                  mainAxisExtent: context.screenH / 2.5,
-                                  crossAxisSpacing: 12,
-                                ),
-                            itemBuilder: (ctx, i) {
-                              return Directionality(
-                                textDirection: TextDirection.rtl,
-                                child: childrenWidgets[i],
-                              );
-                            },
+                          return Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 5,
+                                    mainAxisExtent: context.screenH / 2.5,
+                                    crossAxisSpacing: 12,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return childrenWidgets[i];
+                              },
+                            ),
                           );
                         } else {
                           // Mobile/Tablet - horizontal ListView
                           return SizedBox(
                             height: context.screenH / 3,
                             width: double.infinity,
-                            child: ListView.builder(
-                              itemCount: childrenWidgets.length,
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (ctx, i) {
-                                return Directionality(
-                                  textDirection: TextDirection.rtl,
-                                  child: SizedBox(
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: ListView.builder(
+                                itemCount: childrenWidgets.length,
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (ctx, i) {
+                                  return SizedBox(
                                     height: context.screenH / 3,
                                     width: context.screenW * 0.4,
                                     child: childrenWidgets[i],
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
                           );
                         }
@@ -263,41 +263,41 @@ class TopicContentPage extends StatelessWidget {
                         final isDesktop = constraints.maxWidth > 900;
 
                         if (isDesktop) {
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: childrenWidgets.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 5,
-                                  mainAxisExtent: context.screenH / 2.5,
-                                  crossAxisSpacing: 12,
-                                ),
-                            itemBuilder: (ctx, i) {
-                              return Directionality(
-                                textDirection: TextDirection.rtl,
-                                child: childrenWidgets[i],
-                              );
-                            },
+                          return Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: childrenWidgets.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 5,
+                                    mainAxisExtent: context.screenH / 2.5,
+                                    crossAxisSpacing: 12,
+                                  ),
+                              itemBuilder: (ctx, i) {
+                                return childrenWidgets[i];
+                              },
+                            ),
                           );
                         } else {
                           // Mobile/Tablet - horizontal ListView
                           return SizedBox(
                             height: context.screenH / 3,
                             width: double.infinity,
-                            child: ListView.builder(
-                              itemCount: childrenWidgets.length,
-                              scrollDirection: Axis.horizontal,
-                              itemBuilder: (ctx, i) {
-                                return Directionality(
-                                  textDirection: TextDirection.rtl,
-                                  child: SizedBox(
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: ListView.builder(
+                                itemCount: childrenWidgets.length,
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (ctx, i) {
+                                  return SizedBox(
                                     height: context.screenH / 3,
                                     width: context.screenW * 0.4,
                                     child: childrenWidgets[i],
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
                           );
                         }
@@ -510,7 +510,7 @@ class TopicContentPage extends StatelessWidget {
                 _infoChip(context, Icons.tag, 'المرحلة: $stage'),
                 // Hide price in review mode
                 if (!inReview && price > 0)
-                  _infoChip(context, Icons.price_check, 'السعر: ${price} AED'),
+                  _infoChip(context, Icons.price_check, 'السعر: $price AED'),
               ],
             ),
             const SizedBox(height: 16),
@@ -778,13 +778,15 @@ class TopicContentPage extends StatelessWidget {
           (lecture) => FadeInUp(
             from: 100,
             duration: const Duration(milliseconds: 600),
-            child: CardModel(
-              type: CardTypes.lecture,
-              thumbnail: lecture["thumbnail"],
-              title: lecture['title'] ?? '',
-              description: lecture['description'] ?? '',
-              id: lecture['id'] ?? '',
-              nav: null, // No navigation on subtopic cards in parent view
+            child: SizedBox(
+              child: CardModel(
+                type: CardTypes.lecture,
+                thumbnail: lecture["thumbnail"],
+                title: lecture['title'] ?? '',
+                description: lecture['description'] ?? '',
+                id: lecture['id'] ?? '',
+                nav: null, // No navigation on subtopic cards in parent view
+              ),
             ),
           ),
         )

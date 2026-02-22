@@ -124,37 +124,41 @@ class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
                       );
                     }
 
-                    return GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        // taller cards on mobile, compact on desktop
-                        childAspectRatio: isDesktop ? 1.4 : 0.9,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 10,
-                      ),
-                      itemBuilder: (_, i) {
-                        final item = allTopics[i];
-                        final title = item['title'] ?? '';
-                        final imageUrl =
-                            item['thumbnail'] ?? 'https://placehold.co/200/png';
-                        final isRecommended =
-                            item['topic']?['recommended'] == true;
+                    return Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          // taller cards on mobile, compact on desktop
+                          childAspectRatio: 0.9,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 10,
+                        ),
+                        itemBuilder: (_, i) {
+                          final item = allTopics[i];
+                          final title = item['title'] ?? '';
+                          final imageUrl =
+                              item['thumbnail'] ??
+                              'https://placehold.co/200/png';
+                          final isRecommended =
+                              item['topic']?['recommended'] == true;
 
-                        return FadeInUp(
-                          from: 50,
-                          delay: Duration(milliseconds: 50 + (i * 80)),
-                          duration: const Duration(milliseconds: 600),
-                          child: _topicGridCard(
-                            context,
-                            title,
-                            imageUrl,
-                            () => controller.onSelectenrolledtopic(item),
-                            isRecommended: isRecommended,
-                          ),
-                        );
-                      },
-                      itemCount: allTopics.length,
+                          return FadeInUp(
+                            from: 50,
+                            delay: Duration(milliseconds: 50 + (i * 80)),
+                            duration: const Duration(milliseconds: 600),
+                            child: _topicGridCard(
+                              context,
+                              title,
+                              imageUrl,
+                              () => controller.onSelectenrolledtopic(item),
+                              isRecommended: isRecommended,
+                            ),
+                          );
+                        },
+                        itemCount: allTopics.length,
+                      ),
                     );
                   }),
                 ),
@@ -310,20 +314,15 @@ class _HoverableTopicCardState extends State<_HoverableTopicCard>
                       child: Padding(
                         padding: const EdgeInsets.all(6),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               widget.title,
-                              maxLines: 2,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.2,
-                                    color: Colors.black87,
-                                  ),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
                         ),

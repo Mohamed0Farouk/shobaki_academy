@@ -602,11 +602,11 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'سجل دخولك للوصول لكل الميزات',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall!.copyWith(color: Colors.black),
                 ),
               ),
             ],
