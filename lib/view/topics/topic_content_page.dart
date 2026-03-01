@@ -13,8 +13,9 @@ import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 //import 'package:shobaki_academy/view/home.dart';
 
+// ignore: must_be_immutable
 class TopicContentPage extends StatelessWidget {
-  const TopicContentPage({
+  TopicContentPage({
     super.key,
     required this.topicId,
     this.isGuest = false,
@@ -23,6 +24,9 @@ class TopicContentPage extends StatelessWidget {
   final String topicId;
   final bool isGuest;
   final bool inReview;
+  bool isSubscribed = false;
+
+  Map? topicData;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +66,8 @@ class TopicContentPage extends StatelessWidget {
         filters: {"student_id": userData!["id"], 'topic_id': topicId},
       );
 
+      isSubscribed = topicSubscription.isNotEmpty;
+
       final topics = await api.fetchWithConditions(
         'topics',
         filters: {'hidden': false, 'id': topicId},
@@ -70,6 +76,7 @@ class TopicContentPage extends StatelessWidget {
       if (topics.isEmpty) return _errorWidget(context);
 
       final Map topic = Map<String, dynamic>.from(topics[0] as Map);
+      topicData = topic;
       final bool isParent = (topic['is_parent'] == true);
 
       if (isParent) {
@@ -123,6 +130,7 @@ class TopicContentPage extends StatelessWidget {
                   future: _lecturesHandler(
                     topic['lectures'],
                     topic['thumbnail'],
+                    context,
                   ),
                   builder: (context, snapshot) {
                     final childrenWidgets = snapshot.data ?? [];
@@ -239,6 +247,7 @@ class TopicContentPage extends StatelessWidget {
                   future: _subTopicsHandler(
                     topic['children'],
                     topic['thumbnail'],
+                    context,
                   ),
                   builder: (context, snapshot) {
                     final childrenWidgets = snapshot.data ?? [];
@@ -593,29 +602,130 @@ class TopicContentPage extends StatelessWidget {
       );
     }
 
-    String label = !isSubscribed
-        ? 'انضم الى المحتوى'
-        : 'تم الانضمام — افتح المحتوى';
-    label = topic['free'] == true ? 'افتح المحتوى' : label;
+    String label = !isSubscribed ? ' ادخل الكود للاشتراك' : 'تم الاشتراك ';
+    label = topic['free'] == true ? 'المحتوى متاح' : label;
 
-    return ElevatedButton.icon(
-      icon: Icon(
-        isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
-        color: Colors.white,
+    return isSubscribed
+        ? ElevatedButton.icon(
+            icon: Icon(
+              isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
+              color: Colors.white,
+            ),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+
+            onPressed: null,
+          )
+        : topic['free'] == true
+        ? ElevatedButton.icon(
+            icon: Icon(Icons.play_circle_fill, color: Colors.white),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: null,
+          )
+        : ElevatedButton.icon(
+            icon: Icon(
+              isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
+              color: Colors.white,
+            ),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () =>
+                _handleSubscription(context, topic, subs, user, api),
+          );
+  }
+
+  void showGuestAnnotationDialog({required BuildContext context}) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('ميزة مخصصة للمستخدمين', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
+            const SizedBox(height: 16),
+            const Text(
+              'عذراً، لا يمكنك الوصول إلى المحتوى كمستخدم ضيف. الرجاء تسجيل الدخول بحسابك الخاص.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
-      label: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
+  void showSubscripeAnnotationDialog({required BuildContext context}) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('محتوى مخصص للمشتركين', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
+            const SizedBox(height: 16),
+            const Text(
+              'عذراً، لا يمكنك الوصول إلى المحتوى كمستخدم غير مشترك. الرجاء الاشتراك للوصول للمحتوى.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: () => _handleSubscription(context, topic, subs, user, api),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 
@@ -637,7 +747,7 @@ class TopicContentPage extends StatelessWidget {
               const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
-                'هذا المحتوى مدفوع',
+                'هذا المحتوى غير متاح للضيوف',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.orange,
                   fontWeight: FontWeight.w600,
@@ -647,7 +757,7 @@ class TopicContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'سجل دخولك للاشتراك في هذا المحتوى',
+            'سجل دخولك لعرض هذا المحتوى',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.orange.shade700),
@@ -718,8 +828,10 @@ class TopicContentPage extends StatelessWidget {
   Future<List<Widget>> _subTopicsHandler(
     List? children,
     String? thumbnail,
+    context,
   ) async {
     final topics = <Map>[];
+    final userData = _getUserData();
     if (children == null) return [];
     for (var id in children) {
       try {
@@ -740,14 +852,46 @@ class TopicContentPage extends StatelessWidget {
           (topic) => FadeInUp(
             from: 100,
             duration: const Duration(milliseconds: 600),
-            child: CardModel(
-              type: CardTypes.topic,
-              thumbnail: topic["thumbnail"],
-              title: topic['title'] ?? '',
-              description: topic['description'] ?? '',
-              id: topic['id'] ?? '',
-              nav: null, // No navigation on subtopic cards in parent view
-            ),
+            child:
+                isSubscribed ||
+                    topicData!['free'] == true ||
+                    userData!['email'] ==
+                        'appletestaccount#97111111111111@gmail.com'
+                ? CardModel(
+                    type: CardTypes.topic,
+                    thumbnail: topic["thumbnail"],
+                    title: topic['title'] ?? '',
+                    description: topic['description'] ?? '',
+                    note: Text(
+                      'عدد المحاضرات: ${(topic['lectures'] as List?)?.length ?? 0}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    id: topic['id'] ?? '',
+                    navLabel: 'عرض المحتوى',
+                    nav: TopicPage(topicId: topic['id'] ?? ''),
+                  )
+                : InkWell(
+                    onTap: () {
+                      if (isGuest) {
+                        showGuestAnnotationDialog(context: context);
+                      } else {
+                        showSubscripeAnnotationDialog(context: context);
+                      }
+                    },
+                    child: CardModel(
+                      type: CardTypes.topic,
+                      thumbnail: topic["thumbnail"],
+                      title: topic['title'] ?? '',
+                      description: topic['description'] ?? '',
+                      note: Text(
+                        'عدد المحاضرات: ${(topic['lectures'] as List?)?.length ?? 0}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      id: topic['id'] ?? '',
+                      navLabel: null,
+                      nav: null,
+                    ),
+                  ),
           ),
         )
         .toList();
@@ -756,8 +900,11 @@ class TopicContentPage extends StatelessWidget {
   Future<List<Widget>> _lecturesHandler(
     List? lectures,
     String? thumbnail,
+    context,
   ) async {
     final lecturesData = <Map>[];
+    final userData = _getUserData();
+
     if (lectures == null) return [];
     for (var id in lectures) {
       try {
@@ -772,21 +919,42 @@ class TopicContentPage extends StatelessWidget {
         // ignore failed fetch for a child
       }
     }
-
     return lecturesData
         .map(
           (lecture) => FadeInUp(
             from: 100,
             duration: const Duration(milliseconds: 600),
             child: SizedBox(
-              child: CardModel(
-                type: CardTypes.lecture,
-                thumbnail: lecture["thumbnail"],
-                title: lecture['title'] ?? '',
-                description: lecture['description'] ?? '',
-                id: lecture['id'] ?? '',
-                nav: null, // No navigation on subtopic cards in parent view
-              ),
+              child:
+                  isSubscribed ||
+                      topicData!['free'] == true ||
+                      userData!['email'] ==
+                          'appletestaccount#97111111111111@gmail.com'
+                  ? CardModel(
+                      type: CardTypes.video,
+                      thumbnail: lecture["thumbnail"],
+                      title: lecture['title'] ?? '',
+                      description: lecture['description'] ?? '',
+                      id: lecture['id'] ?? '',
+                      url: lecture['videos'].values.first['url'] ?? '',
+                    )
+                  : InkWell(
+                      onTap: () {
+                        if (isGuest) {
+                          showGuestAnnotationDialog(context: context);
+                        } else {
+                          showSubscripeAnnotationDialog(context: context);
+                        }
+                      },
+                      child: CardModel(
+                        type: CardTypes.lecture,
+                        thumbnail: lecture["thumbnail"],
+                        title: lecture['title'] ?? '',
+                        description: lecture['description'] ?? '',
+                        id: lecture['id'] ?? '',
+                        nav: null,
+                      ),
+                    ),
             ),
           ),
         )
@@ -824,34 +992,6 @@ class TopicContentPage extends StatelessWidget {
       transition: Transition.downToUp,
       duration: const Duration(milliseconds: 600),
     );
-    // await api
-    // .insertData('students_subscriptions', {
-    //   "student_id": userId,
-    //   "topic_id": id,
-    // })
-    // .then((_) {
-    //   // Get.snackbar(
-    //   //   'اشعار',
-    //   //   'تم الانضمام في $name',
-    //   //   backgroundColor: Colors.greenAccent,
-    //   //   snackPosition: SnackPosition.BOTTOM,
-    //   // );
-    //   //Get.offAllNamed('/home');
-
-    // })
-    // .onError((err, _) {
-    //   Get.snackbar(
-    //     'توجد مشكلة',
-    //     err.toString(),
-    //     backgroundColor: Colors.red,
-    //     snackPosition: SnackPosition.BOTTOM,
-    //   );
-    //   Get.offAll(
-    //     () => HomePage(),
-    //     transition: Transition.upToDown,
-    //     duration: const Duration(milliseconds: 600),
-    //   );
-    // });
   }
 
   void _handleSubscription(

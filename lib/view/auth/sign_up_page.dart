@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:typewritertext/typewritertext.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -228,14 +229,47 @@ class _SignUpPageState extends State<SignUpPage> {
                                         context,
                                       ).textTheme.bodyMedium,
                                       keyboardType: TextInputType.phone,
-                                      validator: (v) => (v == null || v.isEmpty)
-                                          ? 'الرجاء ادخال رقم الهاتف'
-                                          : null,
+                                      validator: (v) {
+                                        if (v != null) {
+                                          v = v.replaceAll(' ', '');
+                                        }
+
+                                        if (v == null || v.isEmpty) {
+                                          return 'الرجاء ادخال رقم الهاتف';
+                                        }
+
+                                        if (v.length != 9) {
+                                          return 'رقم الهاتف يجب أن يكون 9 أرقام';
+                                        }
+
+                                        if (!v.startsWith('5')) {
+                                          return 'رقم الهاتف يجب أن يبدأ بـ 5';
+                                        }
+
+                                        return null;
+                                      },
+                                      maxLength: 9,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(
+                                          RegExp(r'[0-9]'),
+                                        ),
+                                      ],
+                                      buildCounter:
+                                          (
+                                            context, {
+                                            required currentLength,
+                                            required isFocused,
+                                            maxLength,
+                                          }) => Text(
+                                            '$currentLength / $maxLength',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
+                                          ),
                                       decoration: InputDecoration(
                                         hintTextDirection: TextDirection.rtl,
                                         hintText: 'رقم الهاتف',
                                         filled: true,
-
                                         fillColor: Colors.grey[200],
                                         contentPadding:
                                             const EdgeInsets.symmetric(
@@ -443,15 +477,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                                     final Uri url = Uri.parse(
                                                       'https://alshobakiacademy.com/privacy',
                                                     );
-                                                    if (await canLaunchUrl(
-                                                      url,
-                                                    )) {
-                                                      await launchUrl(
-                                                        url,
-                                                        mode: LaunchMode
-                                                            .externalApplication,
-                                                      );
-                                                    }
+                                                    await launchUrl(url);
                                                   },
                                                   child: RichText(
                                                     text: TextSpan(

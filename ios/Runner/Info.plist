@@ -53,6 +53,10 @@
 	<string>tel</string>
 	<string>https</string>
 	</array>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<!-- <key>NSPhotoLibraryUsageDescription</key>
 	<string>نحتاج الوصول إلى مكتبة الصور لحفظ الملفات</string>
 	<key>NSPhotoLibraryAddOnlyUsageDescription</key>

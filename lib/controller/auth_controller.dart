@@ -344,18 +344,6 @@ class AuthController extends GetxController {
     required String studentPhoneNumber,
   }) async {
     try {
-      // simple validation of selections
-      // if (selectedStage.value.isEmpty ||
-      //     selectedUae.value.isEmpty ||
-      //     selectedSubscription.value.isEmpty) {
-      //   Get.snackbar(
-      //     'تنبيه',
-      //     'الرجاء اختيار المرحلة الدراسية، الإمارة و نوع الاشتراك',
-      //     backgroundColor: Colors.orange,
-      //     snackPosition: SnackPosition.BOTTOM,
-      //   );
-      //   return;
-      // }
 
       loadingDilog(context);
 
@@ -388,9 +376,7 @@ class AuthController extends GetxController {
         'phone_number': studentPhoneNumber,
         'stage': selectedStage.value,
         'goverment': selectedUae.value,
-        //'subscription': selectedSubscription.value,
         'device_fingerprint': deviceFingerprint,
-        'disabled': false,
       };
 
       await api.insertData('students', userData);

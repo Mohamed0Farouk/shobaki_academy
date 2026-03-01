@@ -306,7 +306,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              'للحجز و الاستعلام ',
+                              'للاستعلام ',
                               style: Theme.of(context).textTheme.bodySmall,
                               softWrap: true,
                             ),
@@ -420,24 +420,31 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
                             ),
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              child: InkWell(
-                                onTap: () => launchUrl(
-                                  Uri.parse(
-                                    'https://alshobakiacademy.com/payment',
-                                  ),
-                                ),
-                                child: Text(
-                                  'عرض طرق الدفع ',
-                                  style: Theme.of(context).textTheme.bodySmall!
-                                      .copyWith(
-                                        decoration: TextDecoration.underline,
+                            _user!['email'] ==
+                                        'appletestaccount#97111111111111@gmail.com' ||
+                                    _user!['email'] == 'guest@example.com'
+                                ? SizedBox.shrink()
+                                : Container(
+                                    margin: const EdgeInsets.only(bottom: 6),
+                                    child: InkWell(
+                                      onTap: () => launchUrl(
+                                        Uri.parse(
+                                          'https://alshobakiacademy.com/payment',
+                                        ),
                                       ),
-                                  softWrap: true,
-                                ),
-                              ),
-                            ),
+                                      child: Text(
+                                        'عرض طرق الدفع ',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                        softWrap: true,
+                                      ),
+                                    ),
+                                  ),
                           ],
                         ),
                         const SizedBox(height: 15),

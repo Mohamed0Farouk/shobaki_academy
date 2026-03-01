@@ -24,23 +24,6 @@ class BooksPage extends StatelessWidget {
     final isGridView = false.obs;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: isDesktop ? 0 : null,
-        actions: [
-          Obx(
-            () => IconButton(
-              icon: Icon(
-                isGridView.value ? Icons.view_list : Icons.grid_view,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onPressed: () => isGridView.value = !isGridView.value,
-              tooltip: isGridView.value ? 'عرض كقائمة' : 'عرض كشبكة',
-            ),
-          ),
-          if (isDesktop) _RefreshButton(controller: controller),
-        ],
-      ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return loading(context);
@@ -158,7 +141,7 @@ class BooksPage extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: _buildSearchBar(context, controller),
+                child: _buildSearchBar(context, controller, isGridView),
               ),
               Expanded(child: content),
             ],
@@ -169,7 +152,7 @@ class BooksPage extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: _buildSearchBar(context, controller),
+              child: _buildSearchBar(context, controller, isGridView),
             ),
             Expanded(
               child: RefreshIndicator(
@@ -183,39 +166,64 @@ class BooksPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, BooksController controller) {
+  Widget _buildSearchBar(
+    BuildContext context,
+    BooksController controller,
+    RxBool isGridView,
+  ) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: TextField(
-          controller: controller.searchController,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (q) => controller.onSearchSubmitted(q, context),
-          decoration: InputDecoration(
-            hintText: 'ابحث عن ملزمة',
-            hintStyle: const TextStyle(color: Colors.black45),
-            prefixIcon: const Icon(Icons.search, color: Colors.black54),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 14 : 10,
-              vertical: isDesktop ? 8 : 6,
+      child: Row(
+        children: [
+          Row(
+            children: [
+              Obx(
+                () => IconButton(
+                  icon: Icon(
+                    isGridView.value ? Icons.view_list : Icons.grid_view,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  onPressed: () => isGridView.value = !isGridView.value,
+                  tooltip: isGridView.value ? 'عرض كقائمة' : 'عرض كشبكة',
+                ),
+              ),
+              if (isDesktop) _RefreshButton(controller: controller),
+            ],
+          ),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: controller.searchController,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (q) => controller.onSearchSubmitted(q, context),
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن ملزمة',
+                  hintStyle: const TextStyle(color: Colors.black45),
+                  prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 14 : 10,
+                    vertical: isDesktop ? 8 : 6,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

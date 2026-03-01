@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shobaki_academy/services/browse_picker.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 import 'package:get/get.dart';
@@ -668,13 +669,24 @@ class VdoWatchingController extends GetxController {
 
     final uri = Uri.file(file.path);
 
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (Platform.isWindows) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
 
-    Future.delayed(const Duration(minutes: 3), () {
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
-    });
+      Future.delayed(const Duration(minutes: 3), () {
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      });
+    }
+    if (Platform.isMacOS) {
+      // use the method channel
+      await BrowserPicker.open(file.path);
+      Future.delayed(const Duration(minutes: 3), () {
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      });
+    }
   }
 
   /// Called when controller is being closed. Ensure we accumulate any active session and send a final update.
