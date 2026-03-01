@@ -604,9 +604,10 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                   'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات',
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall!.copyWith(color: Colors.black),
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -776,12 +777,10 @@ class _HomePageState extends State<HomePage> {
   /// Guest app bar
   PreferredSizeWidget _buildGuestAppBar(BuildContext context) {
     return AppBar(
-      title: const Text('طالبنا العزيز'),
-      centerTitle: true,
       elevation: 0,
       flexibleSpace: Container(color: Theme.of(context).colorScheme.primary),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(55),
+        preferredSize: const Size.fromHeight(25),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Container(
@@ -793,13 +792,16 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.lock_outline),
+                const Icon(Icons.lock_outline, color: Colors.orange, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات ',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 TextButton(

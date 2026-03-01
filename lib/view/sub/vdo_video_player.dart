@@ -56,17 +56,32 @@ class VideoPlayerView extends StatelessWidget {
         }
 
         // Windows WebView
-        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        if (Platform.isWindows) {
+          if (ctrl.initialized && ctrl.logInitialized) {
+            ctrl.openVdoCipherDesktopPlayer(
+              otp: ctrl.embedInfo!.otp!,
+              playbackInfo: ctrl.embedInfo!.playbackInfo!,
+            );
+            return Center(
+              child: Text(
+                "تم فتح مشغل الفيديو في المتصفح الافتراضي لديك.",
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+        }
+
+        if (Platform.isMacOS) {
           if (ctrl.initialized && ctrl.logInitialized) {
             ctrl.openVdoCipherDesktopPlayer(
               otp: ctrl.embedInfo!.otp!,
               playbackInfo: ctrl.embedInfo!.playbackInfo!,
             );
           }
-
           return Center(
             child: Text(
-              "تم فتح مشغل الفيديو في المتصفح الافتراضي لديك.",
+              "اختر المتصفح لفتح الفيديو يفضل اختيار Google Chrome أو Microsoft Edge لنتيجة أفضل بدون مشاكل تشغيل.",
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),

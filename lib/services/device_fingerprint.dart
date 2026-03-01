@@ -13,18 +13,19 @@ class DeviceFingerprint {
       if (defaultTargetPlatform == TargetPlatform.android) {
         final android = await deviceInfo.androidInfo;
         rawFingerprint =
-            '${android.id}-${android.model}-${packageInfo.packageName}';
+            '${android.id}-${android.model}-${packageInfo.packageName}-Android';
       } else if (defaultTargetPlatform == TargetPlatform.iOS) {
         final ios = await deviceInfo.iosInfo;
         rawFingerprint =
-            '${ios.identifierForVendor}-${ios.model}-${packageInfo.packageName}';
+            '${ios.identifierForVendor}-${ios.model}-${packageInfo.packageName}-IOS';
       } else if (defaultTargetPlatform == TargetPlatform.windows) {
         final windows = await deviceInfo.windowsInfo;
         rawFingerprint =
-            '${windows.deviceId}-${windows.computerName}-${packageInfo.packageName}';
+            '${windows.deviceId}-${windows.computerName}-${packageInfo.packageName}-Windows';
       } else if (defaultTargetPlatform == TargetPlatform.macOS) {
         final mac = await deviceInfo.macOsInfo;
-        rawFingerprint = '${mac.systemGUID}-${packageInfo.packageName}';
+        rawFingerprint =
+            '${mac.systemGUID}-${packageInfo.packageName}-${mac.model}-MacOS';
       } else {
         rawFingerprint =
             '${defaultTargetPlatform.name}-${packageInfo.packageName}';

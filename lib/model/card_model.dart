@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
-//import 'package:shobaki_academy/model/webview_model.dart';
-//import 'package:shobaki_academy/model/widgets/quill_description.dart';
-//import 'package:shobaki_academy/view/enrolled_topics/lecture_content.dart';
-import 'package:shobaki_academy/view/enrolled_topics/lecture_content_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
@@ -67,6 +63,7 @@ class CardModel extends StatelessWidget {
           description: description,
           thumbnail: thumbnail,
           navlabel: navLabel,
+          note: note,
           navPage: nav,
         );
       case CardTypes.enrolledTopic:
@@ -83,7 +80,7 @@ class CardModel extends StatelessWidget {
           description: description,
           thumbnail: thumbnail,
           navlabel: navLabel,
-          navPage: LectureContentPage(lectureId: id, topicId: topicId),
+          navPage: nav,
         );
       case CardTypes.video:
         return _SimpleCard(
@@ -175,7 +172,7 @@ class _SimpleCard extends StatelessWidget {
     //final descSize = isTinyScreen ? 9.0 : (isSmallScreen ? 10.0 : 12.0);
     final buttonPadH = isTinyScreen ? 8.0 : (isSmallScreen ? 10.0 : 14.0);
     final buttonPadV = isTinyScreen ? 4.0 : (isSmallScreen ? 5.0 : 7.0);
-    final buttonFontSize = isTinyScreen ? 14.0 : (isSmallScreen ? 14.0 : 14.0);
+    final buttonFontSize = isTinyScreen ? 12.0 : (isSmallScreen ? 12.0 : 12.0);
     final contentPad = isTinyScreen ? 6.0 : (isSmallScreen ? 8.0 : 12.0);
 
     // Calculate max dimensions
@@ -217,20 +214,11 @@ class _SimpleCard extends StatelessWidget {
                 color: Colors.white,
                 child: InkWell(
                   onTap: navPage != null
-                      ? () {
-                          if (navPage is LectureContentPage) {
-                            Get.offAll(
-                              () => navPage,
-                              transition: Transition.fade,
-                              duration: const Duration(milliseconds: 350),
-                            );
-                          }
-                          Get.to(
-                            () => navPage,
-                            transition: Transition.fade,
-                            duration: const Duration(milliseconds: 350),
-                          );
-                        }
+                      ? () => Get.to(
+                          () => navPage!,
+                          transition: Transition.fade,
+                          duration: const Duration(milliseconds: 350),
+                        )
                       : null,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
