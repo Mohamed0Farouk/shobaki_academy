@@ -176,20 +176,28 @@ class TopicContentPage extends StatelessWidget {
                         } else {
                           // Mobile/Tablet - horizontal ListView
                           return SizedBox(
-                            height: context.screenH / 3,
+                            height: isSubscribed || topicData!['free'] == true
+                                ? context.screenH / 3.5
+                                : context.screenH / 4,
                             width: double.infinity,
                             child: Directionality(
                               textDirection: TextDirection.ltr,
-                              child: ListView.builder(
-                                itemCount: childrenWidgets.length,
-                                scrollDirection: Axis.horizontal,
-                                itemBuilder: (ctx, i) {
-                                  return SizedBox(
-                                    height: context.screenH / 3,
-                                    width: context.screenW * 0.4,
-                                    child: childrenWidgets[i],
-                                  );
-                                },
+                              child: IntrinsicHeight(
+                                child: ListView.builder(
+                                  itemCount: childrenWidgets.length,
+                                  scrollDirection: Axis.horizontal,
+                                  itemBuilder: (ctx, i) {
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: SizedBox(
+                                        width: context.screenW * 0.4,
+                                        child: childrenWidgets[i],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           );
@@ -298,16 +306,22 @@ class TopicContentPage extends StatelessWidget {
                             width: double.infinity,
                             child: Directionality(
                               textDirection: TextDirection.ltr,
-                              child: ListView.builder(
-                                itemCount: childrenWidgets.length,
-                                scrollDirection: Axis.horizontal,
-                                itemBuilder: (ctx, i) {
-                                  return SizedBox(
-                                    height: context.screenH / 3,
-                                    width: context.screenW * 0.4,
-                                    child: childrenWidgets[i],
-                                  );
-                                },
+                              child: IntrinsicHeight(
+                                child: ListView.builder(
+                                  itemCount: childrenWidgets.length,
+                                  scrollDirection: Axis.horizontal,
+                                  itemBuilder: (ctx, i) {
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: SizedBox(
+                                        width: context.screenW * 0.4,
+                                        child: childrenWidgets[i],
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           );
@@ -793,26 +807,6 @@ class TopicContentPage extends StatelessWidget {
     );
   }
 
-  // String _formatDate(dynamic date) {
-  //   try {
-  //     return intl.DateFormat(
-  //       'yyyy/MM/dd',
-  //     ).format(DateTime.parse(date.toString()));
-  //   } catch (_) {
-  //     return '-';
-  //   }
-  // }
-
-  // String _formatPrice(dynamic price) {
-  //   try {
-  //     final p = (price ?? 0) as num;
-  //     // original code stored price in cents, but safe fallback to raw if small
-  //     return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
-  //   } catch (_) {
-  //     return '0 AED';
-  //   }
-  // }
-
   Map? _getUserData() {
     try {
       final services = Get.find<LocalDB>();
@@ -939,57 +933,67 @@ class TopicContentPage extends StatelessWidget {
 
       print('#user views for $videoUrl: $userViews / $maxViewCount');
 
+      // 1. Build the base card widget (no SizedBox wrapper needed)
+      Widget baseCard =
+          isSubscribed ||
+              topicData!['free'] == true ||
+              userData['email'] == 'appletestaccount#97111111111111@gmail.com'
+          ? CardModel(
+              type: CardTypes.video,
+              thumbnail: lecture["thumbnail"],
+              title: lecture['title'] ?? '',
+              description: lecture['description'] ?? '',
+              id: lecture['id'] ?? '',
+              url: lecture['videos'].values.first['url'] ?? '',
+            )
+          : CardModel(
+              type: CardTypes.lecture,
+              thumbnail: lecture["thumbnail"],
+              title: lecture['title'] ?? '',
+              description: lecture['description'] ?? '',
+              id: lecture['id'] ?? '',
+              nav: null,
+            );
+
+      // 2. Wrap in InkWell only when needed (same size as card)
       Widget card = FadeInUp(
         from: 100,
         duration: const Duration(milliseconds: 600),
-        child: SizedBox(
-          child:
-              isSubscribed ||
-                  topicData!['free'] == true ||
-                  userData['email'] ==
-                      'appletestaccount#97111111111111@gmail.com'
-              ? CardModel(
-                  type: CardTypes.video,
-                  thumbnail: lecture["thumbnail"],
-                  title: lecture['title'] ?? '',
-                  description: lecture['description'] ?? '',
-                  id: lecture['id'] ?? '',
-                  url: lecture['videos'].values.first['url'] ?? '',
-                )
-              : InkWell(
-                  onTap: () {
-                    if (isGuest) {
-                      showGuestAnnotationDialog(context: context);
-                    } else {
-                      showSubscripeAnnotationDialog(context: context);
-                    }
-                  },
-                  child: CardModel(
-                    type: CardTypes.lecture,
-                    thumbnail: lecture["thumbnail"],
-                    title: lecture['title'] ?? '',
-                    description: lecture['description'] ?? '',
-                    id: lecture['id'] ?? '',
-                    nav: null,
-                  ),
-                ),
-        ),
+        child:
+            isSubscribed ||
+                topicData!['free'] == true ||
+                userData['email'] == 'appletestaccount#97111111111111@gmail.com'
+            ? baseCard
+            : InkWell(
+                onTap: () {
+                  if (isGuest) {
+                    showGuestAnnotationDialog(context: context);
+                  } else {
+                    showSubscripeAnnotationDialog(context: context);
+                  }
+                },
+                child: baseCard,
+              ),
       );
 
+      // 3. Stack lock overlay using StackFit.passthrough so Stack = card size
       if (isLimited) {
-        final lockMsg =
-            'وصلت للحد الأقصى من\n المشاهدات ($userViews/$maxViewCount)';
-        card = FadeInUp(
-          from: 100,
-          duration: const Duration(milliseconds: 600),
-          child: Stack(
-            children: [
-              Padding(padding: const EdgeInsets.all(15), child: card),
-              buildLockedOverlay(lockMsg, context),
-            ],
-          ),
+        final lockMsg = 'المشاهدات\n ($userViews/$maxViewCount)';
+        card = Stack(
+          fit: StackFit.passthrough, // ← key fix: Stack adopts the card's size
+          children: [
+            card,
+            Positioned.fill(
+              child: FadeInUp(
+                from: 100,
+                duration: const Duration(milliseconds: 600),
+                child: buildLockedOverlay(lockMsg, context),
+              ),
+            ),
+          ],
         );
       }
+      widgets.add(card);
     }
     return widgets;
   }
@@ -1125,28 +1129,27 @@ class TopicContentPage extends StatelessWidget {
   }
 
   Widget buildLockedOverlay(String message, context) {
-    return Positioned.fill(
-      child: Card(
-        shadowColor: Colors.black.withOpacity(0.12),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        color: Colors.black.withOpacity(0.5),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge!.copyWith(color: Colors.white),
-            ),
-            const Icon(Icons.lock_rounded, color: Colors.white),
-          ],
-        ),
+    return Card(
+      shadowColor: Colors.black.withOpacity(0.12),
+      elevation: 4,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.black.withOpacity(0.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge!.copyWith(color: Colors.white),
+          ),
+          const Icon(Icons.lock_rounded, color: Colors.white),
+        ],
       ),
     );
   }

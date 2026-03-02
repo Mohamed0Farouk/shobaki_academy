@@ -82,7 +82,24 @@ class _TopicPageState extends State<TopicPage> {
     int crossAxisCount,
   ) {
     if (!isDesktop) {
-      return ListView(children: items);
+      final itemWidth = (MediaQuery.of(context).size.width - 50) / 2;
+      // 28 = horizontal padding (8+8) + spacing between columns (12)
+
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Wrap(
+            spacing: 12, // horizontal gap between columns
+            runSpacing: 12, // vertical gap between rows
+            children: items.map((item) {
+              return SizedBox(
+                width: itemWidth,
+                child: item, // card sizes itself in height naturally
+              );
+            }).toList(),
+          ),
+        ),
+      );
     }
 
     return GridView.builder(
