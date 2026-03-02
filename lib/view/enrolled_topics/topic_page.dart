@@ -222,6 +222,10 @@ class _TopicPageState extends State<TopicPage> {
               url: value['url'],
             );
 
+            print(
+              'user views for ${value['title']}: $userViews / $maxViewCount',
+            );
+
             if (isLimited) {
               final lockMsg =
                   'وصلت للحد الأقصى من\n المشاهدات ($userViews/$maxViewCount)';

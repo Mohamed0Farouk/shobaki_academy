@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/model/card_model.dart';
@@ -904,6 +906,7 @@ class TopicContentPage extends StatelessWidget {
   ) async {
     final lecturesData = <Map>[];
     final userData = _getUserData();
+    final widgets = <Widget>[];
 
     if (lectures == null) return [];
     for (var id in lectures) {
@@ -919,46 +922,76 @@ class TopicContentPage extends StatelessWidget {
         // ignore failed fetch for a child
       }
     }
-    return lecturesData
-        .map(
-          (lecture) => FadeInUp(
-            from: 100,
-            duration: const Duration(milliseconds: 600),
-            child: SizedBox(
-              child:
-                  isSubscribed ||
-                      topicData!['free'] == true ||
-                      userData!['email'] ==
-                          'appletestaccount#97111111111111@gmail.com'
-                  ? CardModel(
-                      type: CardTypes.video,
-                      thumbnail: lecture["thumbnail"],
-                      title: lecture['title'] ?? '',
-                      description: lecture['description'] ?? '',
-                      id: lecture['id'] ?? '',
-                      url: lecture['videos'].values.first['url'] ?? '',
-                    )
-                  : InkWell(
-                      onTap: () {
-                        if (isGuest) {
-                          showGuestAnnotationDialog(context: context);
-                        } else {
-                          showSubscripeAnnotationDialog(context: context);
-                        }
-                      },
-                      child: CardModel(
-                        type: CardTypes.lecture,
-                        thumbnail: lecture["thumbnail"],
-                        title: lecture['title'] ?? '',
-                        description: lecture['description'] ?? '',
-                        id: lecture['id'] ?? '',
-                        nav: null,
-                      ),
-                    ),
-            ),
+
+    for (var lecture in lecturesData) {
+      final videoInfo = (lecture['videos'] as Map).values.first;
+      final videoUrl = videoInfo['url'];
+      final maxViewCount =
+          videoInfo['max_view_count'] ?? 0; // Get max views from video data
+
+      final userViews = await _getUserVideoViewCount(videoUrl, userData!['id']);
+      final isLimited = await _isVideoViewLimitReached(
+        videoUrl,
+        maxViewCount,
+        userViews,
+        userData['id'],
+      );
+
+      print('#user views for $videoUrl: $userViews / $maxViewCount');
+
+      Widget card = FadeInUp(
+        from: 100,
+        duration: const Duration(milliseconds: 600),
+        child: SizedBox(
+          child:
+              isSubscribed ||
+                  topicData!['free'] == true ||
+                  userData['email'] ==
+                      'appletestaccount#97111111111111@gmail.com'
+              ? CardModel(
+                  type: CardTypes.video,
+                  thumbnail: lecture["thumbnail"],
+                  title: lecture['title'] ?? '',
+                  description: lecture['description'] ?? '',
+                  id: lecture['id'] ?? '',
+                  url: lecture['videos'].values.first['url'] ?? '',
+                )
+              : InkWell(
+                  onTap: () {
+                    if (isGuest) {
+                      showGuestAnnotationDialog(context: context);
+                    } else {
+                      showSubscripeAnnotationDialog(context: context);
+                    }
+                  },
+                  child: CardModel(
+                    type: CardTypes.lecture,
+                    thumbnail: lecture["thumbnail"],
+                    title: lecture['title'] ?? '',
+                    description: lecture['description'] ?? '',
+                    id: lecture['id'] ?? '',
+                    nav: null,
+                  ),
+                ),
+        ),
+      );
+
+      if (isLimited) {
+        final lockMsg =
+            'وصلت للحد الأقصى من\n المشاهدات ($userViews/$maxViewCount)';
+        card = FadeInUp(
+          from: 100,
+          duration: const Duration(milliseconds: 600),
+          child: Stack(
+            children: [
+              Padding(padding: const EdgeInsets.all(15), child: card),
+              buildLockedOverlay(lockMsg, context),
+            ],
           ),
-        )
-        .toList();
+        );
+      }
+    }
+    return widgets;
   }
 
   void _addCodeToSubscribe(
@@ -1032,4 +1065,89 @@ class TopicContentPage extends StatelessWidget {
   Widget _errorWidget(BuildContext context) => Center(
     child: Text('توجد مشكلة', style: Theme.of(context).textTheme.headlineLarge),
   );
+
+  Future<int> _getUserVideoViewCount(String videoUrl, String userId) async {
+    try {
+      final apiBaseUrl = dotenv.env['ALSHOBAKI_API'];
+
+      if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
+        projectLogger.e('ALSHOBAKI_API not found in .env');
+        return 0;
+      }
+
+      final uri = Uri.parse(
+        '${apiBaseUrl}api/videos/view-count',
+      ).replace(queryParameters: {'videoUrl': videoUrl, 'userId': userId});
+
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              // Add authorization header if needed
+              // 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final viewCount = data['data']['viewCount'] as int;
+
+        return viewCount;
+      } else {
+        projectLogger.e(
+          'Error fetching video view count: ${response.statusCode} - ${response.body}',
+        );
+        return 0;
+      }
+    } catch (e) {
+      projectLogger.e('Error fetching video view count: $e');
+      return 0;
+    }
+  }
+
+  /// Check if video view limit is reached
+  Future<bool> _isVideoViewLimitReached(
+    String videoUrl,
+    int maxViewCount,
+    int userViewCount,
+    String userId,
+  ) async {
+    if (maxViewCount <= 0) return false; // No limit set
+
+    return userViewCount >= maxViewCount;
+  }
+
+  Widget buildLockedOverlay(String message, context) {
+    return Positioned.fill(
+      child: Card(
+        shadowColor: Colors.black.withOpacity(0.12),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        color: Colors.black.withOpacity(0.5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge!.copyWith(color: Colors.white),
+            ),
+            const Icon(Icons.lock_rounded, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
 }

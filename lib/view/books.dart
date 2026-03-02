@@ -24,145 +24,150 @@ class BooksPage extends StatelessWidget {
     final isGridView = false.obs;
 
     return Scaffold(
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return loading(context);
-        }
+      body: SafeArea(
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return loading(context);
+          }
 
-        if (controller.errorMessage.isNotEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                const SizedBox(height: 16),
-                Text(
-                  controller.errorMessage.value,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: controller.refreshBooksAndSubscription,
-                  icon: Icon(
-                    Icons.refresh,
-                    color: Theme.of(context).colorScheme.primary,
+          if (controller.errorMessage.isNotEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    controller.errorMessage.value,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  label: const Text('إعادة محاولة'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (controller.books.isEmpty) {
-          if (isDesktop) {
-            return SingleChildScrollView(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 100.0),
-                  child: const Text('لا توجد ملازم متاحة'),
-                ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: controller.refreshBooksAndSubscription,
+                    icon: Icon(
+                      Icons.refresh,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    label: const Text('إعادة محاولة'),
+                  ),
+                ],
               ),
             );
           }
-          return RefreshIndicator(
-            onRefresh: controller.refreshBooksAndSubscription,
-            child: ListView(
-              children: const [
-                Padding(
-                  padding: EdgeInsets.only(top: 100.0),
-                  child: Center(child: Text('لا توجد ملازم متاحة')),
-                ),
-              ],
-            ),
-          );
-        }
 
-        Widget content = isGridView.value
-            ? GridView.builder(
-                padding: const EdgeInsets.all(12),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  childAspectRatio: childAspectRatio,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
+          if (controller.books.isEmpty) {
+            if (isDesktop) {
+              return SingleChildScrollView(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 100.0),
+                    child: const Text('لا توجد ملازم متاحة'),
+                  ),
                 ),
-                itemCount: controller.books.length,
-                itemBuilder: (context, index) {
-                  final book = controller.books[index];
-                  return _BookCard(
-                    book: book,
-                    isGuest: controller.isGuest.value,
-                    isReviewer: controller.isReviewer.value,
-                    controller: controller,
-                  );
-                },
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: controller.books.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final book = controller.books[index];
-                  if (index == controller.books.length - 1) {
-                    // Add extra space at the end for better UX on mobile
-                    return Column(
-                      children: [
-                        FadeInLeft(
-                          duration: Duration(milliseconds: 450 + (index * 100)),
-                          from: 100,
-                          child: _BookListTile(
-                            book: book,
-                            isGuest: controller.isGuest.value,
-                            isReviewer: controller.isReviewer.value,
-                            controller: controller,
-                          ),
-                        ),
-                        const SizedBox(height: 80),
-                      ],
-                    );
-                  }
-                  return FadeInLeft(
-                    duration: Duration(milliseconds: 450 + (index * 100)),
-                    from: 100,
-                    child: _BookListTile(
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: controller.refreshBooksAndSubscription,
+              child: ListView(
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.only(top: 100.0),
+                    child: Center(child: Text('لا توجد ملازم متاحة')),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          Widget content = isGridView.value
+              ? GridView.builder(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: childAspectRatio,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: controller.books.length,
+                  itemBuilder: (context, index) {
+                    final book = controller.books[index];
+                    return _BookCard(
                       book: book,
                       isGuest: controller.isGuest.value,
                       isReviewer: controller.isReviewer.value,
                       controller: controller,
-                    ),
-                  );
-                },
-              );
+                    );
+                  },
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: controller.books.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final book = controller.books[index];
+                    if (index == controller.books.length - 1) {
+                      // Add extra space at the end for better UX on mobile
+                      return Column(
+                        children: [
+                          FadeInLeft(
+                            duration: Duration(
+                              milliseconds: 450 + (index * 100),
+                            ),
+                            from: 100,
+                            child: _BookListTile(
+                              book: book,
+                              isGuest: controller.isGuest.value,
+                              isReviewer: controller.isReviewer.value,
+                              controller: controller,
+                            ),
+                          ),
+                          const SizedBox(height: 80),
+                        ],
+                      );
+                    }
+                    return FadeInLeft(
+                      duration: Duration(milliseconds: 450 + (index * 100)),
+                      from: 100,
+                      child: _BookListTile(
+                        book: book,
+                        isGuest: controller.isGuest.value,
+                        isReviewer: controller.isReviewer.value,
+                        controller: controller,
+                      ),
+                    );
+                  },
+                );
 
-        if (isDesktop) {
+          if (isDesktop) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: _buildSearchBar(context, controller, isGridView),
+                ),
+                Expanded(child: content),
+              ],
+            );
+          }
+
           return Column(
             children: [
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: _buildSearchBar(context, controller, isGridView),
               ),
-              Expanded(child: content),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: controller.refreshBooksAndSubscription,
+                  child: content,
+                ),
+              ),
             ],
           );
-        }
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: _buildSearchBar(context, controller, isGridView),
-            ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: controller.refreshBooksAndSubscription,
-                child: content,
-              ),
-            ),
-          ],
-        );
-      }),
+        }),
+      ),
     );
   }
 
