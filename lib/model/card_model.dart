@@ -220,7 +220,7 @@ class _SimpleCard extends StatelessWidget {
                       child: thumbnail != null
                           ? Image.network(
                               thumbnail!,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.fill,
                               errorBuilder: (_, __, ___) =>
                                   _imagePlaceholder(isTiny),
                             )

@@ -102,18 +102,23 @@ class _TopicPageState extends State<TopicPage> {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.75,
+    return SingleChildScrollView(
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - (12 * 4)) / 5;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: items.map((child) {
+                return SizedBox(width: itemWidth, child: child);
+              }).toList(),
+            );
+          },
+        ),
       ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        return items[index];
-      },
     );
   }
 

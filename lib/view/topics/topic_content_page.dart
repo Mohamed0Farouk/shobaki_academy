@@ -158,18 +158,21 @@ class TopicContentPage extends StatelessWidget {
                         if (isDesktop) {
                           return Directionality(
                             textDirection: TextDirection.ltr,
-                            child: GridView.builder(
-                              shrinkWrap: true,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: childrenWidgets.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 5,
-                                    mainAxisExtent: context.screenH / 2.5,
-                                    crossAxisSpacing: 12,
-                                  ),
-                              itemBuilder: (ctx, i) {
-                                return childrenWidgets[i];
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final itemWidth =
+                                    (constraints.maxWidth - (12 * 4)) / 5;
+
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: childrenWidgets.map((child) {
+                                    return SizedBox(
+                                      width: itemWidth,
+                                      child: child,
+                                    );
+                                  }).toList(),
+                                );
                               },
                             ),
                           );
@@ -284,18 +287,21 @@ class TopicContentPage extends StatelessWidget {
                         if (isDesktop) {
                           return Directionality(
                             textDirection: TextDirection.ltr,
-                            child: GridView.builder(
-                              shrinkWrap: true,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: childrenWidgets.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 5,
-                                    mainAxisExtent: context.screenH / 2.5,
-                                    crossAxisSpacing: 12,
-                                  ),
-                              itemBuilder: (ctx, i) {
-                                return childrenWidgets[i];
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final itemWidth =
+                                    (constraints.maxWidth - (12 * 4)) / 5;
+
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: childrenWidgets.map((child) {
+                                    return SizedBox(
+                                      width: itemWidth,
+                                      child: child,
+                                    );
+                                  }).toList(),
+                                );
                               },
                             ),
                           );
