@@ -35,7 +35,15 @@ class AppDelegate: FlutterAppDelegate {
         }
 
         let fileURL = URL(fileURLWithPath: path)
-        let apps = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
+        var apps : [URL] = []
+
+        if #available(macOS 12.0, *) {
+          apps = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
+        } else {
+          if let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: fileURL) {
+            apps = [defaultApp]
+          }
+        }
 
         let alert = NSAlert()
         alert.messageText = "Open With"

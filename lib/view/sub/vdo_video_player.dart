@@ -81,7 +81,7 @@ class VideoPlayerView extends StatelessWidget {
           }
           return Center(
             child: Text(
-              "اختر المتصفح لفتح الفيديو يفضل اختيار Google Chrome أو Microsoft Edge لنتيجة أفضل بدون مشاكل تشغيل.",
+              "اختر المتصفح لفتح الفيديو ... يفضل اختيار جوجل كروم لنتيجة أفضل بدون مشاكل تشغيل",
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
