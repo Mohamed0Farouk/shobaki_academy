@@ -33,26 +33,8 @@ migrate_working_dir/
 /build/
 /coverage/
 /installers/
-/ios/flutter/
-/macos/flutter/
-macos/Runner.xcworkspace/
-macos/Flutter/ephemeral/
-macos/Flutter/Flutter.xcconfig
-macos/Flutter/Generated.xcconfig
-macos/Flutter/GeneratedPluginRegistrant.*
-macos/Flutter/Flutter.podspec
-macos/Flutter/Flutter.xcconfig
-macos/Flutter/Generated.xcconfig
-macos/Flutter/GeneratedPluginRegistrant.*
-macos/Flutter/ephemeral/
-ios/Flutter/Flutter.xcconfig
-ios/Flutter/Generated.xcconfig
-ios/Flutter/GeneratedPluginRegistrant.*
-ios/Flutter/Flutter.podspec
-ios/Flutter/Flutter.xcconfig
-ios/Flutter/Generated.xcconfig
-ios/Flutter/GeneratedPluginRegistrant.*
-ios/Flutter/ephemeral/
+
+
 
 # Symbolication related
 app.*.symbols
