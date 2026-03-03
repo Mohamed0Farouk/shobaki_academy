@@ -82,21 +82,43 @@ class _TopicPageState extends State<TopicPage> {
     int crossAxisCount,
   ) {
     if (!isDesktop) {
-      return ListView(children: items);
+      final itemWidth = (MediaQuery.of(context).size.width - 50) / 2;
+      // 28 = horizontal padding (8+8) + spacing between columns (12)
+
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Wrap(
+            spacing: 12, // horizontal gap between columns
+            runSpacing: 12, // vertical gap between rows
+            children: items.map((item) {
+              return SizedBox(
+                width: itemWidth,
+                child: item, // card sizes itself in height naturally
+              );
+            }).toList(),
+          ),
+        ),
+      );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.75,
+    return SingleChildScrollView(
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - (12 * 4)) / 5;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: items.map((child) {
+                return SizedBox(width: itemWidth, child: child);
+              }).toList(),
+            );
+          },
+        ),
       ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        return items[index];
-      },
     );
   }
 
@@ -220,6 +242,10 @@ class _TopicPageState extends State<TopicPage> {
               // ),
               id: '',
               url: value['url'],
+            );
+
+            print(
+              'user views for ${value['title']}: $userViews / $maxViewCount',
             );
 
             if (isLimited) {

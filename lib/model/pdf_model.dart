@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
@@ -97,7 +99,19 @@ class _PdfModelState extends State<PdfModel> {
                           )
                         : IconButton(
                             icon: const Icon(Icons.download),
-                            onPressed: () => _showDownloadDialog(context),
+                            onPressed: () {
+                              if (Platform.isWindows ||
+                                  Platform.isLinux ||
+                                  Platform.isMacOS) {
+                                _showDownloadDialog(context);
+                              } else {
+                                controller.downloadPdf(
+                                  _pdfUrl,
+                                  _filename,
+                                  true,
+                                );
+                              }
+                            },
                             tooltip: 'تحميل PDF',
                           );
                   }),

@@ -161,396 +161,247 @@ class _SimpleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final screenSize = MediaQuery.of(context).size;
-    final screenWidth = screenSize.width;
-    final screenHeight = screenSize.height;
+    final screenWidth = MediaQuery.of(context).size.width;
 
-    // Responsive sizing
-    final isSmallScreen = screenWidth < 360;
-    final isTinyScreen = screenWidth < 280;
-    final titleSize = isTinyScreen ? 12.0 : (isSmallScreen ? 13.0 : 15.0);
-    //final descSize = isTinyScreen ? 9.0 : (isSmallScreen ? 10.0 : 12.0);
-    final buttonPadH = isTinyScreen ? 8.0 : (isSmallScreen ? 10.0 : 14.0);
-    final buttonPadV = isTinyScreen ? 4.0 : (isSmallScreen ? 5.0 : 7.0);
-    final buttonFontSize = isTinyScreen ? 12.0 : (isSmallScreen ? 12.0 : 12.0);
-    final contentPad = isTinyScreen ? 6.0 : (isSmallScreen ? 8.0 : 12.0);
+    final isTiny = screenWidth < 280;
+    final isSmall = screenWidth < 360;
 
-    // Calculate max dimensions
-    final maxCardHeight = screenHeight * 0.65;
-    final maxCardWidth = screenWidth > 600 ? 600.0 : double.infinity;
+    final titleSize = isTiny ? 12.0 : (isSmall ? 13.0 : 15.0);
+    final buttonFontSize = 12.0;
+    final buttonPadH = isTiny ? 8.0 : (isSmall ? 10.0 : 14.0);
+    final buttonPadV = isTiny ? 4.0 : (isSmall ? 5.0 : 7.0);
+    final contentPad = isTiny ? 6.0 : (isSmall ? 8.0 : 12.0);
+    final imageHeight = isTiny ? 100.0 : (isSmall ? 120.0 : 150.0);
+    final radius = isSmall ? 12.0 : 16.0;
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: maxCardHeight,
-            maxWidth: maxCardWidth,
-            minHeight: 180,
-          ),
-          child: Container(
-            margin: EdgeInsets.symmetric(
-              vertical: isSmallScreen ? 6 : 8,
-              horizontal: isSmallScreen ? 2 : 4,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: screenWidth > 600 ? 600.0 : double.infinity,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(radius),
+            gradient: LinearGradient(
+              colors: [primary.withOpacity(0.12), primary.withOpacity(0.18)],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-              gradient: LinearGradient(
-                colors: [primary.withOpacity(0.12), primary.withOpacity(0.18)],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-              child: Material(
-                color: Colors.white,
-                child: InkWell(
-                  onTap: navPage != null
-                      ? () => Get.to(
-                          () => navPage!,
-                          transition: Transition.fade,
-                          duration: const Duration(milliseconds: 350),
-                        )
-                      : null,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Column(
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: Material(
+              color: Colors.white,
+              child: InkWell(
+                onTap: navPage != null
+                    ? () => Get.to(
+                        () => navPage!,
+                        transition: Transition.fade,
+                        duration: const Duration(milliseconds: 350),
+                      )
+                    : null,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    /// ── IMAGE ──
+                    SizedBox(
+                      height: imageHeight,
+                      width: double.infinity,
+                      child: thumbnail != null
+                          ? Image.network(
+                              thumbnail!,
+                              fit: BoxFit.fill,
+                              errorBuilder: (_, __, ___) =>
+                                  _imagePlaceholder(isTiny),
+                            )
+                          : _imagePlaceholder(isTiny),
+                    ),
+
+                    /// ── CONTENT ──
+                    Padding(
+                      padding: EdgeInsets.all(contentPad),
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          /// ---------------- IMAGE ----------------
-                          Flexible(
-                            flex: 5,
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight: constraints.maxHeight * 0.5,
+                          /// Title + Grade
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: titleSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: isTiny ? 1 : 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              child: AspectRatio(
-                                aspectRatio: 1 / 1,
-                                child: thumbnail != null
-                                    ? Image.network(
-                                        thumbnail!,
-                                        fit: BoxFit.fill,
-                                        width: double.infinity,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          color: Colors.grey[200],
-                                          child: Icon(
-                                            Icons.image_not_supported,
-                                            color: Colors.grey[400],
-                                            size: isTinyScreen ? 30 : 40,
-                                          ),
-                                        ),
-                                      )
-                                    : Container(
-                                        color: Colors.grey[200],
-                                        child: Icon(
-                                          Icons.image,
-                                          color: Colors.grey[400],
-                                          size: isTinyScreen ? 30 : 40,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-
-                          /// ---------------- CONTENT SECTION ----------------
-                          Flexible(
-                            flex: 5,
-                            child: Padding(
-                              padding: EdgeInsets.all(contentPad),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  /// Top content (title, description, note)
-                                  Flexible(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        /// Title + Grade Row
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                title,
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontSize: titleSize,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black87,
-                                                  height: 1.2,
-                                                ),
-                                                maxLines: isTinyScreen ? 1 : 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (grade != null) ...[
-                                              const SizedBox(width: 4),
-                                              Container(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: isTinyScreen
-                                                      ? 5
-                                                      : (isSmallScreen ? 6 : 8),
-                                                  vertical: 2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: primary.withOpacity(
-                                                    0.15,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  "$grade",
-                                                  style: TextStyle(
-                                                    fontSize: isTinyScreen
-                                                        ? 9
-                                                        : (isSmallScreen
-                                                              ? 10
-                                                              : 11),
-                                                    color: primary,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-
-                                        SizedBox(
-                                          height: isTinyScreen
-                                              ? 3
-                                              : (isSmallScreen ? 4 : 6),
-                                        ),
-
-                                        /// Description
-                                        // QuillDescription.fromContent(
-                                        //   description,
-                                        //   maxLines: 1,
-                                        //   textStyle: TextStyle(
-                                        //     fontSize: descSize,
-                                        //     color: Colors.black54,
-                                        //     height: 1.3,
-                                        //   ),
-                                        // ),
-
-                                        /// Note (if exists)
-                                        if (note != null && !isTinyScreen) ...[
-                                          SizedBox(
-                                            height: isSmallScreen ? 6 : 8,
-                                          ),
-                                          note!,
-                                        ],
-                                      ],
+                              if (grade != null) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isTiny ? 5 : (isSmall ? 6 : 8),
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: primary.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '$grade',
+                                    style: TextStyle(
+                                      fontSize: isTiny
+                                          ? 9
+                                          : (isSmall ? 10 : 11),
+                                      color: primary,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
+                                ),
+                              ],
+                            ],
+                          ),
 
-                                  SizedBox(
-                                    height: isTinyScreen
-                                        ? 4
-                                        : (isSmallScreen ? 6 : 8),
+                          /// Note
+                          if (note != null && !isTiny) ...[
+                            SizedBox(height: isSmall ? 6 : 8),
+                            note!,
+                          ],
+
+                          SizedBox(height: isTiny ? 4 : (isSmall ? 6 : 8)),
+
+                          /// Footer: info + button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              /// Info chip
+                              if (questionsNumber != null)
+                                _InfoChip(
+                                  icon: Icons.quiz_outlined,
+                                  label: '$questionsNumber أسئلة',
+                                  isTiny: isTiny,
+                                  isSmall: isSmall,
+                                )
+                              else if (examDuration != null)
+                                _InfoChip(
+                                  icon: Icons.access_time,
+                                  label: '$examDuration د',
+                                  isTiny: isTiny,
+                                  isSmall: isSmall,
+                                )
+                              else
+                                const SizedBox(width: 4),
+
+                              /// Action button
+                              if (navlabel != null)
+                                InkWell(
+                                  onTap: () => Get.to(
+                                    () => navPage!,
+                                    transition: Transition.leftToRightWithFade,
+                                    duration: const Duration(milliseconds: 450),
+                                    preventDuplicates: false,
                                   ),
-
-                                  /// Footer Row - Always visible
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      /// Info and Button Row
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          /// Questions/Duration Info
-                                          if (questionsNumber != null)
-                                            Flexible(
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.quiz_outlined,
-                                                    size: isTinyScreen
-                                                        ? 10
-                                                        : 12,
-                                                    color: Colors.black54,
-                                                  ),
-                                                  const SizedBox(width: 2),
-                                                  Flexible(
-                                                    child: Text(
-                                                      "$questionsNumber أسئلة",
-                                                      style: TextStyle(
-                                                        fontSize: isTinyScreen
-                                                            ? 8
-                                                            : (isSmallScreen
-                                                                  ? 9
-                                                                  : 10),
-                                                        color: Colors.black54,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            )
-                                          else if (examDuration != null)
-                                            Flexible(
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.access_time,
-                                                    size: isTinyScreen
-                                                        ? 10
-                                                        : 12,
-                                                    color: Colors.black54,
-                                                  ),
-                                                  const SizedBox(width: 2),
-                                                  Flexible(
-                                                    child: Text(
-                                                      "$examDuration د",
-                                                      style: TextStyle(
-                                                        fontSize: isTinyScreen
-                                                            ? 8
-                                                            : (isSmallScreen
-                                                                  ? 9
-                                                                  : 10),
-                                                        color: Colors.black54,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            )
-                                          else
-                                            const SizedBox(width: 4),
-
-                                          const SizedBox(width: 6),
-
-                                          /// Action Button
-                                          navlabel != null
-                                              ? Flexible(
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment.end,
-                                                    children: [
-                                                      Material(
-                                                        color:
-                                                            Colors.transparent,
-                                                        child: InkWell(
-                                                          onTap: () {
-                                                            Get.to(
-                                                              () => navPage!,
-                                                              transition: Transition
-                                                                  .leftToRightWithFade,
-                                                              duration:
-                                                                  const Duration(
-                                                                    milliseconds:
-                                                                        450,
-                                                                  ),
-                                                              preventDuplicates:
-                                                                  false,
-                                                            );
-                                                          },
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                8,
-                                                              ),
-                                                          child: Container(
-                                                            padding:
-                                                                EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      buttonPadH,
-                                                                  vertical:
-                                                                      buttonPadV,
-                                                                ),
-                                                            decoration: BoxDecoration(
-                                                              color: primary,
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    8,
-                                                                  ),
-                                                              boxShadow: [
-                                                                BoxShadow(
-                                                                  color: primary
-                                                                      .withOpacity(
-                                                                        0.3,
-                                                                      ),
-                                                                  blurRadius: 4,
-                                                                  offset:
-                                                                      const Offset(
-                                                                        0,
-                                                                        2,
-                                                                      ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            child: Text(
-                                                              navlabel!,
-                                                              style: TextStyle(
-                                                                fontSize:
-                                                                    buttonFontSize,
-                                                                color: Colors
-                                                                    .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                )
-                                              : SizedBox.shrink(),
-                                        ],
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: buttonPadH,
+                                      vertical: buttonPadV,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: primary,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: primary.withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      navlabel!,
+                                      style: TextStyle(
+                                        fontSize: buttonFontSize,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ],
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
+                                ),
+                            ],
                           ),
                         ],
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _imagePlaceholder(bool isTiny) => Container(
+    color: Colors.grey[200],
+    child: Icon(
+      Icons.image_not_supported,
+      color: Colors.grey[400],
+      size: isTiny ? 30 : 40,
+    ),
+  );
+}
+
+/// Small reusable info chip (questions count / duration)
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isTiny;
+  final bool isSmall;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.isTiny,
+    required this.isSmall,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: isTiny ? 10 : 12, color: Colors.black54),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isTiny ? 8 : (isSmall ? 9 : 10),
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
