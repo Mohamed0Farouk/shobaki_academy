@@ -1,5 +1,8 @@
 // lib/controller/books_controller.dart
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shobaki_academy/controller/subscription_controller.dart';
+import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'dart:convert';
@@ -39,7 +42,7 @@ class BooksController extends GetxController {
   final ApiClient _api = ApiClient();
   final LocalDB _localDb = Get.find<LocalDB>();
 
-  final RxList<Book> books = <Book>[].obs;
+  final RxList books = <Book>[].obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
   final RxBool showFAB = false.obs;
@@ -47,6 +50,11 @@ class BooksController extends GetxController {
   final RxString userId = ''.obs;
   final RxBool isGuest = false.obs;
   final RxBool isReviewer = false.obs;
+  final TextEditingController searchController = TextEditingController();
+  final RxString searchQuery = ''.obs;
+  final RxBool isSearching = false.obs;
+  final RxBool sheetOpen = false.obs;
+  final RxList<Book> searchResults = <Book>[].obs;
   Map? userData;
 
   @override
@@ -55,6 +63,12 @@ class BooksController extends GetxController {
     _loadUserData();
     checkBookSubscription();
     fetchBooks();
+  }
+
+  @override
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
   }
 
   /// Load user data from local storage
@@ -71,7 +85,7 @@ class BooksController extends GetxController {
 
         // Check if reviewer (special test account)
         isReviewer.value =
-            userEmail.value == 'appletestaccount#11111111111@gmail.com';
+            userEmail.value == 'appletestaccount#97111111111111@gmail.com';
 
         Get.log('User loaded - Email: ${userEmail.value}, ID: ${userId.value}');
       }
@@ -105,7 +119,6 @@ class BooksController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
-
       if (userData != null && userData!['stage'] != null) {
         final response = await _api.fetchWithConditions(
           'books',
@@ -120,6 +133,15 @@ class BooksController extends GetxController {
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
             .toList();
       }
+
+      // Sort by created_at from oldest to newest
+      // ignore: invalid_use_of_protected_member
+      books.value.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return a.createdAt!.compareTo(b.createdAt!);
+      });
     } catch (e) {
       errorMessage.value = 'فشل تحميل الملازم: $e';
       Get.log('Error fetching books: $e', isError: true);
@@ -141,5 +163,184 @@ class BooksController extends GetxController {
     } catch (e) {
       Get.log('Error refreshing books and subscription: $e', isError: true);
     }
+  }
+
+  /// Search books by title
+  void onSearchSubmitted(String value, context) {
+    _doSearch(value, context);
+  }
+
+  Future<void> _doSearch(String q, context) async {
+    final query = q.trim();
+    if (query.isEmpty) {
+      searchResults.clear();
+      if (sheetOpen.value) {
+        if (Get.isBottomSheetOpen == true) Get.back();
+        sheetOpen.value = false;
+      }
+      isSearching.value = false;
+      return;
+    }
+
+    if (!sheetOpen.value) {
+      _showResultsSheet(context);
+    }
+
+    isSearching.value = true;
+    try {
+      final pattern = '%$query%';
+      final filters = <String, dynamic>{
+        'title': {'operator': 'ilike', 'value': pattern},
+      };
+
+      if (userData != null && userData!['stage'] != null) {
+        filters['stage'] = userData!['stage'];
+      }
+
+      final response = await _api.fetchWithConditions(
+        'books',
+        filters: filters,
+      );
+      searchResults.assignAll(
+        response.map((item) => Book.fromJson(item as Map<String, dynamic>)),
+      );
+    } catch (e) {
+      Get.log('Error searching books: $e', isError: true);
+      searchResults.clear();
+      Get.snackbar(
+        'خطأ في البحث',
+        'حدث خطأ أثناء البحث: $e',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isSearching.value = false;
+    }
+  }
+
+  void _showResultsSheet(context) {
+    sheetOpen.value = true;
+
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          height: Get.height * 0.6,
+          padding: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              // header with close icon
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        searchController.clear();
+                        searchQuery.value = '';
+                        searchResults.clear();
+                        if (sheetOpen.value) {
+                          if (Get.isBottomSheetOpen == true) Get.back();
+                          sheetOpen.value = false;
+                          isSearching.value = false;
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Obx(() {
+                  if (isSearching.value) {
+                    return Center(
+                      child: CircularProgressIndicator(color: Colors.blue[400]),
+                    );
+                  }
+                  final items = searchResults;
+                  if (items.isEmpty) {
+                    return const Center(child: Text('لا توجد نتائج'));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemBuilder: (_, i) {
+                      final book = items[i];
+                      return ListTile(
+                        title: Text(book.title),
+                        subtitle: isReviewer.value
+                            ? SizedBox.shrink()
+                            : book.free
+                            ? const Text('مجاني')
+                            : Text(
+                                'غير مجاني',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+
+                        onTap: () => _onTileTap(
+                          book,
+                          context,
+                          isGuest.value,
+                          isReviewer.value,
+                        ),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemCount: items.length,
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    ).whenComplete(() {
+      sheetOpen.value = false;
+      isSearching.value = false;
+    });
+  }
+
+  void _onTileTap(book, context, isGuest, isReviewer) async {
+    if (isReviewer) {
+      Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      return;
+    }
+
+    if (book.free) {
+      Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      return;
+    }
+
+    if (isGuest) {
+      showGuestAnnotationDialog(context: context);
+    } else {
+      final hasSubscription = await checkBookSubscription();
+      if (hasSubscription) {
+        Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
+      } else {
+        showBookSubscriptionDialog(
+          api: ApiClient(),
+          userId: userId.value,
+          context: context,
+        );
+      }
+    }
+  }
+
+  /// Clear search results
+  void clearSearch() {
+    searchQuery.value = '';
+    searchController.clear();
+    searchResults.clear();
+    isSearching.value = false;
   }
 }

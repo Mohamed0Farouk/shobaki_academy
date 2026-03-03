@@ -18,7 +18,7 @@ class NumberVerificationController extends GetxController {
   RxMap userData = {}.obs;
   var studentId = ''.obs;
   var otp = ''.obs;
-  var isVerified = false.obs;
+  RxBool isVerified = false.obs;
 
   var timer = 0.obs;
   var canResend = true.obs;
@@ -96,7 +96,6 @@ class NumberVerificationController extends GetxController {
       final isSuccess = response.statusCode == 200;
       if (isSuccess) {
         isVerified.value = true;
-        localDb?.setBool('isVerified', true);
         final ApiClient apiClient = ApiClient();
         await apiClient.updateData(
           'students',

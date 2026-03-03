@@ -24,21 +24,20 @@ class AuthController extends GetxController {
 
   // dropdown lists (can be adjusted)
   final List<String> educationStages = [
-    'الصف الحادي عشر المتقدم',
-    'الصف الثاني عشر العام',
     'الصف الثاني عشر المتقدم',
+    'الصف الثاني عشر العام',
+    'الصف الحادي عشر المتقدم',
   ];
 
   final List<String> uaeStates = [
     'أبوظبي',
     'العين',
-    'الظفرة',
     'دبي',
     'الشارقة',
     'عجمان',
     'أم القيوين',
     'رأس الخيمة',
-    'الفجيرة',
+    'اخرى',
   ];
 
   // selected values for signup form
@@ -47,7 +46,8 @@ class AuthController extends GetxController {
   //RxString selectedSubscription = ''.obs;
 
   // special test reviewer account id/email prefix
-  static const _reviewerEmailPrefix = 'appletestaccount#11111111111@gmail.com';
+  static const reviewerEmailPrefix =
+      'appletestaccount#97111111111111@gmail.com';
 
   @override
   void onInit() {
@@ -56,7 +56,6 @@ class AuthController extends GetxController {
 
     isGuestMode.value = localDb?.getBool('isGuestMode') ?? false;
     isLoggedIn.value = localDb?.getBool('isLoggedIn') ?? false;
-    isVerified.value = localDb?.getBool('isVerified') ?? false;
     inReview.value = localDb?.getBool('inReview') ?? false;
   }
 
@@ -69,16 +68,13 @@ class AuthController extends GetxController {
   Future<void> saveUserLocally(
     Map<String, dynamic> userData, {
     bool loggedIn = true,
-    bool verified = false,
     bool reviewer = false,
   }) async {
     final localDb = db.sharedPref;
     localDb?.setString('UserData', jsonEncode(userData));
     localDb?.setBool('isLoggedIn', loggedIn);
-    localDb?.setBool('isVerified', verified);
     localDb?.setBool('inReview', reviewer);
     isLoggedIn.value = loggedIn;
-    isVerified.value = verified;
     inReview.value = reviewer;
   }
 
@@ -202,14 +198,9 @@ class AuthController extends GetxController {
       }
 
       (userData as Map<String, dynamic>).addAll({'password': password});
-      final bool isReviewer = email == _reviewerEmailPrefix;
+      final bool isReviewer = email == reviewerEmailPrefix;
 
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        verified: true,
-        reviewer: isReviewer,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
 
       if (ctx != null) Get.close(1);
 
@@ -263,7 +254,7 @@ class AuthController extends GetxController {
       // device fingerprint check
       final currentFingerprint = await DeviceFingerprint.getFingerprint();
       final dbFingerprint = userData['device_fingerprint'];
-      if (email != _reviewerEmailPrefix) {
+      if (email != reviewerEmailPrefix) {
         if (dbFingerprint == null || (dbFingerprint as String).isEmpty) {
           // If the account has no device_fingerprint, set it now to lock account to this device.
           await api.updateData(
@@ -274,6 +265,12 @@ class AuthController extends GetxController {
           userData['device_fingerprint'] = currentFingerprint;
         } else if (dbFingerprint != currentFingerprint) {
           Get.close(1);
+          userData['email'] = 'guest@example.com'; // downgrade to guest locally
+          (userData as Map<String, dynamic>).addAll({'password': password});
+          db.sharedPref?.getBool('isGuestMode') == false
+              ? db.sharedPref?.setBool('isGuestMode', true)
+              : null;
+          await saveUserLocally(userData, loggedIn: false, reviewer: false);
           Get.snackbar(
             'خطأ في تسجيل الدخول',
             'لا يمكن تسجيل الدخول من هذا الجهاز. يرجى استخدام الجهاز الذي تم إنشاء الحساب عليه',
@@ -287,15 +284,10 @@ class AuthController extends GetxController {
 
       // attach password and determine reviewer flag
       (userData as Map<String, dynamic>).addAll({'password': password});
-      final bool isReviewer = email == _reviewerEmailPrefix;
+      final bool isReviewer = email == reviewerEmailPrefix;
 
       // save locally and include inReview flag for reviewer
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        verified: userData['verified'],
-        reviewer: isReviewer,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: isReviewer);
 
       db.sharedPref?.getBool('isGuestMode') == true
           ? db.sharedPref?.setBool('isGuestMode', false)
@@ -329,9 +321,9 @@ class AuthController extends GetxController {
         return true;
       }
 
-      final verified = userData['verified'];
+      isVerified.value = userData['verified'];
 
-      if (verified) {
+      if (isVerified.value) {
         Get.offAllNamed('/home');
         return true;
       } else {
@@ -352,18 +344,6 @@ class AuthController extends GetxController {
     required String studentPhoneNumber,
   }) async {
     try {
-      // simple validation of selections
-      // if (selectedStage.value.isEmpty ||
-      //     selectedUae.value.isEmpty ||
-      //     selectedSubscription.value.isEmpty) {
-      //   Get.snackbar(
-      //     'تنبيه',
-      //     'الرجاء اختيار المرحلة الدراسية، الإمارة و نوع الاشتراك',
-      //     backgroundColor: Colors.orange,
-      //     snackPosition: SnackPosition.BOTTOM,
-      //   );
-      //   return;
-      // }
 
       loadingDilog(context);
 
@@ -396,19 +376,12 @@ class AuthController extends GetxController {
         'phone_number': studentPhoneNumber,
         'stage': selectedStage.value,
         'goverment': selectedUae.value,
-        //'subscription': selectedSubscription.value,
         'device_fingerprint': deviceFingerprint,
-        'disabled': false,
       };
 
       await api.insertData('students', userData);
 
-      await saveUserLocally(
-        userData,
-        loggedIn: true,
-        verified: false,
-        reviewer: false,
-      );
+      await saveUserLocally(userData, loggedIn: true, reviewer: false);
       Get.close(1);
 
       // navigate to number verification (single number)
@@ -427,7 +400,6 @@ class AuthController extends GetxController {
     localDb?.remove('UserData');
     localDb?.setBool('isGuestMode', false);
     localDb?.setBool('isLoggedIn', false);
-    localDb?.setBool('isVerified', false);
     localDb?.setBool('inReview', false);
     isGuestMode.value = false;
     isLoggedIn.value = false;
@@ -456,11 +428,9 @@ class AuthController extends GetxController {
       await localDb.remove('UserData');
       await localDb.setBool('isGuestMode', false);
       await localDb.setBool('isLoggedIn', false);
-      await localDb.setBool('isVerified', false);
       await localDb.setBool('inReview', false);
       isGuestMode.value = false;
       isLoggedIn.value = false;
-      isVerified.value = false;
       inReview.value = false;
     }
     final guestUser = {
@@ -476,12 +446,7 @@ class AuthController extends GetxController {
       'password': 'guest_password',
     };
 
-    await saveUserLocally(
-      guestUser,
-      loggedIn: true,
-      verified: true,
-      reviewer: false,
-    );
+    await saveUserLocally(guestUser, loggedIn: true, reviewer: false);
     localDb.setBool('isGuestMode', true);
     isGuestMode.value = true;
     watermarkController.waterMark.value = 'Al-Shobaki Academy';
@@ -492,11 +457,9 @@ class AuthController extends GetxController {
     final localDb = db.sharedPref;
     isGuestMode.value = false;
     isLoggedIn.value = false;
-    isVerified.value = false;
     inReview.value = false;
     await localDb?.setBool('isGuestMode', false);
     await localDb?.setBool('isLoggedIn', false);
-    await localDb?.setBool('isVerified', false);
     await localDb?.setBool('inReview', false);
     await localDb?.remove('UserData');
     Get.offAllNamed('/login');

@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:animate_do/animate_do.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/model/card_model.dart';
@@ -14,8 +15,9 @@ import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 //import 'package:shobaki_academy/view/home.dart';
 
+// ignore: must_be_immutable
 class TopicContentPage extends StatelessWidget {
-  const TopicContentPage({
+  TopicContentPage({
     super.key,
     required this.topicId,
     this.isGuest = false,
@@ -24,6 +26,9 @@ class TopicContentPage extends StatelessWidget {
   final String topicId;
   final bool isGuest;
   final bool inReview;
+  bool isSubscribed = false;
+
+  Map? topicData;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +36,7 @@ class TopicContentPage extends StatelessWidget {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: const Text('تفاصيل الموضوع'),
+        title: const Text('تفاصيل المحتوى'),
         elevation: 0,
         centerTitle: true,
       ),
@@ -63,6 +68,8 @@ class TopicContentPage extends StatelessWidget {
         filters: {"student_id": userData!["id"], 'topic_id': topicId},
       );
 
+      isSubscribed = topicSubscription.isNotEmpty;
+
       final topics = await api.fetchWithConditions(
         'topics',
         filters: {'hidden': false, 'id': topicId},
@@ -71,6 +78,7 @@ class TopicContentPage extends StatelessWidget {
       if (topics.isEmpty) return _errorWidget(context);
 
       final Map topic = Map<String, dynamic>.from(topics[0] as Map);
+      topicData = topic;
       final bool isParent = (topic['is_parent'] == true);
 
       if (isParent) {
@@ -113,6 +121,95 @@ class TopicContentPage extends StatelessWidget {
               children: [
                 _detailsCard(context, topic, description, subs, user, api),
                 const SizedBox(height: 20),
+                Text(
+                  'المحاضرات المتضمنة',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: 12),
+
+                FutureBuilder<List<Widget>>(
+                  future: _lecturesHandler(
+                    topic['lectures'],
+                    topic['thumbnail'],
+                    context,
+                  ),
+                  builder: (context, snapshot) {
+                    final childrenWidgets = snapshot.data ?? [];
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return loading(context);
+                    }
+                    if (childrenWidgets.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Center(
+                          child: Text(
+                            'لا توجد محاضرات ',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      );
+                    }
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Define desktop breakpoint (adjust as needed)
+                        final isDesktop = constraints.maxWidth > 900;
+                        if (isDesktop) {
+                          return Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final itemWidth =
+                                    (constraints.maxWidth - (12 * 4)) / 5;
+
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: childrenWidgets.map((child) {
+                                    return SizedBox(
+                                      width: itemWidth,
+                                      child: child,
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                          );
+                        } else {
+                          // Mobile/Tablet - horizontal ListView
+                          return SizedBox(
+                            height: isSubscribed || topicData!['free'] == true
+                                ? context.screenH / 3.5
+                                : context.screenH / 4,
+                            width: double.infinity,
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: IntrinsicHeight(
+                                child: ListView.builder(
+                                  itemCount: childrenWidgets.length,
+                                  scrollDirection: Axis.horizontal,
+                                  itemBuilder: (ctx, i) {
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: SizedBox(
+                                        width: context.screenW * 0.4,
+                                        child: childrenWidgets[i],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -154,7 +251,7 @@ class TopicContentPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'المواضيع الفرعية المتضمنة',
+                  'المحتويات الفرعية المتضمنة',
                   style: Theme.of(context).textTheme.headlineMedium,
                   textAlign: TextAlign.right,
                 ),
@@ -163,6 +260,7 @@ class TopicContentPage extends StatelessWidget {
                   future: _subTopicsHandler(
                     topic['children'],
                     topic['thumbnail'],
+                    context,
                   ),
                   builder: (context, snapshot) {
                     final childrenWidgets = snapshot.data ?? [];
@@ -181,23 +279,60 @@ class TopicContentPage extends StatelessWidget {
                         ),
                       );
                     }
-                    return SizedBox(
-                      height: context.screenH / 3,
-                      width: double.infinity,
-                      child: ListView.builder(
-                        itemCount: childrenWidgets.length,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (ctx, i) {
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Define desktop breakpoint (adjust as needed)
+                        final isDesktop = constraints.maxWidth > 900;
+
+                        if (isDesktop) {
                           return Directionality(
-                            textDirection: TextDirection.rtl,
-                            child: SizedBox(
-                              height: context.screenH / 3.2,
-                              width: context.screenW / 2,
-                              child: childrenWidgets[i],
+                            textDirection: TextDirection.ltr,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final itemWidth =
+                                    (constraints.maxWidth - (12 * 4)) / 5;
+
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: childrenWidgets.map((child) {
+                                    return SizedBox(
+                                      width: itemWidth,
+                                      child: child,
+                                    );
+                                  }).toList(),
+                                );
+                              },
                             ),
                           );
-                        },
-                      ),
+                        } else {
+                          // Mobile/Tablet - horizontal ListView
+                          return SizedBox(
+                            height: context.screenH / 3,
+                            width: double.infinity,
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: IntrinsicHeight(
+                                child: ListView.builder(
+                                  itemCount: childrenWidgets.length,
+                                  scrollDirection: Axis.horizontal,
+                                  itemBuilder: (ctx, i) {
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: SizedBox(
+                                        width: context.screenW * 0.4,
+                                        child: childrenWidgets[i],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     );
                   },
                 ),
@@ -351,7 +486,12 @@ class TopicContentPage extends StatelessWidget {
     final lecturesCount = (topic['lectures'] is List)
         ? (topic['lectures'] as List).length
         : 0;
-    final createdAt = topic['created_at'];
+
+    final childrenCount = (topic['children'] is List)
+        ? (topic['children'] as List).length
+        : 0;
+
+    //final createdAt = topic['created_at'];
     final stage = (topic['stage'] ?? '-').toString();
     final price = topic['price'];
     return Card(
@@ -382,35 +522,30 @@ class TopicContentPage extends StatelessWidget {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
-                _infoChip(
-                  context,
-                  Icons.menu_book,
-                  'المحاضرات: $lecturesCount',
-                ),
-                _infoChip(
-                  context,
-                  Icons.calendar_today,
-                  'تاريخ: ${_formatDate(createdAt)}',
-                ),
+                childrenCount != 0
+                    ? _infoChip(
+                        context,
+                        Icons.folder,
+                        'المحتويات الفرعية: $childrenCount',
+                      )
+                    : _infoChip(
+                        context,
+                        Icons.menu_book,
+                        'المحاضرات: $lecturesCount',
+                      ),
+                // _infoChip(
+                //   context,
+                //   Icons.calendar_today,
+                //   'تاريخ: ${_formatDate(createdAt)}',
+                // ),
                 _infoChip(context, Icons.tag, 'المرحلة: $stage'),
                 // Hide price in review mode
-                if (!inReview)
-                  _infoChip(
-                    context,
-                    Icons.price_check,
-                    'السعر: ${_formatPrice(price)}',
-                  ),
+                if (!inReview && price > 0)
+                  _infoChip(context, Icons.price_check, 'السعر: $price AED'),
               ],
             ),
             const SizedBox(height: 16),
             Center(child: _actionButton(context, topic, subs, user, api)),
-            if (showChildrenHeader) const SizedBox(height: 20),
-            if (showChildrenHeader)
-              Text(
-                'المواضيع الفرعية',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.right,
-              ),
           ],
         ),
       ),
@@ -489,28 +624,130 @@ class TopicContentPage extends StatelessWidget {
       );
     }
 
-    String label = !isSubscribed
-        ? 'انضم الى الموضوع'
-        : 'تم الانضمام — افتح الموضوع';
-    label = topic['free'] == true ? 'افتح الموضوع' : label;
+    String label = !isSubscribed ? ' ادخل الكود للاشتراك' : 'تم الاشتراك ';
+    label = topic['free'] == true ? 'المحتوى متاح' : label;
 
-    return ElevatedButton.icon(
-      icon: Icon(
-        isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
-        color: Colors.white,
+    return isSubscribed
+        ? ElevatedButton.icon(
+            icon: Icon(
+              isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
+              color: Colors.white,
+            ),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+
+            onPressed: null,
+          )
+        : topic['free'] == true
+        ? ElevatedButton.icon(
+            icon: Icon(Icons.play_circle_fill, color: Colors.white),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: null,
+          )
+        : ElevatedButton.icon(
+            icon: Icon(
+              isSubscribed ? Icons.play_circle_fill : Icons.add_circle_outline,
+              color: Colors.white,
+            ),
+            label: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () =>
+                _handleSubscription(context, topic, subs, user, api),
+          );
+  }
+
+  void showGuestAnnotationDialog({required BuildContext context}) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('ميزة مخصصة للمستخدمين', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
+            const SizedBox(height: 16),
+            const Text(
+              'عذراً، لا يمكنك الوصول إلى المحتوى كمستخدم ضيف. الرجاء تسجيل الدخول بحسابك الخاص.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
-      label: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyLarge?.copyWith(color: Colors.white),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
+  void showSubscripeAnnotationDialog({required BuildContext context}) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('محتوى مخصص للمشتركين', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
+            const SizedBox(height: 16),
+            const Text(
+              'عذراً، لا يمكنك الوصول إلى المحتوى كمستخدم غير مشترك. الرجاء الاشتراك للوصول للمحتوى.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      onPressed: () => _handleSubscription(context, topic, subs, user, api),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 
@@ -532,7 +769,7 @@ class TopicContentPage extends StatelessWidget {
               const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
-                'هذا الموضوع مدفوع',
+                'هذا المحتوى غير متاح للضيوف',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.orange,
                   fontWeight: FontWeight.w600,
@@ -542,7 +779,7 @@ class TopicContentPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'سجل دخولك للاشتراك في هذا الموضوع',
+            'سجل دخولك لعرض هذا المحتوى',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.orange.shade700),
@@ -576,26 +813,6 @@ class TopicContentPage extends StatelessWidget {
     );
   }
 
-  String _formatDate(dynamic date) {
-    try {
-      return intl.DateFormat(
-        'yyyy/MM/dd',
-      ).format(DateTime.parse(date.toString()));
-    } catch (_) {
-      return '-';
-    }
-  }
-
-  String _formatPrice(dynamic price) {
-    try {
-      final p = (price ?? 0) as num;
-      // original code stored price in cents, but safe fallback to raw if small
-      return p > 100 ? '${(p / 100).toString()} AED' : '${p.toString()} AED';
-    } catch (_) {
-      return '0 AED';
-    }
-  }
-
   Map? _getUserData() {
     try {
       final services = Get.find<LocalDB>();
@@ -613,8 +830,10 @@ class TopicContentPage extends StatelessWidget {
   Future<List<Widget>> _subTopicsHandler(
     List? children,
     String? thumbnail,
+    context,
   ) async {
     final topics = <Map>[];
+    final userData = _getUserData();
     if (children == null) return [];
     for (var id in children) {
       try {
@@ -635,21 +854,154 @@ class TopicContentPage extends StatelessWidget {
           (topic) => FadeInUp(
             from: 100,
             duration: const Duration(milliseconds: 600),
-            child: CardModel(
-              type: CardTypes.topic,
-              thumbnail: thumbnail,
-              title: topic['title'] ?? '',
-              description: topic['description'] ?? '',
-              id: topic['id'] ?? '',
-              nav: TopicContentPage(
-                topicId: topicId,
-                isGuest: isGuest,
-                inReview: inReview,
-              ),
-            ),
+            child:
+                isSubscribed ||
+                    topicData!['free'] == true ||
+                    userData!['email'] ==
+                        'appletestaccount#97111111111111@gmail.com'
+                ? CardModel(
+                    type: CardTypes.topic,
+                    thumbnail: topic["thumbnail"],
+                    title: topic['title'] ?? '',
+                    description: topic['description'] ?? '',
+                    note: Text(
+                      'عدد المحاضرات: ${(topic['lectures'] as List?)?.length ?? 0}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    id: topic['id'] ?? '',
+                    navLabel: 'عرض المحتوى',
+                    nav: TopicPage(topicId: topic['id'] ?? ''),
+                  )
+                : InkWell(
+                    onTap: () {
+                      if (isGuest) {
+                        showGuestAnnotationDialog(context: context);
+                      } else {
+                        showSubscripeAnnotationDialog(context: context);
+                      }
+                    },
+                    child: CardModel(
+                      type: CardTypes.topic,
+                      thumbnail: topic["thumbnail"],
+                      title: topic['title'] ?? '',
+                      description: topic['description'] ?? '',
+                      note: Text(
+                        'عدد المحاضرات: ${(topic['lectures'] as List?)?.length ?? 0}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      id: topic['id'] ?? '',
+                      navLabel: null,
+                      nav: null,
+                    ),
+                  ),
           ),
         )
         .toList();
+  }
+
+  Future<List<Widget>> _lecturesHandler(
+    List? lectures,
+    String? thumbnail,
+    context,
+  ) async {
+    final lecturesData = <Map>[];
+    final userData = _getUserData();
+    final widgets = <Widget>[];
+
+    if (lectures == null) return [];
+    for (var id in lectures) {
+      try {
+        final res = await ApiClient().fetchWithConditions(
+          'lectures',
+          filters: {'id': id},
+        );
+        if (res.isNotEmpty) {
+          lecturesData.add(Map<String, dynamic>.from(res[0] as Map));
+        }
+      } catch (_) {
+        // ignore failed fetch for a child
+      }
+    }
+
+    for (var lecture in lecturesData) {
+      final videoInfo = (lecture['videos'] as Map).values.first;
+      final videoUrl = videoInfo['url'];
+      final maxViewCount =
+          videoInfo['max_view_count'] ?? 0; // Get max views from video data
+
+      final userViews = await _getUserVideoViewCount(videoUrl, userData!['id']);
+      final isLimited = await _isVideoViewLimitReached(
+        videoUrl,
+        maxViewCount,
+        userViews,
+        userData['id'],
+      );
+
+      print('#user views for $videoUrl: $userViews / $maxViewCount');
+
+      // 1. Build the base card widget (no SizedBox wrapper needed)
+      Widget baseCard =
+          isSubscribed ||
+              topicData!['free'] == true ||
+              userData['email'] == 'appletestaccount#97111111111111@gmail.com'
+          ? CardModel(
+              type: CardTypes.video,
+              thumbnail: lecture["thumbnail"],
+              title: lecture['title'] ?? '',
+              description: lecture['description'] ?? '',
+              id: lecture['id'] ?? '',
+              url: lecture['videos'].values.first['url'] ?? '',
+            )
+          : CardModel(
+              type: CardTypes.lecture,
+              thumbnail: lecture["thumbnail"],
+              title: lecture['title'] ?? '',
+              description: lecture['description'] ?? '',
+              id: lecture['id'] ?? '',
+              nav: null,
+            );
+
+      // 2. Wrap in InkWell only when needed (same size as card)
+      Widget card = FadeInUp(
+        from: 100,
+        duration: const Duration(milliseconds: 600),
+        child:
+            isSubscribed ||
+                topicData!['free'] == true ||
+                userData['email'] == 'appletestaccount#97111111111111@gmail.com'
+            ? baseCard
+            : InkWell(
+                onTap: () {
+                  if (isGuest) {
+                    showGuestAnnotationDialog(context: context);
+                  } else {
+                    showSubscripeAnnotationDialog(context: context);
+                  }
+                },
+                child: baseCard,
+              ),
+      );
+
+      // 3. Stack lock overlay using StackFit.passthrough so Stack = card size
+      if (isLimited) {
+        final lockMsg = 'المشاهدات\n ($userViews/$maxViewCount)';
+        card = Stack(
+          fit: StackFit.passthrough, // ← key fix: Stack adopts the card's size
+          children: [
+            card,
+            Positioned.fill(
+              child: FadeInUp(
+                from: 100,
+                duration: const Duration(milliseconds: 600),
+                child: buildLockedOverlay(lockMsg, context),
+              ),
+            ),
+          ],
+        );
+      }
+      widgets.add(card);
+    }
+    return widgets;
   }
 
   void _addCodeToSubscribe(
@@ -683,34 +1035,6 @@ class TopicContentPage extends StatelessWidget {
       transition: Transition.downToUp,
       duration: const Duration(milliseconds: 600),
     );
-    // await api
-    // .insertData('students_subscriptions', {
-    //   "student_id": userId,
-    //   "topic_id": id,
-    // })
-    // .then((_) {
-    //   // Get.snackbar(
-    //   //   'اشعار',
-    //   //   'تم الانضمام في $name',
-    //   //   backgroundColor: Colors.greenAccent,
-    //   //   snackPosition: SnackPosition.BOTTOM,
-    //   // );
-    //   //Get.offAllNamed('/home');
-
-    // })
-    // .onError((err, _) {
-    //   Get.snackbar(
-    //     'توجد مشكلة',
-    //     err.toString(),
-    //     backgroundColor: Colors.red,
-    //     snackPosition: SnackPosition.BOTTOM,
-    //   );
-    //   Get.offAll(
-    //     () => HomePage(),
-    //     transition: Transition.upToDown,
-    //     duration: const Duration(milliseconds: 600),
-    //   );
-    // });
   }
 
   void _handleSubscription(
@@ -751,4 +1075,88 @@ class TopicContentPage extends StatelessWidget {
   Widget _errorWidget(BuildContext context) => Center(
     child: Text('توجد مشكلة', style: Theme.of(context).textTheme.headlineLarge),
   );
+
+  Future<int> _getUserVideoViewCount(String videoUrl, String userId) async {
+    try {
+      final apiBaseUrl = dotenv.env['ALSHOBAKI_API'];
+
+      if (apiBaseUrl == null || apiBaseUrl.isEmpty) {
+        projectLogger.e('ALSHOBAKI_API not found in .env');
+        return 0;
+      }
+
+      final uri = Uri.parse(
+        '${apiBaseUrl}api/videos/view-count',
+      ).replace(queryParameters: {'videoUrl': videoUrl, 'userId': userId});
+
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              // Add authorization header if needed
+              // 'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Request timeout');
+            },
+          );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final viewCount = data['data']['viewCount'] as int;
+
+        return viewCount;
+      } else {
+        projectLogger.e(
+          'Error fetching video view count: ${response.statusCode} - ${response.body}',
+        );
+        return 0;
+      }
+    } catch (e) {
+      projectLogger.e('Error fetching video view count: $e');
+      return 0;
+    }
+  }
+
+  /// Check if video view limit is reached
+  Future<bool> _isVideoViewLimitReached(
+    String videoUrl,
+    int maxViewCount,
+    int userViewCount,
+    String userId,
+  ) async {
+    if (maxViewCount <= 0) return false; // No limit set
+
+    return userViewCount >= maxViewCount;
+  }
+
+  Widget buildLockedOverlay(String message, context) {
+    return Card(
+      shadowColor: Colors.black.withOpacity(0.12),
+      elevation: 4,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.black.withOpacity(0.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge!.copyWith(color: Colors.white),
+          ),
+          const Icon(Icons.lock_rounded, color: Colors.white),
+        ],
+      ),
+    );
+  }
 }

@@ -274,10 +274,11 @@ class _LectureContentPageState extends State<LectureContentPage> {
           type: CardTypes.video,
           title: value['title'],
           description: value['description'],
-          note: Text(
-            ' المشاهدات  ($userViews/$maxViewCount)',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          thumbnail: value['thumbnail'],
+          // note: Text(
+          //   ' المشاهدات  ($userViews/$maxViewCount)',
+          //   style: Theme.of(context).textTheme.bodySmall,
+          // ),
           id: '',
           url: value['url'],
         );

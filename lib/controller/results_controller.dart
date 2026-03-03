@@ -69,7 +69,7 @@ class ResultsController extends GetxController {
       // keep lists unchanged on error but show notification
       Get.snackbar(
         'خطأ',
-        'فشل في جلب المواضيع: $e',
+        'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -136,7 +136,7 @@ class ResultsController extends GetxController {
       final List<Map<String, dynamic>> fetched = [];
       final seen = <String>{};
 
-      Future<void> _fetchAndAppend(
+      Future<void> fetchAndAppend(
         String table,
         Map<String, dynamic> filters,
         String source,
@@ -145,7 +145,7 @@ class ResultsController extends GetxController {
         for (final r in resp) {
           final map = Map<String, dynamic>.from(r as Map);
           final id = map['id']?.toString() ?? UniqueKey().toString();
-          final key = '$table\_$id';
+          final key = '${table}_$id';
           if (!seen.contains(key)) {
             seen.add(key);
             map['__source'] = source;
@@ -156,24 +156,24 @@ class ResultsController extends GetxController {
       }
 
       // search exams (title + description)
-      await _fetchAndAppend(
+      await fetchAndAppend(
         'students_solved_exams',
         Map.from(titleFilter),
         'exam',
       );
-      await _fetchAndAppend(
+      await fetchAndAppend(
         'students_solved_exams',
         Map.from(descFilter),
         'exam',
       );
 
       // search homeworks (title + description)
-      await _fetchAndAppend(
+      await fetchAndAppend(
         'students_solved_homeworks',
         Map.from(titleFilter),
         'homework',
       );
-      await _fetchAndAppend(
+      await fetchAndAppend(
         'students_solved_homeworks',
         Map.from(descFilter),
         'homework',

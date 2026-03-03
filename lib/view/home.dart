@@ -57,9 +57,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    final params = Get.parameters;
-    inReviewParam = params['inReview'] == 'true';
-
     final localDb = Get.find<LocalDB>();
     final prefs = localDb.sharedPref!;
 
@@ -73,10 +70,11 @@ class _HomePageState extends State<HomePage> {
     }
 
     guestParam = _user?['email'] == 'guest@example.com';
+    inReviewParam = _user?['email'] == AuthController.reviewerEmailPrefix;
 
     _init();
     _loadLocalUserName();
-    _checkFirstLaunch(); // 👈 HERE
+    //_checkFirstLaunch(); // 👈 HERE
   }
 
   Future<void> showFirstLaunchDialog({bool dismissible = true}) {
@@ -94,26 +92,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _checkFirstLaunch() async {
-    final localDb = Get.find<LocalDB>();
-    final prefs = localDb.sharedPref!;
+  // Future<void> _checkFirstLaunch() async {
+  //   final localDb = Get.find<LocalDB>();
+  //   final prefs = localDb.sharedPref!;
 
-    const key = 'first_launch_done';
+  //   const key = 'first_launch_done';
 
-    final isFirstLaunch = !(prefs.getBool(key) ?? false);
+  //   final isFirstLaunch = !(prefs.getBool(key) ?? false);
 
-    print(isFirstLaunch ? 'first launch' : 'not first launch');
+  //   print(isFirstLaunch ? 'first launch' : 'not first launch');
 
-    print('added');
-    if (isFirstLaunch) {
-      // Wait until UI is ready
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showFirstLaunchDialog();
-      });
+  //   print('added');
+  //   if (isFirstLaunch) {
+  //     // Wait until UI is ready
+  //     WidgetsBinding.instance.addPostFrameCallback((_) {
+  //       showFirstLaunchDialog();
+  //     });
 
-      await prefs.setBool(key, true);
-    }
-  }
+  //     await prefs.setBool(key, true);
+  //   }
+  // }
 
   Future<void> _init() async {
     await _buildPagesAndItems();
@@ -129,7 +127,8 @@ class _HomePageState extends State<HomePage> {
     final res = await api.fetchData('application_manfist');
     final manifest = res.isNotEmpty ? res[0] : <String, dynamic>{};
 
-    final bool inReviewMode = manifest['in_review'] as bool? ?? false;
+    bool inReviewMode = manifest['in_review'] as bool? ?? false;
+    inReviewMode = inReviewMode || inReviewParam;
     final bool useHomeworksAndExams =
         manifest['use_homeworks_and_exams'] as bool? ?? false;
 
@@ -145,8 +144,8 @@ class _HomePageState extends State<HomePage> {
     final normalItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        activeIcon: Icon(Icons.home_rounded),
+        label: 'المحتويات',
       ),
       BottomNavigationBarItem(
         label: 'الملازم',
@@ -166,17 +165,17 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
     final normalSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -195,9 +194,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
@@ -212,8 +211,8 @@ class _HomePageState extends State<HomePage> {
     final guestItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        activeIcon: Icon(Icons.home_rounded),
+        label: 'المحتويات',
       ),
       const BottomNavigationBarItem(
         label: 'الملازم',
@@ -227,17 +226,17 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
     final guestSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -251,9 +250,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
@@ -268,8 +267,8 @@ class _HomePageState extends State<HomePage> {
     final reviewItems = <BottomNavigationBarItem>[
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_filled),
-        label: 'المواضيع',
+        activeIcon: Icon(Icons.home_rounded),
+        label: 'المحتويات',
       ),
       BottomNavigationBarItem(
         label: 'الملازم',
@@ -283,17 +282,17 @@ class _HomePageState extends State<HomePage> {
           label: 'النتائج',
         ),
       const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_outlined),
-        activeIcon: Icon(Icons.settings_rounded),
-        label: 'الاعدادات',
+        icon: Icon(Icons.person_outline_rounded),
+        activeIcon: Icon(Icons.person_rounded),
+        label: 'الملف الشخصي',
       ),
     ];
 
     final reviewSidebarItems = <_SidebarItem>[
       _SidebarItem(
-        label: 'المواضيع',
+        label: 'المحتويات',
         icon: Icons.home_outlined,
-        activeIcon: Icons.home_filled,
+        activeIcon: Icons.home_rounded,
       ),
       _SidebarItem(
         label: 'الملازم',
@@ -307,9 +306,9 @@ class _HomePageState extends State<HomePage> {
           activeIcon: Icons.area_chart_rounded,
         ),
       _SidebarItem(
-        label: 'الاعدادات',
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
+        label: 'الملف الشخصي',
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
       ),
     ];
 
@@ -603,10 +602,11 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'سجل دخولك للوصول لكل الميزات',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w600,
+                  'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -777,12 +777,10 @@ class _HomePageState extends State<HomePage> {
   /// Guest app bar
   PreferredSizeWidget _buildGuestAppBar(BuildContext context) {
     return AppBar(
-      title: const Text('طالبنا العزيز'),
-      centerTitle: true,
       elevation: 0,
       flexibleSpace: Container(color: Theme.of(context).colorScheme.primary),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(55),
+        preferredSize: const Size.fromHeight(25),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Container(
@@ -794,9 +792,18 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.lock_outline),
+                const Icon(Icons.lock_outline, color: Colors.orange, size: 16),
                 const SizedBox(width: 8),
-                const Expanded(child: Text('سجل دخولك للوصول لكل الميزات')),
+                Expanded(
+                  child: Text(
+                    'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات ',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 TextButton(
                   onPressed: () {
                     loadingDilog(context);
@@ -805,9 +812,11 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   style: TextButton.styleFrom(backgroundColor: Colors.orange),
-                  child: const Text(
+                  child: Text(
                     'دخول',
-                    style: TextStyle(color: Colors.white),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(color: Colors.white),
                   ),
                 ),
               ],

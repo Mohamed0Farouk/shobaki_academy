@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
@@ -97,8 +99,19 @@ class _PdfModelState extends State<PdfModel> {
                           )
                         : IconButton(
                             icon: const Icon(Icons.download),
-                            onPressed: () =>
-                                controller.downloadPdf(_pdfUrl, _filename),
+                            onPressed: () {
+                              if (Platform.isWindows ||
+                                  Platform.isLinux ||
+                                  Platform.isMacOS) {
+                                _showDownloadDialog(context);
+                              } else {
+                                controller.downloadPdf(
+                                  _pdfUrl,
+                                  _filename,
+                                  true,
+                                );
+                              }
+                            },
                             tooltip: 'تحميل PDF',
                           );
                   }),
@@ -109,6 +122,33 @@ class _PdfModelState extends State<PdfModel> {
         }),
       ),
       body: SafeArea(child: _buildPdfViewer()),
+    );
+  }
+
+  void _showDownloadDialog(BuildContext context) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('تحميل PDF'),
+        content: const Text(
+          'اختر طريقة حفظ الملف: \n\n- Save: حفظ مباشر في مجلد التنزيلات.\n- Save As...: اختيار موقع الحفظ عبر نافذة الحفظ.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back();
+              controller.downloadPdf(_pdfUrl, _filename, false); // saveFile
+            },
+            child: const Text('Save'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              controller.downloadPdf(_pdfUrl, _filename, true); // saveAs dialog
+              Get.back();
+            },
+            child: const Text('Save As...'),
+          ),
+        ],
+      ),
     );
   }
 

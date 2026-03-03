@@ -53,11 +53,15 @@
 	<string>tel</string>
 	<string>https</string>
 	</array>
-	<key>NSPhotoLibraryUsageDescription</key>
+	<key>UISupportsDocumentBrowser</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<!-- <key>NSPhotoLibraryUsageDescription</key>
 	<string>نحتاج الوصول إلى مكتبة الصور لحفظ الملفات</string>
 	<key>NSPhotoLibraryAddOnlyUsageDescription</key>
 	<string>نحتاج الوصول إلى مكتبة الصور لحفظ الملفات المحملة</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>نحتاج الوصول إلى المستندات لحفظ الملفات</string>
+	<string>نحتاج الوصول إلى المستندات لحفظ الملفات</string> -->
 </dict>
 </plist>

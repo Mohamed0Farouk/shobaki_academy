@@ -81,21 +81,39 @@ class TopicsController extends GetxController {
         'topics',
         filters: latestFilters.isEmpty ? null : latestFilters,
         orderBy: 'created_at',
-        ascending: false,
+        ascending: true,
       );
 
+      // Sort recommendations by created_at (newest to oldest)
       recommendations.assignAll(
-        recResp.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        (recResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          ..sort((a, b) {
+            if (a['created_at'] == null && b['created_at'] == null) return 0;
+            if (a['created_at'] == null) return 1;
+            if (b['created_at'] == null) return -1;
+            return DateTime.parse(
+              b['created_at'].toString(),
+            ).compareTo(DateTime.parse(a['created_at'].toString()));
+          })),
       );
 
+      // Sort latestTopics by created_at (newest to oldest)
       latestTopics.assignAll(
-        latestResp.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        (latestResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+          ..sort((a, b) {
+            if (a['created_at'] == null && b['created_at'] == null) return 0;
+            if (a['created_at'] == null) return 1;
+            if (b['created_at'] == null) return -1;
+            return DateTime.parse(
+              b['created_at'].toString(),
+            ).compareTo(DateTime.parse(a['created_at'].toString()));
+          })),
       );
     } catch (e) {
       // keep lists unchanged on error but show notification
       Get.snackbar(
         'خطأ',
-        'فشل في جلب المواضيع: $e',
+        'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -105,11 +123,11 @@ class TopicsController extends GetxController {
   }
 
   /// Called when user presses the keyboard "done" button
-  void onSearchSubmitted(String value, context) {
-    _doSearch(value, context);
+  void onSearchSubmitted(String value, context, bool inReview) {
+    _doSearch(value, context, inReview);
   }
 
-  Future<void> _doSearch(String q, context) async {
+  Future<void> _doSearch(String q, context, inReview) async {
     final query = q.trim();
     if (query.isEmpty) {
       results.clear();
@@ -123,7 +141,7 @@ class TopicsController extends GetxController {
     }
 
     if (!sheetOpen.value) {
-      _showResultsSheet(context);
+      _showResultsSheet(context, inReview);
     }
 
     isSearching.value = true;
@@ -132,9 +150,11 @@ class TopicsController extends GetxController {
 
       final titleFilters = <String, dynamic>{
         'title': {'operator': 'ilike', 'value': pattern},
+        'hidden': false,
       };
       final descFilters = <String, dynamic>{
         'description': {'operator': 'ilike', 'value': pattern},
+        'hidden': false,
       };
 
       if (_userStage != null && _userStage!.isNotEmpty) {
@@ -175,7 +195,7 @@ class TopicsController extends GetxController {
     }
   }
 
-  void _showResultsSheet(context) {
+  void _showResultsSheet(context, bool inReview) {
     sheetOpen.value = true;
 
     Get.bottomSheet(
@@ -238,7 +258,7 @@ class TopicsController extends GetxController {
                               )
                             : null,
                         onTap: () {
-                          onSelectTopic(item);
+                          onSelectTopic(item, inReview);
                           if (sheetOpen.value) {
                             if (Get.isBottomSheetOpen == true) Get.back();
                             sheetOpen.value = false;
@@ -264,13 +284,17 @@ class TopicsController extends GetxController {
   }
 
   /// Handle topic selection (navigate). Adjust route/name to your app.
-  void onSelectTopic(Map<String, dynamic> topic) {
+  void onSelectTopic(Map<String, dynamic> topic, bool inReview) {
     // Example: navigate to a detail route; change to your real route/widget
     // Get.toNamed('/topicDetail', arguments: topic);
     // For now, just print and close sheet if open
     debugPrint('Selected topic: ${topic['id'] ?? topic['title']}');
     Get.to(
-      () => TopicContentPage(topicId: topic['id'], isGuest: isGuest.value),
+      () => TopicContentPage(
+        topicId: topic['id'],
+        isGuest: isGuest.value,
+        inReview: inReview,
+      ),
       transition: Transition.downToUp,
     );
   }

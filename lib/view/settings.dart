@@ -306,14 +306,54 @@ class _SettingsPageState extends State<SettingsPage> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
+                              'للاستعلام ',
+                              style: Theme.of(context).textTheme.bodySmall,
+                              softWrap: true,
+                            ),
+                            //TODO: update whatsapp number
+                            InkWell(
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                spacing: 5,
+                                children: [
+                                  Text(
+                                    'Whatapp',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall!
+                                        .copyWith(color: Colors.green),
+                                  ),
+                                  Image.asset(
+                                    'assets/logos/whatsapp.png',
+                                    width: 20,
+                                    height: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
                               'للتواصل مع دعم المنصة  ',
                               style: Theme.of(context).textTheme.bodySmall,
                               softWrap: true,
                             ),
                             //TODO: update whatsapp number
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+502762100?text=${Uri.encodeFull('')}',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://wa.me/+971502762100?text=${Uri.encodeFull('')}',
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -336,85 +376,75 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Wrap(
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 16,
+
                           children: [
-                            Text(
-                              'للحجز و الاستعلام ',
-                              style: Theme.of(context).textTheme.bodySmall,
-                              softWrap: true,
-                            ),
-                            //TODO: update whatsapp number
-                            InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+971508124370?text=${Uri.encodeFull('')}',
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: 5,
-                                children: [
-                                  Text(
-                                    'Whatapp',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall!
-                                        .copyWith(color: Colors.green),
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              child: InkWell(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://alshobakiacademy.com/privacy',
                                   ),
-                                  Image.asset(
-                                    'assets/logos/whatsapp.png',
-                                    width: 20,
-                                    height: 20,
+                                ),
+                                child: Text(
+                                  'سياسة الخصوصية و شروط الاستخدام  ',
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+
+                              child: InkWell(
+                                onTap: () => launchUrl(
+                                  Uri.parse(
+                                    'https://alshobakiacademy.com/guidelines',
                                   ),
-                                ],
+                                ),
+                                child: Text(
+                                  'عرض ارشادات الاستخدام',
+                                  style: Theme.of(context).textTheme.bodySmall!
+                                      .copyWith(
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                  softWrap: true,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            //TODO: update whatsapp number
-                            InkWell(
-                              onTap: () => _launchUrl(
-                                'https://wa.me/+?text=${Uri.encodeFull('')}',
-                              ),
-                              child: Text(
-                                'سياسة الخصوصية و شروط الاستخدام  ',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
+                            _user!['email'] ==
+                                        'appletestaccount#97111111111111@gmail.com' ||
+                                    _user!['email'] == 'guest@example.com'
+                                ? SizedBox.shrink()
+                                : Container(
+                                    margin: const EdgeInsets.only(bottom: 6),
+                                    child: InkWell(
+                                      onTap: () => launchUrl(
+                                        Uri.parse(
+                                          'https://alshobakiacademy.com/payment',
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'عرض طرق الدفع ',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall!
+                                            .copyWith(
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                        softWrap: true,
+                                      ),
                                     ),
-                                softWrap: true,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            InkWell(
-                              onTap: () => showFirstLaunchDialog(),
-                              child: Text(
-                                'عرض ارشادات الاستخدام',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                softWrap: true,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            InkWell(
-                              onTap: () => showPaymentMethodsDialog(),
-                              child: Text(
-                                'عرض طرق الدفع ',
-                                style: Theme.of(context).textTheme.bodySmall!
-                                    .copyWith(
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                softWrap: true,
-                              ),
-                            ),
+                                  ),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -457,8 +487,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             //   ),
                             // ),
                             InkWell(
-                              onTap: () => _launchUrl(
-                                'https://www.instagram.com/mohamed.farouk.dev?igsh=azc5M2R3NjUwNXpw',
+                              onTap: () => launchUrl(
+                                Uri.parse(
+                                  'https://www.instagram.com/mohamed.farouk.dev?igsh=azc5M2R3NjUwNXpw',
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -791,19 +823,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ],
     );
-  }
-
-  Future<void> _launchUrl(url) async {
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      Get.snackbar(
-        'Error',
-        'Couldn\'t Launch Whatsapp',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.yellow.withOpacity(0.5),
-      );
-    }
   }
 
   Widget _tile(IconData icon, String label, String value) {

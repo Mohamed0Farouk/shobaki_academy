@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:animate_do/animate_do.dart';
@@ -5,19 +7,27 @@ import 'package:shobaki_academy/controller/enrolled_topics_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/theme.dart';
 
-class EnrolledTopicsPage extends StatelessWidget {
-  EnrolledTopicsPage({super.key, this.guest = false});
+class EnrolledTopicsPage extends StatefulWidget {
+  const EnrolledTopicsPage({super.key, this.guest = false});
 
-  final controller = Get.put(EnrolledTopicsController(), permanent: true);
   final bool guest;
 
   @override
-  Widget build(BuildContext context) {
-    controller.isGuest.value = guest;
-    if (!guest) {
-      controller.loadenrolledtopics();
-    }
+  State<EnrolledTopicsPage> createState() => _EnrolledTopicsPageState();
+}
 
+class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
+  final controller = Get.put(EnrolledTopicsController(), permanent: true);
+
+  @override
+  void initState() {
+    controller.loadenrolledtopics();
+
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
     final crossAxisCount = isDesktop
@@ -89,8 +99,8 @@ class EnrolledTopicsPage extends StatelessWidget {
 
                     // Combine recommended and latest topics
                     final allTopics = [
-                      ...controller.recommendations,
-                      ...controller.latestenrolledtopics,
+                      ...controller.recommendations.value,
+                      ...controller.latestenrolledtopics.value,
                     ];
 
                     if (allTopics.isEmpty) {
@@ -114,37 +124,41 @@ class EnrolledTopicsPage extends StatelessWidget {
                       );
                     }
 
-                    return GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        // taller cards on mobile, compact on desktop
-                        childAspectRatio: isDesktop ? 1.4 : 0.9,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 10,
-                      ),
-                      itemBuilder: (_, i) {
-                        final item = allTopics[i];
-                        final title = item['title'] ?? '';
-                        final imageUrl =
-                            item['thumbnail'] ?? 'https://placehold.co/200/png';
-                        final isRecommended =
-                            item['topic']?['recommended'] == true;
+                    return Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: GridView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          // taller cards on mobile, compact on desktop
+                          childAspectRatio: 0.9,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 10,
+                        ),
+                        itemBuilder: (_, i) {
+                          final item = allTopics[i];
+                          final title = item['title'] ?? '';
+                          final imageUrl =
+                              item['thumbnail'] ??
+                              'https://placehold.co/200/png';
+                          final isRecommended =
+                              item['topic']?['recommended'] == true;
 
-                        return FadeInUp(
-                          from: 50,
-                          delay: Duration(milliseconds: 50 + (i * 80)),
-                          duration: const Duration(milliseconds: 600),
-                          child: _topicGridCard(
-                            context,
-                            title,
-                            imageUrl,
-                            () => controller.onSelectenrolledtopic(item),
-                            isRecommended: isRecommended,
-                          ),
-                        );
-                      },
-                      itemCount: allTopics.length,
+                          return FadeInUp(
+                            from: 50,
+                            delay: Duration(milliseconds: 50 + (i * 80)),
+                            duration: const Duration(milliseconds: 600),
+                            child: _topicGridCard(
+                              context,
+                              title,
+                              imageUrl,
+                              () => controller.onSelectenrolledtopic(item),
+                              isRecommended: isRecommended,
+                            ),
+                          );
+                        },
+                        itemCount: allTopics.length,
+                      ),
                     );
                   }),
                 ),
@@ -300,18 +314,17 @@ class _HoverableTopicCardState extends State<_HoverableTopicCard>
                       child: Padding(
                         padding: const EdgeInsets.all(6),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               widget.title,
-                              maxLines: 2,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
+                              textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    height: 1.2,
                                     color: Colors.black87,
                                   ),
                             ),
