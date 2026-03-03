@@ -18,47 +18,74 @@ class AppDelegate: FlutterAppDelegate {
     //Method channel for open with picker
 
     let controller = mainFlutterWindow?.contentViewController as! FlutterViewController
+
+let channel = FlutterMethodChannel(
+  name: "browser_picker",
+  binaryMessenger: controller.engine.binaryMessenger
+)
+
+channel.setMethodCallHandler { (call, result) in
+  
+  if call.method == "openWithPicker" {
     
-    let channel = FlutterMethodChannel(
-      name: "browser_picker",
-      binaryMessenger: controller.engine.binaryMessenger
-    )
+    guard let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String else {
+      result("Invalid arguments")
+      return
+    }
 
-    channel.setMethodCallHandler { (call, result) in
-      
-      if call.method == "openWithPicker" {
+    let fileURL = URL(fileURLWithPath: path)
+    var apps: [URL] = []
+
+    if #available(macOS 12.0, *) {
+      apps = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
+    } else {
+      if let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: fileURL) {
+        apps = [defaultApp]
+      }
+    }
+
+    // ✅ فلترة المتصفحات فقط
+    let allowedBrowsers = [
+      "com.apple.Safari",
+      "com.google.Chrome",
+      "org.mozilla.firefox",
+      "com.microsoft.edgemac"
+    ]
+
+    let browserApps = apps.filter { appURL in
+      if let bundle = Bundle(url: appURL),
+         let bundleID = bundle.bundleIdentifier {
+        return allowedBrowsers.contains(bundleID)
+      }
+      return false
+    }
+
+    if browserApps.isEmpty {
+      result("No browser found")
+      return
+    }
+
+    let alert = NSAlert()
+    alert.messageText = "Open With Browser"
+    alert.informativeText = "Choose a browser"
+    alert.alertStyle = .informational
+
+    for app in browserApps {
+      alert.addButton(withTitle: app.deletingPathExtension().lastPathComponent)
+    }
+
+    // ✅ إضافة زر Cancel
+    alert.addButton(withTitle: "Cancel")
+
+    // ✅ جعله sheet بدل modal blocking
+    if let window = mainFlutterWindow {
+      alert.beginSheetModal(for: window) { response in
         
-        guard let args = call.arguments as? [String: Any],
-              let path = args["path"] as? String else {
-          result("Invalid arguments")
-          return
-        }
-
-        let fileURL = URL(fileURLWithPath: path)
-        var apps : [URL] = []
-
-        if #available(macOS 12.0, *) {
-          apps = NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
-        } else {
-          if let defaultApp = NSWorkspace.shared.urlForApplication(toOpen: fileURL) {
-            apps = [defaultApp]
-          }
-        }
-
-        let alert = NSAlert()
-        alert.messageText = "Open With"
-        alert.informativeText = "Choose application"
-        alert.alertStyle = .informational
-
-        for app in apps {
-          alert.addButton(withTitle: app.deletingPathExtension().lastPathComponent)
-        }
-
-        let response = alert.runModal()
         let index = response.rawValue - 1000
-
-        if index >= 0 && index < apps.count {
-          let selectedApp = apps[index]
+        
+        if index >= 0 && index < browserApps.count {
+          let selectedApp = browserApps[index]
           
           NSWorkspace.shared.open(
             [fileURL],
@@ -71,6 +98,8 @@ class AppDelegate: FlutterAppDelegate {
         result("done")
       }
     }
+  }
+}
     
     super.applicationDidFinishLaunching(notification)
   }
