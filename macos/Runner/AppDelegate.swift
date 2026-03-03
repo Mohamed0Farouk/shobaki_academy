@@ -79,7 +79,7 @@ channel.setMethodCallHandler { (call, result) in
     alert.addButton(withTitle: "Cancel")
 
     // ✅ جعله sheet بدل modal blocking
-    if let window = mainFlutterWindow {
+    if let window = self.mainFlutterWindow {
       alert.beginSheetModal(for: window) { response in
         
         let index = response.rawValue - 1000

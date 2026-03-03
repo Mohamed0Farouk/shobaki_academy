@@ -80,7 +80,7 @@ class VdoWatchingController extends GetxController {
         "${apiUrl}api/vdocipher/otp",
         data: {
           "videoId": videoId,
-          "ttl": 30,
+          "ttl": 300,
           "userId": user["id"],
           "platform": kIsWeb
               ? "web"
