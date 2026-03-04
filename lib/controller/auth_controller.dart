@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/device_fingerprint.dart';
+import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:uuid/uuid.dart';
@@ -324,6 +325,13 @@ class AuthController extends GetxController {
       isVerified.value = userData['verified'];
 
       if (isVerified.value) {
+        final guard = Get.put(DeviceGuardController(), permanent: true);
+
+        await guard.start(
+          userId: userData['id'],
+          localFingerprint: currentFingerprint,
+        );
+
         Get.offAllNamed('/home');
         return true;
       } else {
@@ -344,7 +352,6 @@ class AuthController extends GetxController {
     required String studentPhoneNumber,
   }) async {
     try {
-
       loadingDilog(context);
 
       final exists = await api.fetchWithConditions(
@@ -406,6 +413,8 @@ class AuthController extends GetxController {
     isVerified.value = false;
     inReview.value = false;
     await api.signOut();
+    //DeviceGuardController? guard = Get.find<DeviceGuardController?>();
+    //guard?.stop();
     Get.offAllNamed('/login');
   }
 

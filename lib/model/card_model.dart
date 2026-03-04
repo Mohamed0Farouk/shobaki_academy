@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
+import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
@@ -203,11 +204,17 @@ class _SimpleCard extends StatelessWidget {
               color: Colors.white,
               child: InkWell(
                 onTap: navPage != null
-                    ? () => Get.to(
-                        () => navPage!,
-                        transition: Transition.fade,
-                        duration: const Duration(milliseconds: 350),
-                      )
+                    ? () async {
+                        final DeviceGuardController guard =
+                            Get.find<DeviceGuardController>();
+                        final isAllowed = await guard.checkNow();
+                        if (isAllowed == false) return;
+                        Get.to(
+                          () => navPage!,
+                          transition: Transition.fade,
+                          duration: const Duration(milliseconds: 350),
+                        );
+                      }
                     : null,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -312,12 +319,21 @@ class _SimpleCard extends StatelessWidget {
                               /// Action button
                               if (navlabel != null)
                                 InkWell(
-                                  onTap: () => Get.to(
-                                    () => navPage!,
-                                    transition: Transition.leftToRightWithFade,
-                                    duration: const Duration(milliseconds: 450),
-                                    preventDuplicates: false,
-                                  ),
+                                  onTap: () async {
+                                    final DeviceGuardController guard =
+                                        Get.find<DeviceGuardController>();
+                                    final isAllowed = await guard.checkNow();
+                                    if (isAllowed == false) return;
+                                    Get.to(
+                                      () => navPage!,
+                                      transition:
+                                          Transition.leftToRightWithFade,
+                                      duration: const Duration(
+                                        milliseconds: 450,
+                                      ),
+                                      preventDuplicates: false,
+                                    );
+                                  },
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
                                     padding: EdgeInsets.symmetric(
