@@ -9,6 +9,7 @@ import 'package:shobaki_academy/services/router.dart';
 import 'package:shobaki_academy/theme.dart';
 import 'package:shobaki_academy/view/sub/watermark.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,10 @@ void main() async {
   WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
     // This flag works for Android devices.
     FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);
+    final noScreenshot = NoScreenshot.instance;
+
+    // Disable screenshots & screen recording
+    await noScreenshot.screenshotOff();
   });
 }
 

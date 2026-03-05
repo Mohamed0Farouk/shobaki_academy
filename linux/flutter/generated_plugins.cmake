@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   file_saver
   gtk
+  no_screenshot
   syncfusion_pdfviewer_linux
   url_launcher_linux
 )
