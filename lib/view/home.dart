@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
+import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
@@ -42,13 +44,13 @@ class _HomePageState extends State<HomePage> {
     initialPage: 0,
     keepPage: true,
   );
-
+  late final NotchBottomBarController _notchBottomBarController;
   int _currentIndex = 0;
   bool _sidebarCollapsed = false;
 
   /// ⭐ Prevents LateInitializationError
   List<Widget> _pages = [];
-  List<BottomNavigationBarItem> _navItems = [];
+  List<BottomBarItem> _navItems = [];
   List<_SidebarItem> _sidebarItems = [];
 
   bool _loadingPages = true;
@@ -59,6 +61,7 @@ class _HomePageState extends State<HomePage> {
 
     final localDb = Get.find<LocalDB>();
     final prefs = localDb.sharedPref!;
+    _notchBottomBarController = NotchBottomBarController(index: _currentIndex);
 
     final raw = prefs.getString('UserData');
     if (raw != null) {
@@ -76,42 +79,6 @@ class _HomePageState extends State<HomePage> {
     _loadLocalUserName();
     //_checkFirstLaunch(); // 👈 HERE
   }
-
-  Future<void> showFirstLaunchDialog({bool dismissible = true}) {
-    return Get.dialog(
-      AlertDialog(
-        title: const Text('ارشادات الاستخدام'),
-        content: const Text(
-          'Welcome to the app!\n\nHere you can explain features, rules, or anything important.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Got it')),
-        ],
-      ),
-      barrierDismissible: dismissible,
-    );
-  }
-
-  // Future<void> _checkFirstLaunch() async {
-  //   final localDb = Get.find<LocalDB>();
-  //   final prefs = localDb.sharedPref!;
-
-  //   const key = 'first_launch_done';
-
-  //   final isFirstLaunch = !(prefs.getBool(key) ?? false);
-
-  //   print(isFirstLaunch ? 'first launch' : 'not first launch');
-
-  //   print('added');
-  //   if (isFirstLaunch) {
-  //     // Wait until UI is ready
-  //     WidgetsBinding.instance.addPostFrameCallback((_) {
-  //       showFirstLaunchDialog();
-  //     });
-
-  //     await prefs.setBool(key, true);
-  //   }
-  // }
 
   Future<void> _init() async {
     await _buildPagesAndItems();
@@ -141,33 +108,39 @@ class _HomePageState extends State<HomePage> {
       SettingsPage(),
     ];
 
-    final normalItems = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_rounded),
-        label: 'المحتويات',
+    final normalItems = <BottomBarItem>[
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.home_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.home_outlined),
       ),
-      BottomNavigationBarItem(
-        label: 'الملازم',
-        icon: Icon(Icons.bookmarks_outlined),
-        activeIcon: Icon(Icons.bookmarks_rounded),
+      BottomBarItem(
+        inActiveItem: Icon(Icons.bookmarks_outlined),
+        activeItem: Icon(
+          Icons.bookmarks_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
       ),
-
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.bookmark_border),
-        activeIcon: Icon(Icons.bookmark),
-        label: 'الاشتراكات',
+      BottomBarItem(
+        activeItem: Icon(Icons.bookmark, color: Theme.of(context).primaryColor),
+        inActiveItem: Icon(Icons.bookmark_border),
       ),
       if (useHomeworksAndExams)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.area_chart_outlined),
-          activeIcon: Icon(Icons.area_chart_rounded),
-          label: 'النتائج',
+        BottomBarItem(
+          activeItem: Icon(
+            Icons.area_chart_rounded,
+            color: Theme.of(context).primaryColor,
+          ),
+          inActiveItem: Icon(Icons.area_chart_outlined),
         ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline_rounded),
-        activeIcon: Icon(Icons.person_rounded),
-        label: 'الملف الشخصي',
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.person_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.person_outline_rounded),
       ),
     ];
 
@@ -208,27 +181,35 @@ class _HomePageState extends State<HomePage> {
       SettingsPage(isGuest: true),
     ];
 
-    final guestItems = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_rounded),
-        label: 'المحتويات',
+    final guestItems = <BottomBarItem>[
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.home_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.home_outlined),
       ),
-      const BottomNavigationBarItem(
-        label: 'الملازم',
-        icon: Icon(Icons.bookmarks_outlined),
-        activeIcon: Icon(Icons.bookmarks_rounded),
+      BottomBarItem(
+        inActiveItem: Icon(Icons.bookmarks_outlined),
+        activeItem: Icon(
+          Icons.bookmarks_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
       ),
       if (useHomeworksAndExams)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.area_chart_outlined),
-          activeIcon: Icon(Icons.area_chart_rounded),
-          label: 'النتائج',
+        BottomBarItem(
+          activeItem: Icon(
+            Icons.area_chart_rounded,
+            color: Theme.of(context).primaryColor,
+          ),
+          inActiveItem: Icon(Icons.area_chart_outlined),
         ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline_rounded),
-        activeIcon: Icon(Icons.person_rounded),
-        label: 'الملف الشخصي',
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.person_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.person_outline_rounded),
       ),
     ];
 
@@ -264,27 +245,35 @@ class _HomePageState extends State<HomePage> {
       SettingsPage(),
     ];
 
-    final reviewItems = <BottomNavigationBarItem>[
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home_rounded),
-        label: 'المحتويات',
+    final reviewItems = <BottomBarItem>[
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.home_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.home_outlined),
       ),
-      BottomNavigationBarItem(
-        label: 'الملازم',
-        icon: Icon(Icons.bookmarks_outlined),
-        activeIcon: Icon(Icons.bookmarks_rounded),
+      BottomBarItem(
+        inActiveItem: Icon(Icons.bookmarks_outlined),
+        activeItem: Icon(
+          Icons.bookmarks_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
       ),
       if (useHomeworksAndExams)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.area_chart_outlined),
-          activeIcon: Icon(Icons.area_chart_rounded),
-          label: 'النتائج',
+        BottomBarItem(
+          activeItem: Icon(
+            Icons.area_chart_rounded,
+            color: Theme.of(context).primaryColor,
+          ),
+          inActiveItem: Icon(Icons.area_chart_outlined),
         ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.person_outline_rounded),
-        activeIcon: Icon(Icons.person_rounded),
-        label: 'الملف الشخصي',
+      BottomBarItem(
+        activeItem: Icon(
+          Icons.person_rounded,
+          color: Theme.of(context).primaryColor,
+        ),
+        inActiveItem: Icon(Icons.person_outline_rounded),
       ),
     ];
 
@@ -396,21 +385,7 @@ class _HomePageState extends State<HomePage> {
             setState(() => _currentIndex = value);
           },
         ),
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: _onTapNav,
-              items: _navItems,
-              type: BottomNavigationBarType.fixed,
-              backgroundColor: primary,
-              selectedItemColor: Colors.white,
-              unselectedItemColor: Colors.black87,
-            ),
-          ),
-        ),
+        bottomNavigationBar: bottomNavBar(context),
       );
     }
   }
@@ -824,6 +799,45 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  AnimatedNotchBottomBar bottomNavBar(BuildContext context) {
+    return AnimatedNotchBottomBar(
+      notchBottomBarController: _notchBottomBarController,
+      bottomBarItems: _navItems,
+      onTap: (value) {
+        final oldPage = _pageController.page!.toInt();
+
+        if (oldPage > value) {
+          _pageController.animateToPage(
+            value,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeIn,
+          );
+        } else {
+          _pageController.animateToPage(
+            value,
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+          );
+          _notchBottomBarController.index = value;
+        }
+      },
+      kIconSize: 24.0,
+      kBottomRadius: 28.0,
+      notchColor: Colors.black87,
+
+      showLabel: false,
+      textOverflow: TextOverflow.visible,
+      maxLine: 1,
+      color: Theme.of(context).colorScheme.primary,
+      removeMargins: false,
+      bottomBarWidth: context.screenW,
+      showShadow: true,
+      durationInMilliSeconds: 400,
+      itemLabelStyle: Theme.of(context).textTheme.bodySmall,
+      elevation: 1,
     );
   }
 }
