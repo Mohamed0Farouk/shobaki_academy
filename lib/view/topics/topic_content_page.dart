@@ -180,8 +180,8 @@ class TopicContentPage extends StatelessWidget {
                           // Mobile/Tablet - horizontal ListView
                           return SizedBox(
                             height: isSubscribed || topicData!['free'] == true
-                                ? context.screenH / 3.5
-                                : context.screenH / 4,
+                                ? context.screenH / 3.25
+                                : context.screenH / 3.8,
                             width: double.infinity,
                             child: Directionality(
                               textDirection: TextDirection.ltr,
@@ -196,7 +196,12 @@ class TopicContentPage extends StatelessWidget {
                                       ),
                                       child: SizedBox(
                                         width: context.screenW * 0.4,
-                                        child: childrenWidgets[i],
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10.0,
+                                          ),
+                                          child: childrenWidgets[i],
+                                        ),
                                       ),
                                     );
                                   },
@@ -308,7 +313,7 @@ class TopicContentPage extends StatelessWidget {
                         } else {
                           // Mobile/Tablet - horizontal ListView
                           return SizedBox(
-                            height: context.screenH / 3,
+                            height: context.screenH / 2.8,
                             width: double.infinity,
                             child: Directionality(
                               textDirection: TextDirection.ltr,
@@ -323,7 +328,12 @@ class TopicContentPage extends StatelessWidget {
                                       ),
                                       child: SizedBox(
                                         width: context.screenW * 0.4,
-                                        child: childrenWidgets[i],
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 10.0,
+                                          ),
+                                          child: childrenWidgets[i],
+                                        ),
                                       ),
                                     );
                                   },

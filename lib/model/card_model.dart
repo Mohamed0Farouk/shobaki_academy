@@ -208,10 +208,12 @@ class _SimpleCard extends StatelessWidget {
                         final DeviceGuardController guard =
                             Get.find<DeviceGuardController>();
                         final isAllowed = await guard.checkNow();
+                        print('Is Allowed: $isAllowed');
                         if (isAllowed == false) return;
                         Get.to(
                           () => navPage!,
                           transition: Transition.fade,
+                          preventDuplicates: false,
                           duration: const Duration(milliseconds: 350),
                         );
                       }

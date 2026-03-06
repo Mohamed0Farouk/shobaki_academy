@@ -183,19 +183,6 @@ class SubscriptionController extends GetxController {
   }
 }
 
-Future<void> _launchUrl(url) async {
-  if (await canLaunchUrl(Uri.parse(url))) {
-    await launchUrl(Uri.parse(url));
-  } else {
-    Get.snackbar(
-      'Error',
-      'Couldn\'t Launch Whatsapp',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.yellow.withOpacity(0.5),
-    );
-  }
-}
-
 // Function to show the subscription dialog
 void showSubscriptionDialog({
   required List<dynamic> topicCodes,
@@ -230,8 +217,10 @@ void showSubscriptionDialog({
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               InkWell(
-                onTap: () => _launchUrl(
-                  'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
+                onTap: () => launchUrl(
+                  Uri.parse(
+                    'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -323,8 +312,11 @@ void showBookSubscriptionDialog({
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               InkWell(
-                onTap: () =>
-                    _launchUrl('https://wa.me/+?text=${Uri.encodeFull('')}'),
+                onTap: () => launchUrl(
+                  Uri.parse(
+                    'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
+                  ),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   spacing: 5,
