@@ -61,8 +61,8 @@ class DeviceGuardController extends GetxController {
         }
       } catch (e) {
         Get.snackbar(
-          'تم حذف حسابك',
-          'تم تسجيل خروجك لأن حسابك تم حذفه من قبل الإدارة.',
+          'تم تسجيل خروجك',
+          'تم تسجيل خروجك لوجود مشكلة في التعرف على الحساب .',
           backgroundColor: Colors.redAccent,
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
