@@ -60,7 +60,14 @@ class DeviceGuardController extends GetxController {
           await _forceLogout();
         }
       } catch (e) {
-        // Optional: handle network errors
+        Get.snackbar(
+          'تم حذف حسابك',
+          'تم تسجيل خروجك لأن حسابك تم حذفه من قبل الإدارة.',
+          backgroundColor: Colors.redAccent,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 5),
+        );
+        await _forceLogout();
       }
 
       _isChecking = false;

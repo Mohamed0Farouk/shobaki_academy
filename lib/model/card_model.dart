@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
+import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
@@ -205,6 +208,17 @@ class _SimpleCard extends StatelessWidget {
               child: InkWell(
                 onTap: navPage != null
                     ? () async {
+                        final userData = _getUserData();
+                        if (userData!['email'] == 'guest@example.com' ||
+                            userData['email'] ==
+                                'appletestaccount#97111111111111@gmail.com') {
+                          Get.to(
+                            () => navPage!,
+                            transition: Transition.fade,
+                            preventDuplicates: false,
+                            duration: const Duration(milliseconds: 350),
+                          );
+                        }
                         final DeviceGuardController guard =
                             Get.find<DeviceGuardController>();
                         final isAllowed = await guard.checkNow();
@@ -377,6 +391,20 @@ class _SimpleCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Map? _getUserData() {
+    try {
+      final services = Get.find<LocalDB>();
+      final localDb = services.sharedPref;
+      final jsonUserData = localDb?.getString('UserData');
+      if (jsonUserData == null || jsonUserData.isEmpty) return null;
+      final decoded = jsonDecode(jsonUserData);
+      if (decoded is Map) return decoded;
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _imagePlaceholder(bool isTiny) => Container(

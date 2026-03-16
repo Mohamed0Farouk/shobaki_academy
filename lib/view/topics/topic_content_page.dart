@@ -585,7 +585,10 @@ class TopicContentPage extends StatelessWidget {
       ),
       label: Text(
         text,
-        style: Theme.of(context).textTheme.bodySmall,
+        style: Theme.of(context).textTheme.bodySmall!.copyWith(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
         textAlign: TextAlign.right,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

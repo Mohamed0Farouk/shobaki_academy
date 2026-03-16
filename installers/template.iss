@@ -45,6 +45,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\app_links_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+
+Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\file_saver_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\no_screenshot_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+
 Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\connectivity_plus_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\file_selector_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion

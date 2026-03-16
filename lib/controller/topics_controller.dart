@@ -50,67 +50,61 @@ class TopicsController extends GetxController {
   /// Applies stage filter if available.
   Future<void> loadTopics() async {
     try {
-      // recommended == true filter
-      final recFilters = <String, dynamic>{
-        'recommended': true,
-        'hidden': false,
-      };
-      //in guest state it will be defaulted to null because we don't have user data
-      if (_userStage != null && _userStage!.isNotEmpty) {
-        recFilters['stage'] = _userStage!;
+      isLoading.value = true;
+
+      final baseFilters = <String, dynamic>{'hidden': false};
+
+      List<dynamic> merged = [];
+
+      if (_userStage == null || _userStage!.isEmpty) {
+        // Guest → fetch all topics (no stage filter)
+        merged = await _api.fetchWithConditions('topics', filters: baseFilters);
+      } else {
+        // Logged user → fetch stage topics + global topics
+
+        final stageTopics = await _api.fetchWithConditions(
+          'topics',
+          filters: {...baseFilters, 'stage': _userStage!},
+        );
+
+        final globalTopics = await _api.fetchWithConditions(
+          'topics',
+          filters: {...baseFilters, 'stage': ''},
+        );
+
+        merged = [...stageTopics, ...globalTopics];
       }
 
-      final latestFilters = <String, dynamic>{
-        'recommended': false,
-        'hidden': false,
-      };
-      if (_userStage != null && _userStage!.isNotEmpty) {
-        latestFilters['stage'] = _userStage!;
+      // Remove duplicates
+      final uniqueTopics = {
+        for (var topic in merged)
+          (topic as Map)['id']: Map<String, dynamic>.from(topic),
+      }.values.toList();
+
+      // Split recommended / latest
+      final rec = uniqueTopics.where((t) => t['recommended'] == true).toList();
+
+      final latest = uniqueTopics
+          .where((t) => t['recommended'] == false)
+          .toList();
+
+      // Sorting
+      int sortByDate(Map a, Map b) {
+        if (a['created_at'] == null && b['created_at'] == null) return 0;
+        if (a['created_at'] == null) return 1;
+        if (b['created_at'] == null) return -1;
+
+        return DateTime.parse(
+          b['created_at'].toString(),
+        ).compareTo(DateTime.parse(a['created_at'].toString()));
       }
 
-      // fetch recommendations (no paging)
-      final recResp = await _api.fetchWithConditions(
-        'topics',
-        filters: recFilters,
-        orderBy: 'created_at',
-        ascending: true,
-      );
+      rec.sort(sortByDate);
+      latest.sort(sortByDate);
 
-      // fetch latest topics (order by created_at desc)
-      final latestResp = await _api.fetchWithConditions(
-        'topics',
-        filters: latestFilters.isEmpty ? null : latestFilters,
-        orderBy: 'created_at',
-        ascending: true,
-      );
-
-      // Sort recommendations by created_at (newest to oldest)
-      recommendations.assignAll(
-        (recResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
-          ..sort((a, b) {
-            if (a['created_at'] == null && b['created_at'] == null) return 0;
-            if (a['created_at'] == null) return 1;
-            if (b['created_at'] == null) return -1;
-            return DateTime.parse(
-              b['created_at'].toString(),
-            ).compareTo(DateTime.parse(a['created_at'].toString()));
-          })),
-      );
-
-      // Sort latestTopics by created_at (newest to oldest)
-      latestTopics.assignAll(
-        (latestResp.map((e) => Map<String, dynamic>.from(e as Map)).toList()
-          ..sort((a, b) {
-            if (a['created_at'] == null && b['created_at'] == null) return 0;
-            if (a['created_at'] == null) return 1;
-            if (b['created_at'] == null) return -1;
-            return DateTime.parse(
-              b['created_at'].toString(),
-            ).compareTo(DateTime.parse(a['created_at'].toString()));
-          })),
-      );
+      recommendations.assignAll(rec);
+      latestTopics.assignAll(latest);
     } catch (e) {
-      // keep lists unchanged on error but show notification
       Get.snackbar(
         'خطأ',
         'فشل في جلب المحتويات: $e',

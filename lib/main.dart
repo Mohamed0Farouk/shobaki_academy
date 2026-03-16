@@ -4,6 +4,7 @@ import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
+import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/router.dart';
 import 'package:shobaki_academy/theme.dart';
@@ -35,6 +36,7 @@ class GlobalBindings extends Bindings {
   void dependencies() {
     Get.put(WatermarkController(), permanent: true);
     Get.put(NetworkController(), permanent: true);
+    Get.put(DeviceGuardController(), permanent: true);
   }
 }
 

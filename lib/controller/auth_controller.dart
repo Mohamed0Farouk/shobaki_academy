@@ -325,7 +325,7 @@ class AuthController extends GetxController {
       isVerified.value = userData['verified'];
 
       if (isVerified.value) {
-        final guard = Get.put(DeviceGuardController(), permanent: true);
+        final DeviceGuardController guard = Get.find();
 
         await guard.start(
           userId: userData['id'],
