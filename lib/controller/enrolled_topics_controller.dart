@@ -67,7 +67,7 @@ class EnrolledTopicsController extends GetxController {
         'students_subscriptions',
         filters: {'student_id': _studentId},
         select:
-            'id,topic_id,created_at,topic:topics(id,title,description,thumbnail,recommended,stage,created_at)',
+            'id,topic_id,created_at,topic:topics(id,title,description,thumbnail,recommended,stage,hidden,created_at)',
       );
 
       if (allSubscriptions.isEmpty) {
@@ -98,9 +98,11 @@ class EnrolledTopicsController extends GetxController {
       final latest = <Map<String, dynamic>>[];
 
       for (final sub in enrichedSubs) {
-        if (sub['topic']?['recommended'] == true) {
+        if (sub['topic']?['recommended'] == true &&
+            sub['topic']?['hidden'] != true) {
           recommended.add(sub);
-        } else {
+        } else if (sub['topic']?['hidden'] != true &&
+            sub['topic']?['recommended'] != true) {
           latest.add(sub);
         }
       }
@@ -166,7 +168,7 @@ class EnrolledTopicsController extends GetxController {
       final subscriptions = await _api.fetchWithConditions(
         'students_subscriptions',
         filters: {'student_id': _studentId},
-        select: 'id,topic_id,topic:topics(id,title,description,stage)',
+        select: 'id,topic_id,topic:topics(id,title,description,stage,hidden)',
       );
 
       if (subscriptions.isEmpty) {
@@ -193,7 +195,8 @@ class EnrolledTopicsController extends GetxController {
         }
 
         // Match title or description
-        if (title.contains(pattern) || description.contains(pattern)) {
+        if (title.contains(pattern) ||
+            description.contains(pattern) && topicData['hidden'] != true) {
           final item = Map<String, dynamic>.from(topicData as Map);
           item['subscription_id'] = sub['id'];
           merged.add(item);
