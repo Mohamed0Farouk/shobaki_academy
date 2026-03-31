@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Al-Shobaki Academy"
-#define MyAppVersion "1.0"
+#define MyAppVersion "2.0"
 #define MyAppPublisher "Mohamed Farouk, Inc."
 #define MyAppURL "https://alshobakiacademy.com/"
 #define MyAppExeName "shobaki_academy.exe"
@@ -65,6 +65,10 @@ Source: "F:\Projects\Al Shobaki\shobaki_academy\build\windows\x64\runner\Release
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{userappdata}\com.mohamedfarouk\Al-Shobaki Academy"
+Type: filesandordirs; Name: "{localappdata}\com.mohamedfarouk\Al-Shobaki Academy"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
