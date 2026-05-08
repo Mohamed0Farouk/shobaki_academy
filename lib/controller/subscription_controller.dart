@@ -112,7 +112,7 @@ class SubscriptionController extends GetxController {
 
       if (codeResult.isEmpty) {
         Get.back(); // Close loading dialog
-        Get.snackbar(
+        showSnackbar(
           'توجد مشكلة',
           'الكود غير صحيح',
           backgroundColor: Colors.yellow,
@@ -136,7 +136,7 @@ class SubscriptionController extends GetxController {
       Get.back();
 
       // Show success snackbar
-      Get.snackbar(
+      showSnackbar(
         'اشعار',
         'تم الاشتراك في الملازم بنجاح قم باعادة تحميل الصفحة عن طريق السحب من اعلى لاسفل',
         backgroundColor: Colors.greenAccent,
@@ -152,7 +152,7 @@ class SubscriptionController extends GetxController {
       }
     } catch (e) {
       Get.back(); // Close loading dialog
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'حدث خطأ أثناء الاشتراك: $e',
         backgroundColor: Colors.red,
@@ -163,7 +163,7 @@ class SubscriptionController extends GetxController {
   }
 
   void _showSuccessSnackbar(String title, String message) {
-    Get.snackbar(
+    showSnackbar(
       title,
       message,
       backgroundColor: Colors.greenAccent,
@@ -173,7 +173,7 @@ class SubscriptionController extends GetxController {
   }
 
   void _showErrorSnackbar(String title, String message, Color backgroundColor) {
-    Get.snackbar(
+    showSnackbar(
       title,
       message,
       backgroundColor: backgroundColor,

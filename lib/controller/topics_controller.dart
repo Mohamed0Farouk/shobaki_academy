@@ -105,7 +105,7 @@ class TopicsController extends GetxController {
       recommendations.assignAll(rec);
       latestTopics.assignAll(latest);
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
@@ -177,7 +177,7 @@ class TopicsController extends GetxController {
       results.assignAll(merged);
     } catch (e) {
       results.clear();
-      Get.snackbar(
+      showSnackbar(
         'خطأ في البحث',
         'حدث خطأ أثناء البحث: $e',
         backgroundColor: Colors.red,

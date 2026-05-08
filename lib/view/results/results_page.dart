@@ -1,6 +1,8 @@
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/results_controller.dart';
+import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/statics.dart';
 
 class ResultsPage extends StatelessWidget {
@@ -19,54 +21,46 @@ class ResultsPage extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
 
-              // NICE SEARCH BAR (RTL + MODERN)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextField(
-                  controller: controller.searchController,
-                  onSubmitted: (q) => controller.onSearchSubmitted(q, context),
-                  textAlign: TextAlign.right,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    hintText: "ابحث عن اختبار أو واجب...",
-                    hintStyle: const TextStyle(color: Colors.black45),
-
-                    prefixIcon: const Icon(Icons.search, color: Colors.black54),
-
-                    // Rounded beautiful border
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-
-                    // Shadow
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+                  /// Search bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      controller: controller.searchController,
+                      onSubmitted: (q) => controller.onSearchSubmitted(q, context),
+                      textAlign: TextAlign.right,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: "ابحث عن اختبار أو واجب...",
+                        hintStyle: const TextStyle(color: Colors.black45),
+                        prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
               ),
+            ),
+          ),
+                  ),
 
-              const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
+                  Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                        // ==========================
-                        // EXAMS SECTION
-                        // ==========================
                         _sectionHeader("الاختبارات"),
                         const SizedBox(height: 10),
 
@@ -76,14 +70,12 @@ class ResultsPage extends StatelessWidget {
                             if (controller.isLoading.value) {
                               return Center(child: loading(context));
                             }
-
                             final exams = controller.exams;
                             if (exams.isEmpty) {
                               return const Center(
                                 child: Text("لا توجد اختبارات"),
                               );
                             }
-
                             return ListView.separated(
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.all(8),
@@ -92,12 +84,21 @@ class ResultsPage extends StatelessWidget {
                                   const SizedBox(width: 12),
                               itemBuilder: (_, i) {
                                 final item = exams[i];
-                                return _topicCardWithData(
-                                  context,
-                                  item['exam']["title"] ?? "",
-                                  item["thumbnail"] ??
-                                      "https://placehold.co/200/png",
-                                  () => controller.onSelectTopic(item),
+                                return FadeInUp(
+                                  from: 50,
+                                  delay: Duration(milliseconds: 50 * i),
+                                  duration: const Duration(milliseconds: 500),
+                                  child: SizedBox(
+                                    width: size.width * 0.5,
+                                    child: CardModel(
+                                      type: CardTypes.exam,
+                                      title: item['exam']["title"] ?? "",
+                                      description: '',
+                                      thumbnail: item["thumbnail"],
+                                      id: item['id']?.toString() ?? '',
+                                      onTap: () => controller.onSelectTopic(item),
+                                    ),
+                                  ),
                                 );
                               },
                             );
@@ -106,9 +107,6 @@ class ResultsPage extends StatelessWidget {
 
                         const SizedBox(height: 26),
 
-                        // ==========================
-                        // HOMEWORKS SECTION
-                        // ==========================
                         _sectionHeader("الواجبات"),
                         const SizedBox(height: 10),
 
@@ -118,30 +116,35 @@ class ResultsPage extends StatelessWidget {
                             if (controller.isLoading.value) {
                               return Center(child: loading(context));
                             }
-
-                            final latest = controller.homeworks;
-                            if (latest.isEmpty) {
+                            final homeworks = controller.homeworks;
+                            if (homeworks.isEmpty) {
                               return const Center(
                                 child: Text("لا توجد واجبات"),
                               );
                             }
-
                             return ListView.separated(
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.all(8),
-                              itemCount: latest.length,
+                              itemCount: homeworks.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(width: 12),
                               itemBuilder: (_, i) {
-                                final item = latest[i];
-                                print(item);
-
-                                return _topicCardWithData(
-                                  context,
-                                  item["homework"]['title'] ?? "",
-                                  item["thumbnail"] ??
-                                      "https://placehold.co/200/png",
-                                  () => controller.onSelectTopic(item),
+                                final item = homeworks[i];
+                                return FadeInUp(
+                                  from: 50,
+                                  delay: Duration(milliseconds: 50 * i),
+                                  duration: const Duration(milliseconds: 500),
+                                  child: SizedBox(
+                                    width: size.width * 0.5,
+                                    child: CardModel(
+                                      type: CardTypes.homework,
+                                      title: item["homework"]['title'] ?? "",
+                                      description: '',
+                                      thumbnail: item["thumbnail"],
+                                      id: item['id']?.toString() ?? '',
+                                      onTap: () => controller.onSelectTopic(item),
+                                    ),
+                                  ),
                                 );
                               },
                             );
@@ -152,18 +155,15 @@ class ResultsPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ===================================
-  // BEAUTIFUL SECTION HEADER
-  // ===================================
   Widget _sectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
@@ -179,66 +179,6 @@ class ResultsPage extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _topicCardWithData(
-    BuildContext context,
-    String title,
-    String imageUrl,
-    VoidCallback onTap,
-  ) {
-    print(title);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        width: MediaQuery.of(context).size.width / 2,
-        height: MediaQuery.of(context).size.height / 3.2,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(24),
-            bottomLeft: Radius.circular(24),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AspectRatio(
-                aspectRatio: 1 / 1,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.fill,
-                  width: double.infinity,
-                  errorBuilder: (_, __, ___) => Image.network(
-                    'https://placehold.co/200/png',
-                    fit: BoxFit.fill,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.black87),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
-import 'package:typewritertext/typewritertext.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,6 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final authController = Get.put(AuthController());
   bool isObscure = true;
+
   @override
   void dispose() {
     phoneController.dispose();
@@ -29,294 +29,309 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        // allow scaffold to resize when keyboard appears so the scroll view can work
+        backgroundColor: theme.scaffoldBackgroundColor,
         resizeToAvoidBottomInset: true,
         body: Stack(
           children: [
-            // top-left circle
+            // subtle gradient orbs (top-left, bottom-right)
             Positioned(
-              left: -size.width * 0.25,
-              top: -size.width * 0.25,
+              left: -size.width * 0.3,
+              top: -size.width * 0.3,
               child: Container(
-                width: size.width * 0.6,
-                height: size.width * 0.6,
+                width: size.width * 0.65,
+                height: size.width * 0.65,
                 decoration: BoxDecoration(
-                  color: primary,
+                  gradient: RadialGradient(
+                    colors: [
+                      theme.colorScheme.primary.withValues(alpha: 0.15),
+                      theme.colorScheme.primary.withValues(alpha: 0.0),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              right: -size.width * 0.3,
+              bottom: -size.width * 0.3,
+              child: Container(
+                width: size.width * 0.65,
+                height: size.width * 0.65,
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      theme.colorScheme.primary.withValues(alpha: 0.12),
+                      theme.colorScheme.primary.withValues(alpha: 0.0),
+                    ],
+                  ),
                   shape: BoxShape.circle,
                 ),
               ),
             ),
 
-            // bottom-right circle
-            Positioned(
-              right: -size.width * 0.25,
-              bottom: -size.width * 0.25,
-              child: Container(
-                width: size.width * 0.6,
-                height: size.width * 0.6,
-                decoration: BoxDecoration(
-                  color: primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-
-            // content (scrolls when keyboard appears)
             Positioned.fill(
               child: SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
-                      30,
-                      30,
-                      30,
-                      MediaQuery.of(context).viewInsets.bottom + 30,
+                      24,
+                      24,
+                      24,
+                      MediaQuery.of(context).viewInsets.bottom + 24,
                     ),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
+                        constraints: const BoxConstraints(maxWidth: 400),
                         child: Form(
                           key: _formKey,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const SizedBox(height: 24),
-                              // replaced static headline with typewritertext
-                              TypeWriter.text(
-                                'اهلا بك في  Al-Shobaki Academy',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineLarge,
-                                duration: const Duration(milliseconds: 80),
 
-                                repeat: false,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'طريقك نحو التفوق و التميز',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Image.asset(
+                                      'assets/app_icon_1024.png',
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
                                     ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Al-Shobaki Academy',
+                                            style:
+                                                theme.textTheme.headlineMedium,
+
+                                            maxLines: 1,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'طريقك نحو التفوق و التميز',
+                                        style: theme.textTheme.bodyLarge
+                                            ?.copyWith(
+                                              color: theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 40),
 
                               FadeInUp(
                                 duration: const Duration(milliseconds: 800),
                                 from: 75,
-                                child: Column(
-                                  children: [
-                                    // phone field
-                                    Directionality(
-                                      textDirection: TextDirection.ltr,
-                                      child: TextFormField(
-                                        controller: phoneController,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium,
-                                        keyboardType: TextInputType.phone,
+                                child: Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.06,
+                                        ),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Directionality(
+                                        textDirection: TextDirection.ltr,
+                                        child: TextFormField(
+                                          controller: phoneController,
+                                          style: theme.textTheme.bodyMedium,
+                                          keyboardType: TextInputType.phone,
+                                          validator: (v) =>
+                                              (v == null || v.isEmpty)
+                                              ? 'الرجاء ادخال رقم الهاتف'
+                                              : null,
+                                          decoration: InputDecoration(
+                                            hintTextDirection:
+                                                TextDirection.rtl,
+                                            hintText: 'رقم الهاتف',
+                                            suffixIcon: Padding(
+                                              padding: const EdgeInsets.all(
+                                                8.0,
+                                              ),
+                                              child: Icon(Icons.phone_android),
+                                            ),
+                                            prefixIcon: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  '+971 ',
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodyMedium,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+
+                                      TextFormField(
+                                        controller: passwordController,
+                                        style: theme.textTheme.bodyMedium,
+                                        obscureText: isObscure,
                                         validator: (v) =>
                                             (v == null || v.isEmpty)
-                                            ? 'الرجاء ادخال رقم الهاتف'
+                                            ? 'الرجاء ادخال كلمة المرور'
                                             : null,
                                         decoration: InputDecoration(
-                                          hintTextDirection: TextDirection.rtl,
-                                          hintText: 'رقم الهاتف',
-                                          filled: true,
-
-                                          fillColor: Colors.grey[200],
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 16,
-                                              ),
-                                          suffixIcon: Padding(
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: const Icon(
-                                              Icons.phone_android,
-                                            ),
+                                          hintText: 'كلمة السر',
+                                          prefixIcon: const Icon(
+                                            Icons.lock_outline,
                                           ),
-                                          prefixIcon: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                '+971 ',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodyMedium,
-                                              ),
-                                            ],
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-
-                                    // password field
-                                    TextFormField(
-                                      controller: passwordController,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium,
-
-                                      obscureText: isObscure,
-                                      validator: (v) => (v == null || v.isEmpty)
-                                          ? 'الرجاء ادخال كلمة المرور'
-                                          : null,
-                                      decoration: InputDecoration(
-                                        hintText: 'كلمة السر',
-                                        prefixIcon: const Icon(
-                                          Icons.lock_outline,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          onPressed: () => setState(() {
-                                            isObscure = !isObscure;
-                                          }),
-                                          icon: isObscure
-                                              ? Icon(Icons.remove_red_eye)
-                                              : Icon(Icons.visibility_off),
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.grey[200],
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 16,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            Get.toNamed('/signup');
-                                          },
-                                          child: Text(
-                                            'انشاء حساب جديد',
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () {
-                                            Get.toNamed('/forgot_password');
-                                          },
-                                          child: Text(
-                                            'نسيت كلمة المرور؟',
-                                            style: TextStyle(
-                                              decoration:
-                                                  TextDecoration.underline,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 20),
-
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          height: 48,
-                                          child: ElevatedButton(
-                                            onPressed: () async {
-                                              if (_formKey.currentState
-                                                      ?.validate() ??
-                                                  false) {
-                                                loadingDilog(context);
-                                                await authController.login(
-                                                  context,
-
-                                                  add971Prefix(
-                                                    phoneController.text.trim(),
+                                          suffixIcon: IconButton(
+                                            onPressed: () => setState(() {
+                                              isObscure = !isObscure;
+                                            }),
+                                            icon: isObscure
+                                                ? const Icon(
+                                                    Icons.remove_red_eye,
+                                                  )
+                                                : const Icon(
+                                                    Icons.visibility_off,
                                                   ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
 
-                                                  passwordController.text,
-                                                );
-                                              }
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: primary,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                            ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          InkWell(
+                                            onTap: () => Get.toNamed('/signup'),
                                             child: Text(
-                                              'تسجيل الدخول',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyLarge
-                                                  ?.copyWith(
-                                                    color: Colors.white,
-                                                  ),
+                                              'انشاء حساب جديد',
+                                              style: TextStyle(
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.6),
+                                              ),
                                             ),
                                           ),
-                                        ),
-
-                                        Platform.isWindows ||
-                                                Platform.isMacOS ||
-                                                Platform.isLinux
-                                            ? const SizedBox.shrink()
-                                            : IconButton(
-                                                icon: const Icon(
-                                                  Icons.fingerprint,
-                                                  size: 28,
-                                                ),
-                                                onPressed: () async {
-                                                  await authController
-                                                      .loginWithFingerprint();
-                                                },
+                                          InkWell(
+                                            onTap: () =>
+                                                Get.toNamed('/forgot_password'),
+                                            child: Text(
+                                              'نسيت كلمة المرور؟',
+                                              style: TextStyle(
+                                                decoration:
+                                                    TextDecoration.underline,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.6),
                                               ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    InkWell(
-                                      child: Text(
-                                        'الاكمال كضيف',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium!
-                                            .copyWith(color: Colors.grey[700]),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      onTap: () =>
-                                          authController.enterGuestMode(),
-                                    ),
-                                    const SizedBox(height: 24),
-                                  ],
+                                      const SizedBox(height: 28),
+
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: () async {
+                                            if (_formKey.currentState
+                                                    ?.validate() ??
+                                                false) {
+                                              loadingDilog(context);
+                                              await authController.login(
+                                                context,
+                                                add971Prefix(
+                                                  phoneController.text.trim(),
+                                                ),
+                                                passwordController.text,
+                                              );
+                                            }
+                                          },
+                                          child: Text(
+                                            'تسجيل الدخول',
+                                            style: theme.textTheme.bodyLarge,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (!(Platform.isWindows ||
+                                      Platform.isMacOS ||
+                                      Platform.isLinux))
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.fingerprint,
+                                        size: 28,
+                                      ),
+                                      onPressed: () async {
+                                        await authController
+                                            .loginWithFingerprint();
+                                      },
+                                    ),
+                                  InkWell(
+                                    child: Text(
+                                      'الاكمال كضيف',
+                                      style: theme
+                                          .textTheme.bodyMedium
+                                          ?.copyWith(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                    onTap: () =>
+                                        authController.enterGuestMode(),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                child: Text(
+                                  'الاكمال كضيف',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                onTap: () => authController.enterGuestMode(),
+                              ),
+                              const SizedBox(height: 24),
                             ],
                           ),
                         ),
@@ -333,18 +348,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   String add971Prefix(String phone) {
-    // Remove spaces and any non-digit characters
     phone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-
-    // If number already starts with 971 → keep it as is
-    if (phone.startsWith('971')) {
-      return phone;
-    }
-
-    // Remove leading zeros (e.g., 0501234567 → 501234567)
+    if (phone.startsWith('971')) return phone;
     phone = phone.replaceFirst(RegExp(r'^0+'), '');
-
-    // Add 971 prefix
     return '971$phone';
   }
 }

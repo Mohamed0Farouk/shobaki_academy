@@ -5,15 +5,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/controller/subscription_controller.dart';
-import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/model/widgets/quill_description.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/image_utils.dart';
 import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
-//import 'package:shobaki_academy/view/home.dart';
 
 // ignore: must_be_immutable
 class TopicContentPage extends StatelessWidget {
@@ -108,117 +107,21 @@ class TopicContentPage extends StatelessWidget {
     final String? thumb = topic['thumbnail'];
     final String description = (topic['description'] ?? '').toString();
 
-    // Use a simple scrolling column with a header instead of SliverAppBar
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(context, title, thumb),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _detailsCard(context, topic, description, subs, user, api),
-                const SizedBox(height: 20),
-                Text(
-                  'المحاضرات المتضمنة',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.right,
-                ),
-                const SizedBox(height: 12),
-
-                FutureBuilder<List<Widget>>(
-                  future: _lecturesHandler(
-                    topic['lectures'],
-                    topic['thumbnail'],
-                    context,
-                  ),
-                  builder: (context, snapshot) {
-                    final childrenWidgets = snapshot.data ?? [];
-                    if (snapshot.connectionState != ConnectionState.done) {
-                      return loading(context);
-                    }
-                    if (childrenWidgets.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Center(
-                          child: Text(
-                            'لا توجد محاضرات ',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                      );
-                    }
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Define desktop breakpoint (adjust as needed)
-                        final isDesktop = constraints.maxWidth > 900;
-                        if (isDesktop) {
-                          return Directionality(
-                            textDirection: TextDirection.ltr,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final itemWidth =
-                                    (constraints.maxWidth - (12 * 4)) / 5;
-
-                                return Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: childrenWidgets.map((child) {
-                                    return SizedBox(
-                                      width: itemWidth,
-                                      child: child,
-                                    );
-                                  }).toList(),
-                                );
-                              },
-                            ),
-                          );
-                        } else {
-                          // Mobile/Tablet - horizontal ListView
-                          return SizedBox(
-                            height: isSubscribed || topicData!['free'] == true
-                                ? context.screenH / 3.25
-                                : context.screenH / 3.8,
-                            width: double.infinity,
-                            child: Directionality(
-                              textDirection: TextDirection.ltr,
-                              child: IntrinsicHeight(
-                                child: ListView.builder(
-                                  itemCount: childrenWidgets.length,
-                                  scrollDirection: Axis.horizontal,
-                                  itemBuilder: (ctx, i) {
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      child: SizedBox(
-                                        width: context.screenW * 0.4,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 10.0,
-                                          ),
-                                          child: childrenWidgets[i],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ],
+    return _buildContentLayout(
+      context: context,
+      title: title,
+      thumb: thumb,
+      description: description,
+      topic: topic,
+      subs: subs,
+      user: user,
+      api: api,
+      sectionTitle: 'المحاضرات المتضمنة',
+      emptyMessage: 'لا توجد محاضرات',
+      futureBuilder: _lecturesHandler(
+        topic['lectures'],
+        topic['thumbnail'],
+        context,
       ),
     );
   }
@@ -234,251 +137,278 @@ class TopicContentPage extends StatelessWidget {
     final String? thumb = topic['thumbnail'];
     final String description = (topic['description'] ?? '').toString();
 
-    // Replace sliver layout with a simple scrollable column + header
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeader(context, title, thumb),
-          const SizedBox(height: 12),
-          Padding(
+    return _buildContentLayout(
+      context: context,
+      title: title,
+      thumb: thumb,
+      description: description,
+      topic: topic,
+      subs: subs,
+      user: user,
+      api: api,
+      sectionTitle: 'المحتويات الفرعية المتضمنة',
+      emptyMessage: 'لا توجد مواضيع فرعية',
+      futureBuilder: _subTopicsHandler(
+        topic['children'],
+        topic['thumbnail'],
+        context,
+      ),
+      showChildrenHeader: true,
+    );
+  }
+
+  Widget _buildContentLayout({
+    required BuildContext context,
+    required String title,
+    required String? thumb,
+    required String description,
+    required Map topic,
+    required List subs,
+    required Map user,
+    required ApiClient api,
+    required String sectionTitle,
+    required String emptyMessage,
+    required Future<List<Widget>> futureBuilder,
+    bool showChildrenHeader = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 800;
+
+        if (isWide) {
+          final rowWidth = constraints.maxWidth - 32;
+          final leftWidth = (rowWidth - 16) * 2 / 5;
+          final aspectRatioHeight = leftWidth * 3 / 4;
+          final headerHeight = aspectRatioHeight.clamp(200, 360).toDouble();
+
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _detailsCard(
-                  context,
-                  topic,
-                  description,
-                  subs,
-                  user,
-                  api,
-                  showChildrenHeader: true,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'المحتويات الفرعية المتضمنة',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                  textAlign: TextAlign.right,
-                ),
-                const SizedBox(height: 12),
-                FutureBuilder<List<Widget>>(
-                  future: _subTopicsHandler(
-                    topic['children'],
-                    topic['thumbnail'],
-                    context,
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      _buildHeader(context, title, thumb, height: headerHeight),
+                      const SizedBox(height: 16),
+                      _detailsCard(
+                        context,
+                        topic,
+                        description,
+                        subs,
+                        user,
+                        api,
+                        showChildrenHeader: showChildrenHeader,
+                      ),
+                    ],
                   ),
-                  builder: (context, snapshot) {
-                    final childrenWidgets = snapshot.data ?? [];
-                    if (snapshot.connectionState != ConnectionState.done) {
-                      return loading(context);
-                    }
-                    if (childrenWidgets.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Center(
-                          child: Text(
-                            'لا توجد مواضيع فرعية',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                      );
-                    }
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Define desktop breakpoint (adjust as needed)
-                        final isDesktop = constraints.maxWidth > 900;
-
-                        if (isDesktop) {
-                          return Directionality(
-                            textDirection: TextDirection.ltr,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final itemWidth =
-                                    (constraints.maxWidth - (12 * 4)) / 5;
-
-                                return Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: childrenWidgets.map((child) {
-                                    return SizedBox(
-                                      width: itemWidth,
-                                      child: child,
-                                    );
-                                  }).toList(),
-                                );
-                              },
-                            ),
-                          );
-                        } else {
-                          // Mobile/Tablet - horizontal ListView
-                          return SizedBox(
-                            height: context.screenH / 2.8,
-                            width: double.infinity,
-                            child: Directionality(
-                              textDirection: TextDirection.ltr,
-                              child: IntrinsicHeight(
-                                child: ListView.builder(
-                                  itemCount: childrenWidgets.length,
-                                  scrollDirection: Axis.horizontal,
-                                  itemBuilder: (ctx, i) {
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      child: SizedBox(
-                                        width: context.screenW * 0.4,
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 10.0,
-                                          ),
-                                          child: childrenWidgets[i],
-                                        ),
-                                      ),
-                                    );
-                                  },
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sectionTitle,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                        textAlign: TextAlign.right,
+                      ),
+                      const SizedBox(height: 12),
+                      FutureBuilder<List<Widget>>(
+                        future: futureBuilder,
+                        builder: (context, snapshot) {
+                          final childrenWidgets = snapshot.data ?? [];
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return loading(context);
+                          }
+                          if (childrenWidgets.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Center(
+                                child: Text(
+                                  emptyMessage,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  textAlign: TextAlign.right,
                                 ),
+                              ),
+                            );
+                          }
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              final width = constraints.maxWidth;
+                              final crossAxisCount = width < 500
+                                  ? 2
+                                  : width < 1000
+                                  ? 3
+                                  : 4;
+                              const spacing = 12.0;
+                              final itemWidth =
+                                  (width - spacing * (crossAxisCount - 1)) /
+                                  crossAxisCount;
+
+                              return Wrap(
+                                spacing: spacing,
+                                runSpacing: spacing,
+                                children: childrenWidgets
+                                    .map(
+                                      (child) => SizedBox(
+                                        width: itemWidth,
+                                        child: child,
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(context, title, thumb),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _detailsCard(
+                      context,
+                      topic,
+                      description,
+                      subs,
+                      user,
+                      api,
+                      showChildrenHeader: showChildrenHeader,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      sectionTitle,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                      textAlign: TextAlign.right,
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<List<Widget>>(
+                      future: futureBuilder,
+                      builder: (context, snapshot) {
+                        final childrenWidgets = snapshot.data ?? [];
+                        if (snapshot.connectionState != ConnectionState.done) {
+                          return loading(context);
+                        }
+                        if (childrenWidgets.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Center(
+                              child: Text(
+                                emptyMessage,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                textAlign: TextAlign.right,
                               ),
                             ),
                           );
                         }
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = constraints.maxWidth;
+                            final crossAxisCount = width < 500
+                                ? 2
+                                : width < 1000
+                                ? 3
+                                : 4;
+                            const spacing = 12.0;
+                            final itemWidth =
+                                (width - spacing * (crossAxisCount - 1)) /
+                                crossAxisCount;
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: childrenWidgets
+                                  .map(
+                                    (child) => SizedBox(
+                                      width: itemWidth,
+                                      child: child,
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
+                        );
                       },
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
-                const SizedBox(height: 24),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // Replace SliverAppBar with a simple header widget
-  Widget _buildHeader(BuildContext context, String title, String? thumb) {
+  Widget _buildHeader(
+    BuildContext context,
+    String title,
+    String? thumb, {
+    double height = 240,
+  }) {
     final theme = Theme.of(context);
-    final hasThumb = thumb != null && thumb.trim().isNotEmpty;
 
-    return Material(
-      elevation: 4,
-      color: theme.colorScheme.primary,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: 240,
+        height: height,
         width: double.infinity,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 700;
-
-            /// ===============================
-            /// WIDE SCREENS (Tablet / Desktop)
-            /// ===============================
-            if (isWide) {
-              return Padding(
-                padding: const EdgeInsets.all(15),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // LEFT: Square image
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              theme.colorScheme.primary,
-                              theme.colorScheme.primary.withOpacity(0.85),
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                        ),
-                        child: Align(
-                          alignment: Alignment.bottomRight,
-                          child: Text(
-                            title,
-                            textAlign: TextAlign.right,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              color: theme.colorScheme.onPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // RIGHT: Title area
-                    AspectRatio(
-                      aspectRatio: 1 / 1,
-                      child: hasThumb
-                          ? Image.network(
-                              thumb,
-                              fit: BoxFit.fill,
-                              errorBuilder: (_, __, ___) =>
-                                  _headerPlaceholder(context),
-                            )
-                          : _headerPlaceholder(context),
-                    ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ImageUtils.networkWithFallback(
+              thumb,
+              fit: BoxFit.cover,
+              context: context,
+              placeholder: _headerPlaceholder(context),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.6),
                   ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-              );
-            }
-
-            /// ===============================
-            /// SMALL SCREENS (Mobile)
-            /// ===============================
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                if (hasThumb)
-                  Image.network(
-                    thumb,
-                    fit: BoxFit.fill,
-                    errorBuilder: (_, __, ___) => _headerPlaceholder(context),
-                  )
-                else
-                  _headerPlaceholder(context),
-
-                // Gradient overlay
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary.withOpacity(0.75),
-                        theme.colorScheme.primary.withOpacity(0.45),
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.right,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-
-                // Title
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      title,
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -501,63 +431,64 @@ class TopicContentPage extends StatelessWidget {
         ? (topic['children'] as List).length
         : 0;
 
-    //final createdAt = topic['created_at'];
-    final stage = (topic['stage'] ?? '-').toString();
+    final stage = (topic['stage'] ?? '').toString();
+    final hasStage = stage.isNotEmpty && stage != '-';
     final price = topic['price'];
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: QuillDescription.fromContent(
-                  description,
-                  scrollController: ScrollController(),
-                  enableScroll: false,
-                  padding: EdgeInsets.zero,
-                  textStyle: Theme.of(context).textTheme.bodyMedium,
-                  maxLines: 4,
-                ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: QuillDescription.fromContent(
+                description,
+                scrollController: ScrollController(),
+                enableScroll: false,
+                padding: EdgeInsets.zero,
+                textStyle: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 4,
               ),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              alignment: WrapAlignment.end,
-              children: [
-                childrenCount != 0
-                    ? _infoChip(
-                        context,
-                        Icons.folder,
-                        'المحتويات الفرعية: $childrenCount',
-                      )
-                    : _infoChip(
-                        context,
-                        Icons.menu_book,
-                        'المحاضرات: $lecturesCount',
-                      ),
-                // _infoChip(
-                //   context,
-                //   Icons.calendar_today,
-                //   'تاريخ: ${_formatDate(createdAt)}',
-                // ),
-                _infoChip(context, Icons.tag, 'المرحلة: $stage'),
-                // Hide price in review mode
-                if (!inReview && price > 0)
-                  _infoChip(context, Icons.price_check, 'السعر: $price AED'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Center(child: _actionButton(context, topic, subs, user, api)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            alignment: WrapAlignment.start,
+            children: [
+              childrenCount != 0
+                  ? _infoChip(
+                      context,
+                      Icons.folder,
+                      'المحتويات الفرعية: $childrenCount',
+                    )
+                  : _infoChip(
+                      context,
+                      Icons.menu_book,
+                      'المحاضرات: $lecturesCount',
+                    ),
+              if (hasStage) _infoChip(context, Icons.tag, 'المرحلة: $stage'),
+              if (!inReview && price > 0)
+                _infoChip(context, Icons.price_check, 'السعر: $price AED'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Center(child: _actionButton(context, topic, subs, user, api)),
+        ],
       ),
     );
   }
@@ -569,29 +500,35 @@ class TopicContentPage extends StatelessWidget {
         child: Icon(
           Icons.auto_stories,
           size: 120,
-          color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
+          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.9),
         ),
       ),
     );
   }
 
   Widget _infoChip(BuildContext context, IconData icon, String text) {
-    return Chip(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      avatar: Icon(
-        icon,
-        size: 18,
-        color: Theme.of(context).colorScheme.primary,
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
       ),
-      label: Text(
-        text,
-        style: Theme.of(context).textTheme.bodySmall!.copyWith(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
-        textAlign: TextAlign.right,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: primary),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
     );
   }
 
@@ -769,7 +706,7 @@ class TopicContentPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange, width: 1.5),
       ),
@@ -782,7 +719,7 @@ class TopicContentPage extends StatelessWidget {
               const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
               const SizedBox(width: 8),
               Text(
-                'هذا المحتوى غير متاح للضيوف',
+                'محتوى غير متاح للضيوف',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.orange,
                   fontWeight: FontWeight.w600,
@@ -1149,11 +1086,11 @@ class TopicContentPage extends StatelessWidget {
 
   Widget buildLockedOverlay(String message, context) {
     return Card(
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       elevation: 4,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      color: Colors.black.withOpacity(0.5),
+      color: Colors.black.withValues(alpha: 0.5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         mainAxisSize: MainAxisSize.min,

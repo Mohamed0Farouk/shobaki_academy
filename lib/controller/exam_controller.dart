@@ -159,7 +159,7 @@ class ExamController extends GetxController {
       'answers': studentAnswers,
     });
 
-    Get.snackbar(
+    showSnackbar(
       'معلومات سرية للغاية !!',
       "درجتك فلامتحان : $grade",
       backgroundColor: Colors.green,

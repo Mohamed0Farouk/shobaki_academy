@@ -1,31 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
+import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiClient {
   final SupabaseClient _client = Supabase.instance.client;
 
-  // Authentication: Sign Up
-  // Future<AuthResponse> signUp(String email, String password) async {
-  //   try {
-  //     final response = await _client.auth.signUp(
-  //       email: email,
-  //       password: password,
-  //     );
-  //     return response;
-  //   } catch (e) {
-  //     throw Exception('Signup failed: $e');
-  //   }
-  // }
-
   // Authentication: Sign In
   Future<Map> signIn(String email, String password) async {
     try {
-      // final response = await _client.auth.signInWithPassword(
-      //   email: email,
-      //   password: password,
-      // );
       final response = await fetchWithConditions(
         'students',
         filters: {'email': email, 'password': password},
@@ -151,7 +135,7 @@ class ApiClient {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         "خطأ في البحث",
         "حدث خطأ أثناء البحث: $e",
         backgroundColor: Colors.red,
@@ -265,7 +249,7 @@ class ApiClient {
           .order('created_at', ascending: false);
       return response;
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         "خطأ في جلب درجات الواجبات",
         "حدث خطأ أثناء جلب درجات الواجبات: $e",
         backgroundColor: Colors.red,
@@ -286,7 +270,7 @@ class ApiClient {
           .order('created_at', ascending: false);
       return response;
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         "خطأ في جلب درجات الامتحانات",
         "حدث خطأ أثناء جلب درجات الامتحانات: $e",
         backgroundColor: Colors.red,
@@ -312,7 +296,7 @@ class ApiClient {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         "خطأ في جلب الأسئلة",
         "حدث خطأ أثناء جلب الأسئلة: $e",
         backgroundColor: Colors.red,

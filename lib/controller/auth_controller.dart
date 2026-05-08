@@ -44,7 +44,6 @@ class AuthController extends GetxController {
   // selected values for signup form
   RxString selectedStage = ''.obs;
   RxString selectedUae = ''.obs;
-  //RxString selectedSubscription = ''.obs;
 
   // special test reviewer account id/email prefix
   static const reviewerEmailPrefix =
@@ -82,7 +81,7 @@ class AuthController extends GetxController {
   // unified error handler
   void _handleError(Object e) {
     Get.close(1);
-    Get.snackbar(
+    showSnackbar(
       'خطأ',
       e.toString(),
       backgroundColor: Colors.red,
@@ -122,7 +121,7 @@ class AuthController extends GetxController {
   Future<String?> gatherFingerprint() async {
     final ok = await _authenticateBiometrics(reason: 'قم بتأكيد البصمة للربط');
     if (!ok) {
-      Get.snackbar(
+      showSnackbar(
         'تنبيه',
         'فشل التحقق بالبصمة.',
         backgroundColor: Colors.orange,
@@ -149,7 +148,7 @@ class AuthController extends GetxController {
       );
       if (!authOk) {
         if (ctx != null) Get.close(1);
-        Get.snackbar(
+        showSnackbar(
           'تنبيه',
           'فشل التحقق بالبصمة أو لم يتم التفعيل.',
           snackPosition: SnackPosition.BOTTOM,
@@ -161,7 +160,7 @@ class AuthController extends GetxController {
       final deviceSig = await DeviceFingerprint.getFingerprint();
       if (deviceSig.isEmpty) {
         if (ctx != null) Get.close(1);
-        Get.snackbar('خطأ', 'غير قادر على الحصول على بصمة الجهاز.');
+        showSnackbar('خطأ', 'غير قادر على الحصول على بصمة الجهاز.');
         return;
       }
 
@@ -174,7 +173,7 @@ class AuthController extends GetxController {
       if (ctx != null) Get.close(1);
 
       if (users.isEmpty) {
-        Get.snackbar(
+        showSnackbar(
           'تنبيه',
           'لم يتم العثور على حساب مرتبط بهذا الجهاز. الرجاء تسجيل الدخول يدوياً لربط الجهاز بالحساب.',
           backgroundColor: Colors.orange,
@@ -186,7 +185,7 @@ class AuthController extends GetxController {
       final email = user['email'] as String?;
       final password = user['password'] as String?;
       if (email == null || password == null) {
-        Get.snackbar('خطأ', 'بيانات الحساب غير كافية لتسجيل الدخول بالبصمة.');
+        showSnackbar('خطأ', 'بيانات الحساب غير كافية لتسجيل الدخول بالبصمة.');
         return;
       }
 
@@ -206,7 +205,7 @@ class AuthController extends GetxController {
       if (ctx != null) Get.close(1);
 
       if (userData['disabled'] == true) {
-        Get.snackbar(
+        showSnackbar(
           'مشكلة فنية',
           'لقد تم حجبك تواصل مع الدعم لحل المشكلة',
           backgroundColor: Colors.yellow,
@@ -272,7 +271,7 @@ class AuthController extends GetxController {
               ? db.sharedPref?.setBool('isGuestMode', true)
               : null;
           await saveUserLocally(userData, loggedIn: false, reviewer: false);
-          Get.snackbar(
+          showSnackbar(
             'خطأ في تسجيل الدخول',
             'لا يمكن تسجيل الدخول من هذا الجهاز. يرجى استخدام الجهاز الذي تم إنشاء الحساب عليه',
             backgroundColor: Colors.red,
@@ -297,7 +296,7 @@ class AuthController extends GetxController {
       Get.close(1);
 
       if (userData['disabled'] == true) {
-        Get.snackbar(
+        showSnackbar(
           'مشكلة فنية',
           'لقد تم حجبك تواصل مع الدعم لحل المشكلة',
           backgroundColor: Colors.yellow,
@@ -360,7 +359,7 @@ class AuthController extends GetxController {
       );
       if (exists.isNotEmpty) {
         Get.close(1);
-        Get.snackbar(
+        showSnackbar(
           'خطأ',
           'لدينا حساب يحتوي على نفس رقم الهاتف هذا، حاول تسجيل الدخول بدلاً من ذلك',
           backgroundColor: Colors.red,
@@ -370,7 +369,6 @@ class AuthController extends GetxController {
       }
 
       final email = '${name.replaceAll(' ', '')}#$studentPhoneNumber@gmail.com';
-      //final response = await api.signUp(email, password);
 
       final deviceFingerprint = await DeviceFingerprint.getFingerprint();
 
@@ -413,8 +411,6 @@ class AuthController extends GetxController {
     isVerified.value = false;
     inReview.value = false;
     await api.signOut();
-    //DeviceGuardController? guard = Get.find<DeviceGuardController?>();
-    //guard?.stop();
     Get.offAllNamed('/login');
   }
 
@@ -484,7 +480,7 @@ class AuthController extends GetxController {
       localDb?.remove('UserData');
       Get.offAllNamed('/login');
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'فشل حذف الحساب',
         backgroundColor: Colors.red,

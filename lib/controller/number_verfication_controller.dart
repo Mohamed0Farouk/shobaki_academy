@@ -29,12 +29,20 @@ class NumberVerificationController extends GetxController {
   void onInit() {
     super.onInit();
     localDb = db.sharedPref;
-    final jsonUser = localDb?.getString('UserData');
-    if (jsonUser != null) {
-      final user = jsonDecode(jsonUser);
-      userData.value = user;
-      phoneNumber.value = user['phone_number'] ?? '';
-      studentId.value = user['id']?.toString() ?? '';
+
+    final args = Get.arguments;
+    if (args is Map) {
+      userData.value = args;
+      phoneNumber.value = args['phone_number'] ?? '';
+      studentId.value = args['id']?.toString() ?? '';
+    } else {
+      final jsonUser = localDb?.getString('UserData');
+      if (jsonUser != null) {
+        final user = jsonDecode(jsonUser);
+        userData.value = user;
+        phoneNumber.value = user['phone_number'] ?? '';
+        studentId.value = user['id']?.toString() ?? '';
+      }
     }
     dotenv
         .load(fileName: '.env')
@@ -63,10 +71,10 @@ class NumberVerificationController extends GetxController {
       );
       await Dio().post(
         '${apiUrl}api/otp/send',
-        data: {'id': studentId.value, 'phone': phoneNumber.value},
+        data: {'phone_number': phoneNumber.value},
       );
       _startTimer();
-      Get.snackbar(
+      showSnackbar(
         'تم الإرسال',
         'تم إرسال الرمز إلى ${phoneNumber.value}',
         backgroundColor: Colors.blue,
@@ -74,7 +82,7 @@ class NumberVerificationController extends GetxController {
       );
     } catch (e) {
       print(e);
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'فشل إرسال الرمز',
         backgroundColor: Colors.red,
@@ -90,7 +98,7 @@ class NumberVerificationController extends GetxController {
       );
       final response = await Dio().post(
         '${apiUrl}api/otp/verify',
-        data: {'id': studentId.value, 'otp': otp.value},
+        data: {'phone_number': phoneNumber.value, 'otp': otp.value},
       );
       print("respnose :  $response");
       final isSuccess = response.statusCode == 200;
@@ -103,7 +111,7 @@ class NumberVerificationController extends GetxController {
           {'id': studentId.value},
         );
         userData['verified'] = true;
-        Get.snackbar(
+        showSnackbar(
           'تم التحقق',
           'تم التحقق من الرقم بنجاح',
           backgroundColor: Colors.green,
@@ -122,7 +130,7 @@ class NumberVerificationController extends GetxController {
 
   void _handleOtpError() {
     otp.value = '';
-    Get.snackbar(
+    showSnackbar(
       'خطأ',
       'رمز غير صالح، حاول مرة أخرى',
       backgroundColor: Colors.red,

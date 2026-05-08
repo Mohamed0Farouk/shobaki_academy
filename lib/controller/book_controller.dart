@@ -2,6 +2,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:shobaki_academy/services/statics.dart';
 
 class PdfController extends GetxController {
   final RxBool isDownloading = false.obs;
@@ -37,7 +38,7 @@ class PdfController extends GetxController {
           fileExtension: 'pdf',
           mimeType: MimeType.pdf,
         );
-        Get.snackbar(
+        showSnackbar(
           'تم التحميل',
           'تم حفظ الملف بنجاح',
           backgroundColor: Colors.green,
@@ -47,7 +48,7 @@ class PdfController extends GetxController {
         );
       }
     } catch (e) {
-      Get.snackbar(
+      showSnackbar(
         'خطأ في التحميل',
         '$e',
         backgroundColor: Colors.red,

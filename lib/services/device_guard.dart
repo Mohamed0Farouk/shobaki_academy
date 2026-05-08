@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
+import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DeviceGuardController extends GetxController {
@@ -50,7 +51,7 @@ class DeviceGuardController extends GetxController {
         );
 
         if (serverFingerprint != _localFingerprint) {
-          Get.snackbar(
+          showSnackbar(
             'الجهاز غير مطابق',
             'لقد تم تعديل الجهاز المستخدم في تسجيل الدخول من مكان آخر. تم تسجيل خروجك.',
             backgroundColor: Colors.redAccent,
@@ -60,7 +61,7 @@ class DeviceGuardController extends GetxController {
           await _forceLogout();
         }
       } catch (e) {
-        Get.snackbar(
+        showSnackbar(
           'تم تسجيل خروجك',
           'تم تسجيل خروجك لوجود مشكلة في التعرف على الحساب .',
           backgroundColor: Colors.redAccent,
@@ -106,7 +107,7 @@ class DeviceGuardController extends GetxController {
       final serverFingerprint = response['device_fingerprint'];
 
       if (serverFingerprint != _localFingerprint) {
-        Get.snackbar(
+        showSnackbar(
           'الجهاز غير مطابق',
           'لقد تم تعديل الجهاز المستخدم في تسجيل الدخول من مكان آخر. تم تسجيل خروجك.',
           backgroundColor: Colors.redAccent,

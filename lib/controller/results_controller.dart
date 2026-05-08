@@ -67,7 +67,7 @@ class ResultsController extends GetxController {
       );
     } catch (e) {
       // keep lists unchanged on error but show notification
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
@@ -105,7 +105,7 @@ class ResultsController extends GetxController {
         : null;
     final userId = userData != null ? userData['id'] : null;
     if (userId == null) {
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'لم يتم العثور على معرف المستخدم',
         backgroundColor: Colors.red,
@@ -182,7 +182,7 @@ class ResultsController extends GetxController {
       results.assignAll(fetched);
     } catch (e) {
       results.clear();
-      Get.snackbar(
+      showSnackbar(
         'خطأ في البحث',
         'حدث خطأ أثناء البحث: $e',
         backgroundColor: Colors.red,

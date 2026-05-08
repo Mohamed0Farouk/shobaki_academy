@@ -19,18 +19,18 @@ class OtpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
 
-    // Reusable PIN theme
     final defaultPinTheme = PinTheme(
-      width: 60,
-      height: 60,
+      width: 56,
+      height: 56,
       textStyle: TextStyle(
         fontSize: 22,
         color: theme.colorScheme.primary,
         fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.25),
+        color: Colors.grey.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(12),
       ),
     );
@@ -42,7 +42,7 @@ class OtpPage extends StatelessWidget {
         border: Border.all(color: theme.colorScheme.primary, width: 2),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.15),
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -52,7 +52,7 @@ class OtpPage extends StatelessWidget {
 
     final submittedPinTheme = defaultPinTheme.copyWith(
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondary.withOpacity(0.2),
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
     );
@@ -118,7 +118,7 @@ class OtpPage extends StatelessWidget {
                         )
                       : Text(
                           "يمكنك الإرسال بعد ${controller.timer.value} ث",
-                          style: TextStyle(color: theme.colorScheme.secondary),
+                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                         ),
                 ],
               ),
@@ -129,257 +129,177 @@ class OtpPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 32),
-            Text(
-              "التحقق",
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          Positioned(
+            right: -size.width * 0.25,
+            top: -size.width * 0.25,
+            child: Container(
+              width: size.width * 0.55,
+              height: size.width * 0.55,
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    theme.colorScheme.primary.withValues(alpha: 0.1),
+                    theme.colorScheme.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+                shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              "أدخل الرمز المرسل إلى رقمك",
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: buildPhoneVerification(),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: isForgotPassword
-                  ? Obx(
-                      () => controller.isVerified.value
-                          ? SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Get.dialog(
-                                    barrierDismissible: true,
-
-                                    AlertDialog(
-                                      title: const Text(
-                                        'كلمة المرور الخاصة بك',
-                                      ),
-                                      content: Row(
-                                        children: [
-                                          Text(
-                                            // ignore: invalid_use_of_protected_member
-                                            '${controller.userData.value['password'] ?? 'غير متوفرة'}',
-                                          ),
-                                          IconButton(
-                                            onPressed: () {
-                                              Clipboard.setData(
-                                                ClipboardData(
-                                                  text:
-                                                      controller
-                                                          .userData['password'] ??
-                                                      '',
-                                                ),
-                                              );
-                                              Get.snackbar(
-                                                'تم النسخ',
-                                                'تم نسخ كلمة المرور إلى الحافظة',
-                                                snackPosition:
-                                                    SnackPosition.BOTTOM,
-                                              );
-                                            },
-                                            icon: Icon(Icons.copy),
-                                          ),
-                                          IconButton(
-                                            onPressed: () {
-                                              Get.close(1);
-                                              Get.dialog(
-                                                AlertDialog(
-                                                  title: const Text(
-                                                    'تعديل كلمة المرور',
-                                                  ),
-                                                  content: TextField(
-                                                    controller:
-                                                        newPasswordController,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                          labelText:
-                                                              'كلمة المرور الجديدة',
+          ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "التحقق",
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "أدخل الرمز المرسل إلى رقمك",
+                        style: theme.textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      buildPhoneVerification(),
+                      const SizedBox(height: 16),
+                      isForgotPassword
+                          ? Obx(
+                              () => controller.isVerified.value
+                              ? SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      Get.dialog(
+                                        barrierDismissible: true,
+                                        AlertDialog(
+                                          title: const Text('كلمة المرور الخاصة بك'),
+                                          content: Row(
+                                            children: [
+                                              Text(
+                                                '${controller.userData.value['password'] ?? 'غير متوفرة'}',
+                                              ),
+                                              IconButton(
+                                                onPressed: () {
+                                                  Clipboard.setData(
+                                                    ClipboardData(
+                                                      text: controller.userData['password'] ?? '',
+                                                    ),
+                                                  );
+                                                  showSnackbar(
+                                                    'تم النسخ',
+                                                    'تم نسخ كلمة المرور إلى الحافظة',
+                                                    snackPosition: SnackPosition.BOTTOM,
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.copy),
+                                              ),
+                                              IconButton(
+                                                onPressed: () {
+                                                  Get.close(1);
+                                                  Get.dialog(
+                                                    AlertDialog(
+                                                      title: const Text('تعديل كلمة المرور'),
+                                                      content: TextField(
+                                                        controller: newPasswordController,
+                                                        decoration: const InputDecoration(
+                                                          labelText: 'كلمة المرور الجديدة',
                                                         ),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () {
-                                                        Get.back();
-                                                      },
-                                                      child: const Text(
-                                                        'إلغاء',
                                                       ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () => Get.back(),
+                                                          child: const Text('إلغاء'),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () async {
+                                                            final api = ApiClient();
+                                                            await api
+                                                                .updateData(
+                                                                  'students',
+                                                                  {"password": newPasswordController.text},
+                                                                  {'id': controller.userData['id']},
+                                                                )
+                                                                .then((value) {
+                                                                  Get.close(1);
+                                                                  Get.offAllNamed('/login');
+                                                                  showSnackbar(
+                                                                    'تم التحديث',
+                                                                    'تم تحديث كلمة المرور بنجاح',
+                                                                    snackPosition: SnackPosition.BOTTOM,
+                                                                  );
+                                                                })
+                                                                .catchError((error) {
+                                                                  Get.close(1);
+                                                                  showSnackbar(
+                                                                    'خطأ',
+                                                                    'حدث خطأ أثناء تحديث كلمة المرور: $error',
+                                                                    snackPosition: SnackPosition.BOTTOM,
+                                                                  );
+                                                                });
+                                                          },
+                                                          child: const Text('حفظ'),
+                                                        ),
+                                                      ],
                                                     ),
-                                                    TextButton(
-                                                      onPressed: () async {
-                                                        final api = ApiClient();
-                                                        await api
-                                                            .updateData(
-                                                              'students',
-                                                              {
-                                                                "password":
-                                                                    newPasswordController
-                                                                        .text,
-                                                              },
-                                                              {
-                                                                'id': controller
-                                                                    .userData['id'],
-                                                              },
-                                                            )
-                                                            .then((value) {
-                                                              Get.close(1);
-                                                              Get.offAllNamed(
-                                                                '/login',
-                                                              );
-                                                              Get.snackbar(
-                                                                'تم التحديث',
-                                                                'تم تحديث كلمة المرور بنجاح',
-                                                                snackPosition:
-                                                                    SnackPosition
-                                                                        .BOTTOM,
-                                                              );
-                                                            })
-                                                            .catchError((
-                                                              error,
-                                                            ) {
-                                                              Get.close(1);
-                                                              Get.snackbar(
-                                                                'خطأ',
-                                                                'حدث خطأ أثناء تحديث كلمة المرور: $error',
-                                                                snackPosition:
-                                                                    SnackPosition
-                                                                        .BOTTOM,
-                                                              );
-                                                            });
-                                                      },
-                                                      child: const Text('حفظ'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                            icon: Icon(Icons.edit),
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.edit),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Get.offAllNamed('/login'),
-                                          child: const Text(
-                                            'العودة لتسجيل الدخول',
-                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Get.offAllNamed('/login'),
+                                              child: const Text('العودة لتسجيل الدخول'),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
+                                      );
+                                    },
+                                    child: const Text("اظهار كلمة السر"),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                )
+                              : SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: () => Get.offAllNamed('/login'),
+                                    child: const Text("العودة الى صفحة تسجيل الدخول"),
                                   ),
                                 ),
-                                child: Text(
-                                  "اظهار كلمة السر",
-                                  style: theme.textTheme.headlineMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ),
-                            )
-                          : ElevatedButton(
-                              onPressed: () {
-                                // navigate to home (use named route)
-                                Get.offAllNamed('/login');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                "العودة الى صفحة تسجيل الدخول",
-                                style: theme.textTheme.headlineMedium!.copyWith(
-                                  color: Colors.white,
+                        )
+                          : Obx(
+                              () => SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => Get.offAllNamed(
+                                    controller.isVerified.value ? '/home' : '/login',
+                                  ),
+                                  child: Text(
+                                    controller.isVerified.value
+                                        ? "متابعة الى الصفحة الرئيسية"
+                                        : "العودة الى صفحة تسجيل الدخول",
+                                  ),
                                 ),
                               ),
                             ),
-                    )
-                  : Obx(
-                      () => controller.isVerified.value
-                          ? SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // navigate to home (use named route)
-                                  Get.offAllNamed('/home');
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Text(
-                                  "متابعة الى الصفحة الرئيسية",
-                                  style: theme.textTheme.headlineMedium!
-                                      .copyWith(color: Colors.white),
-                                ),
-                              ),
-                            )
-                          : ElevatedButton(
-                              onPressed: () {
-                                // navigate to home (use named route)
-                                Get.offAllNamed('/login');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                "العودة الى صفحة تسجيل الدخول",
-                                style: theme.textTheme.headlineMedium!.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                    ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

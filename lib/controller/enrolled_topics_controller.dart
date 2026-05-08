@@ -123,7 +123,7 @@ class EnrolledTopicsController extends GetxController {
       latestenrolledtopics.assignAll(latest);
     } catch (e) {
       projectLogger.e('Error loading enrolled topics: $e');
-      Get.snackbar(
+      showSnackbar(
         'خطأ',
         'فشل في جلب المحتويات: $e',
         backgroundColor: Colors.red,
@@ -207,7 +207,7 @@ class EnrolledTopicsController extends GetxController {
     } catch (e) {
       projectLogger.e('Search error: $e');
       results.clear();
-      Get.snackbar(
+      showSnackbar(
         'خطأ في البحث',
         'حدث خطأ أثناء البحث: $e',
         backgroundColor: Colors.red,

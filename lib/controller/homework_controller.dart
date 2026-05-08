@@ -107,7 +107,7 @@ class HomeworkController extends GetxController {
       'answers': studentAnswers,
     });
 
-    Get.snackbar(
+    showSnackbar(
       'معلومات سرية للغاية !!',
       "درجتك فلواجب : $grade",
       backgroundColor: Colors.green,

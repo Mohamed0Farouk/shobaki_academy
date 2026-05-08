@@ -101,7 +101,7 @@ class AnswersPage extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 0),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: statusColor.withOpacity(0.3), width: 2),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.3), width: 2),
       ),
       elevation: 4,
       child: Padding(
@@ -141,7 +141,7 @@ class AnswersPage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
+                color: const Color(0xFFF8F8F8),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: ZoomableImage(imageUrl: content),
@@ -163,11 +163,11 @@ class AnswersPage extends StatelessWidget {
                 Color textColor = Colors.black;
 
                 if (isCorrectAnswer) {
-                  bgColor = AppTheme.primaryColor.withOpacity(0.1);
+                  bgColor = AppTheme.primaryColor.withValues(alpha: 0.1);
                   borderColor = AppTheme.primaryColor;
                   textColor = AppTheme.primaryColor;
                 } else if (isStudent && !isCorrect) {
-                  bgColor = Colors.red.withOpacity(0.1);
+                  bgColor = Colors.red.withValues(alpha: 0.1);
                   borderColor = Colors.red;
                   textColor = Colors.red;
                 }
@@ -224,8 +224,8 @@ class AnswersPage extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isCorrect
-                    ? AppTheme.primaryColor.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(

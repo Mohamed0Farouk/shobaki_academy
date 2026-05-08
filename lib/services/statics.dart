@@ -36,6 +36,38 @@ void loadingDilog(context) {
   );
 }
 
+void showSnackbar(
+  String title,
+  String message, {
+  Color? backgroundColor,
+  Color? colorText,
+  SnackPosition? snackPosition,
+  Duration? duration,
+}) {
+  Get.rawSnackbar(
+    titleText: Directionality(
+      textDirection: TextDirection.rtl,
+      child: Text(
+        title,
+        style: TextStyle(
+          color: colorText ?? Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+    messageText: Directionality(
+      textDirection: TextDirection.rtl,
+      child: Text(
+        message,
+        style: TextStyle(color: colorText ?? Colors.white),
+      ),
+    ),
+    backgroundColor: backgroundColor ?? Colors.black87,
+    snackPosition: snackPosition ?? SnackPosition.BOTTOM,
+    duration: duration ?? const Duration(seconds: 3),
+  );
+}
+
 Widget loading(context) {
   return SizedBox(
     child: Center(

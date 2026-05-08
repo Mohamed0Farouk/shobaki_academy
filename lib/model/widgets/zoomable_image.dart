@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/image_utils.dart';
 
 class ZoomableImage extends StatelessWidget {
   final String imageUrl;
@@ -24,33 +25,10 @@ class ZoomableImage extends StatelessWidget {
       onTap: () {
         _showZoomableDialog(context);
       },
-      child: Image.network(
+      child: ImageUtils.networkWithFallback(
         imageUrl,
         fit: fit,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          } else {
-            return Center(child: loading(context));
-          }
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                const SizedBox(height: 8),
-                Text(
-                  'Failed to load image',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.red),
-                ),
-              ],
-            ),
-          );
-        },
+        context: context,
       ),
     );
   }

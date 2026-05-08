@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
+import 'package:shobaki_academy/theme.dart';
+import 'package:shobaki_academy/utils/constants.dart';
+import 'package:shobaki_academy/utils/image_utils.dart';
+import 'package:shobaki_academy/utils/responsive_utils.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
@@ -39,6 +44,7 @@ class CardModel extends StatelessWidget {
   final int? questionsNumber;
   final int? examDuration;
   final int? grade;
+  final VoidCallback? onTap;
 
   const CardModel({
     super.key,
@@ -56,6 +62,7 @@ class CardModel extends StatelessWidget {
     this.examDuration,
     this.questionsNumber,
     this.grade,
+    this.onTap,
   });
 
   @override
@@ -64,83 +71,81 @@ class CardModel extends StatelessWidget {
       case CardTypes.topic:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: navLabel,
           note: note,
           navPage: nav,
+          onTap: onTap,
         );
       case CardTypes.enrolledTopic:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: 'تصفح المحتوى',
           navPage: TopicPage(topicId: id),
+          onTap: onTap,
         );
       case CardTypes.lecture:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: navLabel,
           navPage: nav,
+          onTap: onTap,
         );
       case CardTypes.video:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           note: note,
           navlabel: 'بدء المشاهدة',
           navPage: VideoPlayerView(videoId: url!),
+          onTap: onTap,
         );
       case CardTypes.book:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: 'بدء القراءة',
-          //navPage: WebviewModel(url: url!),
           navPage: PdfModel(),
+          onTap: onTap,
         );
       case CardTypes.homework:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: 'بدء الواجب',
           navPage: HomeworkPage(topicId: topicId!, id: id),
           questionsNumber: questionsNumber,
           grade: grade,
+          onTap: onTap,
         );
       case CardTypes.exam:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: 'بدء الامتحان',
           navPage: ExamPage(id: id, topicId: topicId!),
           questionsNumber: questionsNumber,
           examDuration: examDuration,
           grade: grade,
+          onTap: onTap,
         );
       case CardTypes.wrongQuestions:
         return _SimpleCard(
           title: title,
-          description: description,
           thumbnail: thumbnail,
           navlabel: 'عرض الاخطاء',
           navPage: nav != null ? nav! : ResultsPage(),
+          onTap: onTap,
         );
     }
   }
 }
 
-/// Unified simple card used for all card types
-class _SimpleCard extends StatelessWidget {
+/// Apple-style card with overlaid title, metadata row, subtle action link
+class _SimpleCard extends StatefulWidget {
   final String title;
-  final String description;
   final String? thumbnail;
   final String? navlabel;
   final Widget? note;
@@ -148,10 +153,10 @@ class _SimpleCard extends StatelessWidget {
   final int? questionsNumber;
   final int? examDuration;
   final int? grade;
+  final VoidCallback? onTap;
 
   const _SimpleCard({
     required this.title,
-    required this.description,
     required this.navlabel,
     required this.navPage,
     this.thumbnail,
@@ -159,238 +164,297 @@ class _SimpleCard extends StatelessWidget {
     this.questionsNumber,
     this.examDuration,
     this.grade,
+    this.onTap,
   });
+
+  @override
+  State<_SimpleCard> createState() => _SimpleCardState();
+}
+
+class _SimpleCardState extends State<_SimpleCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _hoverController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _shadowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
+    );
+    _shadowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
     final screenWidth = MediaQuery.of(context).size.width;
-
     final isTiny = screenWidth < 280;
     final isSmall = screenWidth < 360;
-
-    final titleSize = isTiny ? 12.0 : (isSmall ? 13.0 : 15.0);
-    final buttonFontSize = 12.0;
-    final buttonPadH = isTiny ? 8.0 : (isSmall ? 10.0 : 14.0);
-    final buttonPadV = isTiny ? 4.0 : (isSmall ? 5.0 : 7.0);
-    final contentPad = isTiny ? 6.0 : (isSmall ? 8.0 : 12.0);
-    final imageHeight = isTiny ? 100.0 : (isSmall ? 120.0 : 150.0);
-    final radius = isSmall ? 12.0 : 16.0;
+    final radius = ResponsiveUtils.cardRadius(context);
+    final maxWidth = ResponsiveUtils.cardMaxWidth(context);
+    final isLocked = widget.navlabel == null;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: screenWidth > 600 ? 600.0 : double.infinity,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(radius),
-            gradient: LinearGradient(
-              colors: [primary.withOpacity(0.12), primary.withOpacity(0.18)],
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
-            child: Material(
-              color: Colors.white,
-              child: InkWell(
-                onTap: navPage != null
-                    ? () async {
-                        final userData = _getUserData();
-                        if (userData!['email'] == 'guest@example.com' ||
-                            userData['email'] ==
-                                'appletestaccount#97111111111111@gmail.com') {
-                          Get.to(
-                            () => navPage!,
-                            transition: Transition.fade,
-                            preventDuplicates: false,
-                            duration: const Duration(milliseconds: 350),
-                          );
-                        }
-                        final DeviceGuardController guard =
-                            Get.find<DeviceGuardController>();
-                        final isAllowed = await guard.checkNow();
-                        print('Is Allowed: $isAllowed');
-                        if (isAllowed == false) return;
-                        Get.to(
-                          () => navPage!,
-                          transition: Transition.fade,
-                          preventDuplicates: false,
-                          duration: const Duration(milliseconds: 350),
-                        );
-                      }
-                    : null,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    /// ── IMAGE ──
-                    SizedBox(
-                      height: imageHeight,
-                      width: double.infinity,
-                      child: thumbnail != null
-                          ? Image.network(
-                              thumbnail!,
-                              fit: BoxFit.fill,
-                              errorBuilder: (_, __, ___) =>
-                                  _imagePlaceholder(isTiny),
-                            )
-                          : _imagePlaceholder(isTiny),
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => _hoverController.forward(),
+          onExit: (_) => _hoverController.reverse(),
+          child: GestureDetector(
+            onTap: () {
+              if (widget.onTap != null) {
+                widget.onTap!();
+              } else if (widget.navPage != null) {
+                _navigate(context);
+              }
+            },
+            child: AnimatedBuilder(
+              animation: _hoverController,
+              builder: (context, child) {
+                final shadow = _shadowAnimation.value > 0.5
+                    ? AppTheme.cardShadowLifted
+                    : [AppTheme.cardShadow];
+                return Transform.scale(
+                  scale: _scaleAnimation.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(radius),
+                      boxShadow: shadow,
                     ),
-
-                    /// ── CONTENT ──
-                    Padding(
-                      padding: EdgeInsets.all(contentPad),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          /// Title + Grade
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: titleSize,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: isTiny ? 1 : 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (grade != null) ...[
-                                const SizedBox(width: 4),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isTiny ? 5 : (isSmall ? 6 : 8),
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: primary.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '$grade',
-                                    style: TextStyle(
-                                      fontSize: isTiny
-                                          ? 9
-                                          : (isSmall ? 10 : 11),
-                                      color: primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-
-                          /// Note
-                          if (note != null && !isTiny) ...[
-                            SizedBox(height: isSmall ? 6 : 8),
-                            note!,
-                          ],
-
-                          SizedBox(height: isTiny ? 4 : (isSmall ? 6 : 8)),
-
-                          /// Footer: info + button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              /// Info chip
-                              if (questionsNumber != null)
-                                _InfoChip(
-                                  icon: Icons.quiz_outlined,
-                                  label: '$questionsNumber أسئلة',
-                                  isTiny: isTiny,
-                                  isSmall: isSmall,
-                                )
-                              else if (examDuration != null)
-                                _InfoChip(
-                                  icon: Icons.access_time,
-                                  label: '$examDuration د',
-                                  isTiny: isTiny,
-                                  isSmall: isSmall,
-                                )
-                              else
-                                const SizedBox(width: 4),
-
-                              /// Action button
-                              if (navlabel != null)
-                                InkWell(
-                                  onTap: () async {
-                                    final DeviceGuardController guard =
-                                        Get.find<DeviceGuardController>();
-                                    final isAllowed = await guard.checkNow();
-                                    if (isAllowed == false) return;
-                                    Get.to(
-                                      () => navPage!,
-                                      transition:
-                                          Transition.leftToRightWithFade,
-                                      duration: const Duration(
-                                        milliseconds: 450,
-                                      ),
-                                      preventDuplicates: false,
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: buttonPadH,
-                                      vertical: buttonPadV,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: primary,
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: primary.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Text(
-                                      navlabel!,
-                                      style: TextStyle(
-                                        fontSize: buttonFontSize,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(radius),
+                      child: child,
                     ),
-                  ],
-                ),
+                  ),
+                );
+              },
+              child: Stack(
+                fit: StackFit.loose,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildImageArea(context, primary, radius, isTiny),
+                      _buildMetadataRow(context, primary, isTiny, isSmall),
+                      if (widget.navlabel != null) _buildActionRow(context, primary),
+                    ],
+                  ),
+                  if (isLocked) _buildLockedOverlay(context, radius),
+                ],
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildImageArea(
+    BuildContext context,
+    Color primary,
+    double radius,
+    bool isTiny,
+  ) {
+    return Stack(
+      children: [
+        AspectRatio(
+          aspectRatio: AppConstants.cardAspectRatio,
+          child: ImageUtils.networkWithFallback(
+            widget.thumbnail,
+            fit: BoxFit.cover,
+            context: context,
+            placeholder: _imagePlaceholder(isTiny),
+          ),
+        ),
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.6),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 10,
+          child: Text(
+            widget.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: isTiny ? 13 : 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              height: 1.2,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetadataRow(
+    BuildContext context,
+    Color primary,
+    bool isTiny,
+    bool isSmall,
+  ) {
+    final hasGrade = widget.grade != null;
+    final hasInfo = widget.questionsNumber != null || widget.examDuration != null;
+    final hasNote = widget.note != null && !isTiny;
+
+    if (!hasGrade && !hasInfo && !hasNote) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, 10, 12, hasNote ? 4 : 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              if (hasGrade)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isTiny ? 5 : (isSmall ? 6 : 8),
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${widget.grade}',
+                    style: TextStyle(
+                      fontSize: isTiny ? 9 : (isSmall ? 10 : 11),
+                      color: primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              if (hasGrade && hasInfo) const SizedBox(width: 8),
+              if (hasInfo)
+                Flexible(
+                  child: widget.questionsNumber != null
+                      ? _InfoChip(
+                          icon: Icons.quiz_outlined,
+                          label: '${widget.questionsNumber} أسئلة',
+                          isTiny: isTiny,
+                          isSmall: isSmall,
+                        )
+                      : _InfoChip(
+                          icon: Icons.access_time,
+                          label: '${widget.examDuration} د',
+                          isTiny: isTiny,
+                          isSmall: isSmall,
+                        ),
+                ),
+            ],
+          ),
+          if (hasNote)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: widget.note!,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionRow(BuildContext context, Color primary) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            widget.navlabel!,
+            style: TextStyle(
+              fontSize: 12,
+              color: primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Icon(Icons.arrow_back_ios_new_rounded, color: primary, size: 11),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedOverlay(BuildContext context, double radius) {
+    return Positioned.fill(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.25),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_outline, color: Colors.white70, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'غير متاح',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _navigate(BuildContext context) async {
+    final userData = _getUserData();
+    final isGuestOrReviewer = userData != null &&
+        (userData['email'] == 'guest@example.com' ||
+            userData['email'] == 'appletestaccount#97111111111111@gmail.com');
+    if (isGuestOrReviewer) {
+      Get.to(() => widget.navPage!,
+          transition: Transition.fade, preventDuplicates: false, duration: const Duration(milliseconds: 350));
+      return;
+    }
+    final DeviceGuardController guard = Get.find<DeviceGuardController>();
+    final isAllowed = await guard.checkNow();
+    if (isAllowed == false) return;
+    Get.to(() => widget.navPage!,
+        transition: Transition.leftToRightWithFade, preventDuplicates: false, duration: const Duration(milliseconds: 450));
   }
 
   Map? _getUserData() {
@@ -437,7 +501,7 @@ class _InfoChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: isTiny ? 10 : 12, color: Colors.black54),
-        const SizedBox(width: 2),
+        const SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(

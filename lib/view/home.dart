@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
@@ -77,7 +78,6 @@ class _HomePageState extends State<HomePage> {
 
     _init();
     _loadLocalUserName();
-    //_checkFirstLaunch(); // 👈 HERE
   }
 
   Future<void> _init() async {
@@ -317,6 +317,26 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (_currentIndex >= _pages.length) _currentIndex = 0;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final width = MediaQuery.of(context).size.width;
+      if (width >= 600 && width < 1400) {
+        setState(() => _sidebarCollapsed = true);
+      }
+      if (width >= 600 && width < 1200) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    });
   }
 
   Future<void> _loadLocalUserName() async {
@@ -349,15 +369,18 @@ class _HomePageState extends State<HomePage> {
     }
 
     final primary = Theme.of(context).colorScheme.primary;
-    final isDesktop = MediaQuery.of(context).size.width > 900;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1200;
+    final isTablet = screenWidth >= 600 && screenWidth < 1200;
 
-    if (isDesktop) {
+    if (isDesktop || isTablet) {
       return Scaffold(
         extendBody: false,
-        //backgroundColor: Colors.transparent,
         body: Row(
           children: [
-            _buildModernSidebar(context, primary),
+            Center(
+              child: _buildModernSidebar(context, primary, isTablet: isTablet),
+            ),
             Expanded(
               child: Container(
                 color: Theme.of(context).scaffoldBackgroundColor,
@@ -390,8 +413,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _buildModernSidebar(BuildContext context, Color primary) {
-    final sidebarWidth = _sidebarCollapsed ? 75.0 : 260.0;
+  Widget _buildModernSidebar(
+    BuildContext context,
+    Color primary, {
+    bool isTablet = false,
+  }) {
+    final double collapsedW = isTablet ? 90.0 : 95.0;
+    final double expandedW = isTablet ? 200.0 : 260.0;
+    final sidebarWidth = _sidebarCollapsed ? collapsedW : expandedW;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
@@ -405,20 +434,20 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: primary.withOpacity(0.4),
+                color: primary.withValues(alpha: 0.25),
                 blurRadius: 30,
-                offset: const Offset(0, 8),
-                spreadRadius: 4,
+                offset: const Offset(0, 6),
               ),
               BoxShadow(
-                color: primary.withOpacity(0.15),
-                blurRadius: 50,
-                offset: const Offset(0, 16),
-                spreadRadius: -4,
+                color: primary.withValues(alpha: 0.08),
+                blurRadius: 35,
+                offset: const Offset(0, 12),
+                spreadRadius: -2,
               ),
             ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Modern header
               Padding(
@@ -441,7 +470,7 @@ class _HomePageState extends State<HomePage> {
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                             ),
                             child: Icon(
                               Icons.school_rounded,
@@ -481,7 +510,7 @@ class _HomePageState extends State<HomePage> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                           ),
                           child: Icon(
                             Icons.school_rounded,
@@ -498,30 +527,36 @@ class _HomePageState extends State<HomePage> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Divider(color: Colors.white.withOpacity(0.1), height: 1),
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  height: 1,
+                ),
               ),
               // Navigation items with smooth scrolling
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: _sidebarItems.length,
-                  itemBuilder: (context, index) {
-                    final item = _sidebarItems[index];
-                    final isActive = _currentIndex == index;
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: _sidebarItems.length,
+                itemBuilder: (context, index) {
+                  final item = _sidebarItems[index];
+                  final isActive = _currentIndex == index;
 
-                    return _buildModernNavItem(
-                      context,
-                      item,
-                      isActive,
-                      index,
-                      primary,
-                    );
-                  },
-                ),
+                  return _buildModernNavItem(
+                    context,
+                    item,
+                    isActive,
+                    index,
+                    primary,
+                  );
+                },
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Divider(color: Colors.white.withOpacity(0.1), height: 1),
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  height: 1,
+                ),
               ),
               // Guest annotation integrated in footer
               if (guestParam)
@@ -538,10 +573,10 @@ class _HomePageState extends State<HomePage> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.2),
+                          color: Colors.orange.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.orange.withOpacity(0.5),
+                            color: Colors.orange.withValues(alpha: 0.5),
                             width: 2,
                           ),
                         ),
@@ -565,9 +600,12 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.12),
+        color: Colors.orange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.orange.withOpacity(0.35), width: 1.2),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
       ),
       child: Column(
         children: [
@@ -577,7 +615,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات',
+                  ' سجل الدخول للوصول لكل الميزات',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall!.copyWith(
                     color: Colors.black,
@@ -666,11 +704,11 @@ class _HomePageState extends State<HomePage> {
                 vertical: 11,
               ),
               decoration: BoxDecoration(
-                color: isActive ? Colors.white.withOpacity(0.18) : null,
+                color: isActive ? Colors.white.withValues(alpha: 0.18) : null,
                 borderRadius: BorderRadius.circular(16),
                 border: isActive
                     ? Border.all(
-                        color: Colors.white.withOpacity(0.25),
+                        color: Colors.white.withValues(alpha: 0.25),
                         width: 1.2,
                       )
                     : null,
@@ -761,7 +799,7 @@ class _HomePageState extends State<HomePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.orange, width: 1.2),
             ),

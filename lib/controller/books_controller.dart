@@ -5,6 +5,7 @@ import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
+import 'package:shobaki_academy/services/statics.dart';
 import 'dart:convert';
 
 class Book {
@@ -207,7 +208,7 @@ class BooksController extends GetxController {
     } catch (e) {
       Get.log('Error searching books: $e', isError: true);
       searchResults.clear();
-      Get.snackbar(
+      showSnackbar(
         'خطأ في البحث',
         'حدث خطأ أثناء البحث: $e',
         backgroundColor: Colors.red,

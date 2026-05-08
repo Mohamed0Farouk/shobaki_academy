@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,6 +6,9 @@ import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/image_utils.dart';
+import 'package:shobaki_academy/utils/constants.dart';
+import 'package:shobaki_academy/utils/responsive_utils.dart';
 
 class BooksPage extends StatelessWidget {
   const BooksPage({super.key});
@@ -15,9 +16,9 @@ class BooksPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(BooksController());
-    final isDesktop =
-        Platform.isWindows || Platform.isMacOS || Platform.isLinux;
-    final crossAxisCount = isDesktop ? 4 : 2;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+    final crossAxisCount = isDesktop ? 4 : (isTablet ? 3 : 2);
     final childAspectRatio = isDesktop ? 1.0 : 1.2;
 
     // Add this observable for view mode (list view is default)
@@ -92,11 +93,16 @@ class BooksPage extends StatelessWidget {
                   itemCount: controller.books.length,
                   itemBuilder: (context, index) {
                     final book = controller.books[index];
-                    return _BookCard(
-                      book: book,
-                      isGuest: controller.isGuest.value,
-                      isReviewer: controller.isReviewer.value,
-                      controller: controller,
+                    return BounceInUp(
+                      from: 100,
+                      duration: const Duration(milliseconds: 500),
+                      delay: Duration(milliseconds: index * 80),
+                      child: _BookCard(
+                        book: book,
+                        isGuest: controller.isGuest.value,
+                        isReviewer: controller.isReviewer.value,
+                        controller: controller,
+                      ),
                     );
                   },
                 )
@@ -111,11 +117,10 @@ class BooksPage extends StatelessWidget {
                       // Add extra space at the end for better UX on mobile
                       return Column(
                         children: [
-                          FadeInLeft(
-                            duration: Duration(
-                              milliseconds: 450 + (index * 100),
-                            ),
+                          BounceInUp(
                             from: 100,
+                            duration: const Duration(milliseconds: 600),
+                            delay: Duration(milliseconds: index * 80),
                             child: _BookListTile(
                               book: book,
                               isGuest: controller.isGuest.value,
@@ -127,9 +132,10 @@ class BooksPage extends StatelessWidget {
                         ],
                       );
                     }
-                    return FadeInLeft(
-                      duration: Duration(milliseconds: 450 + (index * 100)),
+                    return BounceInUp(
                       from: 100,
+                      duration: const Duration(milliseconds: 600),
+                      delay: Duration(milliseconds: index * 80),
                       child: _BookListTile(
                         book: book,
                         isGuest: controller.isGuest.value,
@@ -205,7 +211,7 @@ class BooksPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.08),
+                    color: Colors.blue.withValues(alpha: 0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -358,111 +364,125 @@ class _BookListTileState extends State<_BookListTile> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop =
-        Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: EdgeInsets.symmetric(
-          horizontal: isDesktop ? 16 : 12,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _isHovered
-                ? Theme.of(context).primaryColor.withOpacity(0.4)
-                : Colors.grey.shade200,
-            width: 1.5,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 1.0, end: _isHovered ? 1.02 : 1.0),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        builder: (context, scale, child) {
+          return Transform.scale(
+            scale: scale,
+            child: child,
+          );
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 16 : 12,
+            vertical: 8,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(
-                context,
-              ).primaryColor.withOpacity(_isHovered ? 0.12 : 0.06),
-              blurRadius: _isHovered ? 16 : 8,
-              offset: Offset(0, _isHovered ? 6 : 3),
-              spreadRadius: 0,
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _onTileTap,
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            child: Directionality(
-              textDirection: TextDirection.rtl,
-              child: Padding(
-                padding: EdgeInsets.all(isDesktop ? 20 : 16),
-                child: Row(
-                  children: [
-                    // Book icon with border (now on the right)
-                    Container(
-                      width: isDesktop ? 56 : 48,
-                      height: isDesktop ? 56 : 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
+            border: Border.all(
+              color: _isHovered
+                  ? Theme.of(context).primaryColor.withValues(alpha: 0.5)
+                  : Colors.grey.shade200,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(
+                  context,
+                ).primaryColor.withValues(alpha: _isHovered ? 0.18 : 0.06),
+                blurRadius: _isHovered ? 20 : 8,
+                offset: Offset(0, _isHovered ? 8 : 3),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _onTileTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Padding(
+                  padding: EdgeInsets.all(isDesktop ? 20 : 16),
+                  child: Row(
+                    children: [
+                      // Book icon with border (now on the right)
+                      Container(
+                        width: isDesktop ? 56 : 48,
+                        height: isDesktop ? 56 : 48,
+                        decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).primaryColor.withOpacity(0.2),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.menu_book_rounded,
-                        color: Theme.of(context).primaryColor,
-                        size: isDesktop ? 28 : 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Title and badges
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.book.title,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            textDirection: TextDirection.rtl,
+                          ).primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.2),
+                            width: 1.5,
                           ),
-                          const SizedBox(height: 10),
-                          _buildStatusBadge(),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Arrow icon (now pointing left)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.15),
-                          width: 1,
+                        ),
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          color: Theme.of(context).primaryColor,
+                          size: isDesktop ? 28 : 24,
                         ),
                       ),
-                      child: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 16,
-                        color: Theme.of(context).primaryColor,
+                      const SizedBox(width: 16),
+
+                      // Title and badges
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.book.title,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              textDirection: TextDirection.rtl,
+                            ),
+                            const SizedBox(height: 10),
+                            _buildStatusBadge(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(width: 12),
+
+                      // Arrow icon (now pointing left)
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.15),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -527,9 +547,9 @@ class _StatusBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.25), width: 1.2),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1.2),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -580,24 +600,33 @@ class _BookCardState extends State<_BookCard>
   void initState() {
     super.initState();
     _hoverController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 350),
       vsync: this,
     );
 
     _scaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 1.05,
-    ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
+      end: 1.07,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeOutBack,
+    ));
 
     _elevationAnimation = Tween<double>(
       begin: 4,
-      end: 8,
-    ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
+      end: 14,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeOutCubic,
+    ));
 
     _rotationAnimation = Tween<double>(
       begin: 0.0,
-      end: 0.05,
-    ).animate(CurvedAnimation(parent: _hoverController, curve: Curves.easeOut));
+      end: 0.03,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeOutCubic,
+    ));
 
     _hasSubscriptionFuture = widget.controller.checkBookSubscription();
   }
@@ -671,10 +700,12 @@ class _BookCardState extends State<_BookCard>
           builder: (context, child) {
             return Transform(
               alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.001)
-                ..rotateZ(_rotationAnimation.value)
-                ..scale(_scaleAnimation.value),
+              transform: Matrix4.diagonal3Values(
+                _scaleAnimation.value,
+                _scaleAnimation.value,
+                1.0,
+              )..rotateZ(_rotationAnimation.value)
+                ..setEntry(3, 2, 0.001),
               child: Card(
                 elevation: _elevationAnimation.value,
                 shape: RoundedRectangleBorder(
@@ -687,21 +718,18 @@ class _BookCardState extends State<_BookCard>
                         borderRadius: BorderRadius.circular(12),
                         color: Colors.grey[200],
                       ),
-                      child: widget.book.thumbnail != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: AspectRatio(
-                                aspectRatio: 1 / 1,
-                                child: Image.network(
-                                  widget.book.thumbnail!,
-                                  fit: BoxFit.fill,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return _buildPlaceholder();
-                                  },
-                                ),
-                              ),
-                            )
-                          : _buildPlaceholder(),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: AppConstants.bookAspectRatio,
+                          child: ImageUtils.networkWithFallback(
+                            widget.book.thumbnail,
+                            fit: BoxFit.cover,
+                            context: context,
+                            placeholder: _buildPlaceholder(),
+                          ),
+                        ),
+                      ),
                     ),
                     Positioned(
                       bottom: 0,
@@ -718,7 +746,7 @@ class _BookCardState extends State<_BookCard>
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                             colors: [
-                              Colors.black.withOpacity(0.8),
+                              Colors.black.withValues(alpha: 0.8),
                               Colors.transparent,
                             ],
                           ),
