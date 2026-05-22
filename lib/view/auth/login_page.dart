@@ -308,29 +308,18 @@ class _LoginPageState extends State<LoginPage> {
                                   InkWell(
                                     child: Text(
                                       'الاكمال كضيف',
-                                      style: theme
-                                          .textTheme.bodyMedium
+                                      style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
                                     ),
                                     onTap: () =>
                                         authController.enterGuestMode(),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              InkWell(
-                                child: Text(
-                                  'الاكمال كضيف',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                onTap: () => authController.enterGuestMode(),
-                              ),
+
                               const SizedBox(height: 24),
                             ],
                           ),
