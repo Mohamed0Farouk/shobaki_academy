@@ -10,9 +10,11 @@ list(APPEND FLUTTER_PLUGIN_LIST
   local_auth_windows
   no_screenshot
   permission_handler_windows
+  screen_retriever_windows
   syncfusion_pdfviewer_windows
   url_launcher_windows
   webview_windows
+  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
