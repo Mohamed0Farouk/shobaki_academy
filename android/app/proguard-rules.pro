@@ -1,3 +1,2 @@
-# Keep VdoCipher native and AndroidX media classes
+# AndroidX media3 classes
 -keep class androidx.media3.** { *; }
--keep class com.vdocipher.** { *; }

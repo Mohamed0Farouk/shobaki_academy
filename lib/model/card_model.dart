@@ -99,7 +99,7 @@ class CardModel extends StatelessWidget {
           thumbnail: thumbnail,
           note: note,
           navlabel: 'بدء المشاهدة',
-          navPage: VideoPlayerView(videoId: url!),
+          navPage: VideoPlayerView(videoUrl: url!),
           onTap: onTap,
         );
       case CardTypes.book:
