@@ -10,6 +10,23 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    self.sharingType = .none
+
+    let channel = FlutterMethodChannel(
+      name: "shobaki/security",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "isRecordingDetected":
+        result(isRecordingSoftwareRunning())
+      case "getDetectedApp":
+        result(getDetectedRecordingApp())
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     super.awakeFromNib()
   }
 }
