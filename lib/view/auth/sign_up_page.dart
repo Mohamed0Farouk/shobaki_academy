@@ -19,8 +19,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _redirectToWebsite() async {
     final uri = Uri.parse('https://alshobakiacademy.com/signup');
-    if (await canLaunchUrl(uri)) {
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!launched) {
+      // fallback: try default mode
       await launchUrl(uri);
+    } else {
+      throw 'تعذر فتح الرابط';
     }
   }
 

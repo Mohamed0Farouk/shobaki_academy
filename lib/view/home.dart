@@ -809,7 +809,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'قم بانشاء حساب او سجل الدخول للوصول لكل الميزات ',
+                    ' سجل الدخول للوصول لكل الميزات',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall!.copyWith(
                       color: Colors.black,

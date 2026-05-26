@@ -99,7 +99,10 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [primary.withValues(alpha: 0.9), primary.withValues(alpha: 0.6)],
+          colors: [
+            primary.withValues(alpha: 0.9),
+            primary.withValues(alpha: 0.6),
+          ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -158,7 +161,11 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildAccountSection(BuildContext context, ThemeData theme, Color primary) {
+  Widget _buildAccountSection(
+    BuildContext context,
+    ThemeData theme,
+    Color primary,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -176,8 +183,17 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           ListTile(
-            leading: Icon(Icons.delete_forever, color: Colors.red.shade300, size: 22),
-            title: Text('حذف الحساب', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red.shade300)),
+            leading: Icon(
+              Icons.delete_forever,
+              color: Colors.red.shade300,
+              size: 22,
+            ),
+            title: Text(
+              'حذف الحساب',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.red.shade300,
+              ),
+            ),
             trailing: const Icon(Icons.chevron_left, color: Colors.black38),
             onTap: () => _showDeleteDialog(context),
           ),
@@ -203,7 +219,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -228,17 +247,33 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _sectionHeader(theme, 'التواصل'),
           ListTile(
-            leading: Image.asset('assets/logos/whatsapp.png', width: 22, height: 22),
+            leading: Image.asset(
+              'assets/logos/whatsapp.png',
+              width: 22,
+              height: 22,
+            ),
             title: Text('للاستعلام', style: theme.textTheme.bodyMedium),
-            subtitle: Text('+971 50 812 4370', style: theme.textTheme.labelMedium, textDirection: TextDirection.ltr),
+            subtitle: Text(
+              '+971 50 812 4370',
+              style: theme.textTheme.labelMedium,
+              textDirection: TextDirection.ltr,
+            ),
             trailing: const Icon(Icons.chevron_left, color: Colors.black38),
             onTap: () => launchUrl(Uri.parse('https://wa.me/+971508124370')),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           ListTile(
-            leading: Image.asset('assets/logos/whatsapp.png', width: 22, height: 22),
+            leading: Image.asset(
+              'assets/logos/whatsapp.png',
+              width: 22,
+              height: 22,
+            ),
             title: Text('دعم المنصة', style: theme.textTheme.bodyMedium),
-            subtitle: Text('+971 50 276 2100', style: theme.textTheme.labelMedium, textDirection: TextDirection.ltr),
+            subtitle: Text(
+              '+971 50 276 2100',
+              style: theme.textTheme.labelMedium,
+              textDirection: TextDirection.ltr,
+            ),
             trailing: const Icon(Icons.chevron_left, color: Colors.black38),
             onTap: () => launchUrl(Uri.parse('https://wa.me/+971502762100')),
           ),
@@ -257,14 +292,22 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         children: [
           _sectionHeader(theme, 'روابط مهمة'),
-          _linkTile(theme, 'سياسة الخصوصية', 'https://alshobakiacademy.com/privacy'),
+          _linkTile(
+            theme,
+            'سياسة الخصوصية',
+            'https://alshobakiacademy.com/privacy',
+          ),
           const Divider(height: 1, indent: 16, endIndent: 16),
-          _linkTile(theme, 'ارشادات الاستخدام', 'https://alshobakiacademy.com/guidelines'),
-          if (_user?['email'] != 'guest@example.com' &&
-              _user?['email'] != 'appletestaccount#97111111111111@gmail.com') ...[
-            const Divider(height: 1, indent: 16, endIndent: 16),
-            _linkTile(theme, 'طرق الدفع', 'https://alshobakiacademy.com/payment'),
-          ],
+          _linkTile(
+            theme,
+            'ارشادات الاستخدام',
+            'https://alshobakiacademy.com/guidelines',
+          ),
+          // if (_user?['email'] != 'guest@example.com' &&
+          //     _user?['email'] != 'appletestaccount#97111111111111@gmail.com') ...[
+          //   const Divider(height: 1, indent: 16, endIndent: 16),
+          //   _linkTile(theme, 'طرق الدفع', 'https://alshobakiacademy.com/payment'),
+          // ],
         ],
       ),
     );
@@ -292,7 +335,9 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Text(
               'Made with ❤️ By Eng / Mohamed Farouk',
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           Padding(
@@ -305,11 +350,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset('assets/logos/instgram.png', width: 22, height: 22),
+                  Image.asset(
+                    'assets/logos/instgram.png',
+                    width: 22,
+                    height: 22,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Instagram',
-                    style: TextStyle(color: Colors.pinkAccent.shade200, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.pinkAccent.shade200,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -340,10 +392,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _tile(IconData icon, String label, String value) {
     return ListTile(
       leading: Icon(icon, color: Colors.blueGrey, size: 26),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+      title: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
       subtitle: Text(value, style: const TextStyle(fontSize: 13)),
       contentPadding: EdgeInsets.zero,
     );
   }
 }
-
