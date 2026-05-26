@@ -27,7 +27,7 @@ class PermanentWatermark extends StatelessWidget {
             child: Text(
               watermarkController.waterMark.value,
               style: TextStyle(
-                color: Colors.red[300],
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),

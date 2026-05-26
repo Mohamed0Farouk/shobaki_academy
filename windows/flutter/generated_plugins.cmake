@@ -7,13 +7,13 @@ list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   file_saver
   file_selector_windows
+  fvp
   local_auth_windows
   no_screenshot
   permission_handler_windows
   screen_retriever_windows
   syncfusion_pdfviewer_windows
   url_launcher_windows
-  webview_windows
   window_manager
 )
 

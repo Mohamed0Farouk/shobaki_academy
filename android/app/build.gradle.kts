@@ -54,7 +54,7 @@ android {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
 
-            // disable code shrinking so native plugins (like vdocipher) work
+            // disable code shrinking for native plugin compatibility
             isMinifyEnabled = false
             isShrinkResources = false
 

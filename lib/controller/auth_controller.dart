@@ -214,8 +214,7 @@ class AuthController extends GetxController {
         return;
       }
 
-      watermarkController.waterMark.value =
-          '${userData['name']}\n${userData['phone_number']}';
+      watermarkController.updateWatermark();
 
       if (isReviewer) {
         db.sharedPref?.setBool('isGuestMode', false);
@@ -309,8 +308,7 @@ class AuthController extends GetxController {
       // - reviewer account -> navigate to home with inReview parameter
       // - if verified -> home (no param)
       // - else -> number verification
-      watermarkController.waterMark.value =
-          '${userData['name']}\n${userData['phone_number']}';
+      watermarkController.updateWatermark();
 
       if (isReviewer) {
         // ensure guest mode flag cleared for reviewer
@@ -391,8 +389,7 @@ class AuthController extends GetxController {
 
       // navigate to number verification (single number)
 
-      watermarkController.waterMark.value =
-          '${userData['name']}\n${userData['phone_number']}';
+      watermarkController.updateWatermark();
 
       Get.offAllNamed('/otp');
     } catch (e) {
@@ -454,7 +451,7 @@ class AuthController extends GetxController {
     await saveUserLocally(guestUser, loggedIn: true, reviewer: false);
     localDb.setBool('isGuestMode', true);
     isGuestMode.value = true;
-    watermarkController.waterMark.value = 'Al-Shobaki Academy';
+    watermarkController.updateWatermark();
     Get.offAllNamed('/home', parameters: {'guest': 'true'});
   }
 

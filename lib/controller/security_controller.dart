@@ -225,7 +225,7 @@ class SecurityController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    if (Platform.isWindows) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
       _startMonitoring();
     }
   }

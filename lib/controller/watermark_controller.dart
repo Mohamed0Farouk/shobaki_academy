@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,10 +18,33 @@ class WatermarkController extends GetxController {
 
   RxString waterMark = 'watermark'.obs;
 
+  String? _ipAddress;
+
   @override
   void onInit() {
     super.onInit();
-    // Load watermark details from local storage.
+    _fetchIp();
+    updateWatermark();
+  }
+
+  Future<void> _fetchIp() async {
+    try {
+      final interfaces = await NetworkInterface.list();
+      for (final interface in interfaces) {
+        for (final addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+            _ipAddress = addr.address;
+            return;
+          }
+        }
+      }
+      _ipAddress = 'No IP';
+    } catch (e) {
+      _ipAddress = 'Unknown IP';
+    }
+  }
+
+  Future<void> updateWatermark() async {
     final localDb = services.sharedPref;
     final jsonUserData = localDb?.getString('UserData');
 
@@ -28,13 +52,30 @@ class WatermarkController extends GetxController {
       final Map userData = jsonDecode(jsonUserData);
       if (userData['email'] == "guest@example.com") {
         waterMark.value = 'Al-Shobaki Academy';
-      } else {
-        waterMark.value = '${userData['name']}\n${userData['phone_number']}';
+        return;
       }
-    } else {
-      waterMark.value =
-          'Al-Shobaki Academy'; // fallback for first launch or missing data
     }
+
+    final now = DateTime.now();
+    final currentDate =
+        '${now.year}/${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}';
+
+    if (_ipAddress == null) await _fetchIp();
+
+    String name = '';
+    String phone = '';
+    if (jsonUserData != null) {
+      final Map userData = jsonDecode(jsonUserData);
+      name = userData['name'] ?? '';
+      phone = userData['phone_number'] ?? '';
+    }
+
+    waterMark.value = [
+      if (name.isNotEmpty) 'Name: $name',
+      if (phone.isNotEmpty) 'Phone Number: $phone',
+      'IP: ${_ipAddress ?? 'Unknown'}',
+      'Date: $currentDate',
+    ].join('\n');
   }
 
   /// Shows the watermark as a dialog popup.
