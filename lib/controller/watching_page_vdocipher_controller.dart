@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 
 class VideoQuality {
   final String label;
@@ -36,8 +35,8 @@ class VideoPlaybackController extends GetxController {
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
 
-  VideoPlayerController? videoController;
-  final Rx<ChewieController?> chewieController = Rx<ChewieController?>(null);
+  late final Player player;
+  late final VideoController videoController;
 
   late Map<String, dynamic> user;
 
@@ -64,13 +63,42 @@ class VideoPlaybackController extends GetxController {
   String? _logId;
   int? _videoDurationSeconds;
 
+  StreamSubscription<bool>? _playingSub;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<String>? _errorSub;
+  StreamSubscription<bool>? _completedSub;
+
   @override
   Future<void> onInit() async {
     super.onInit();
+    player = Player();
+    videoController = VideoController(player);
+    _initStreams();
     await _loadUser();
     await _initializePlayer();
     _startTracking();
-    if (!logInitialized) await _createInitialLog();
+    if (!logInitialized) _createInitialLog();
+  }
+
+  void _initStreams() {
+    _durationSub = player.stream.duration.listen((d) {
+      if (d.inSeconds > 0) {
+        _videoDurationSeconds ??= d.inSeconds;
+      }
+    });
+    _playingSub = player.stream.playing.listen((playing) {
+      if (playing) {
+        _onPlay();
+      } else {
+        _onPause();
+      }
+    });
+    _completedSub = player.stream.completed.listen((completed) {
+      if (completed) _onPause();
+    });
+    _errorSub = player.stream.error.listen((error) {
+      projectLogger.e("Player error: $error");
+    });
   }
 
   Future<void> _loadUser() async {
@@ -163,45 +191,11 @@ class VideoPlaybackController extends GetxController {
           ? qualities[currentQualityIndex.value].url
           : videoUrl;
 
-      videoController = VideoPlayerController.networkUrl(Uri.parse(playUrl));
-      await videoController!.initialize();
+      await player.open(Media(playUrl));
 
-      if (videoController!.value.duration.inSeconds > 0) {
-        _videoDurationSeconds = videoController!.value.duration.inSeconds;
+      if (!logInitialized) {
+        isLoading.value = false;
       }
-
-      chewieController.value = ChewieController(
-        videoPlayerController: videoController!,
-        autoPlay: true,
-        looping: false,
-        allowFullScreen: true,
-        allowMuting: true,
-        progressIndicatorDelay: const Duration(milliseconds: 500),
-        showControls: true,
-        deviceOrientationsOnEnterFullScreen: [
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ],
-        deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
-        placeholder: const Center(child: CircularProgressIndicator()),
-        errorBuilder: (context, errorMessage) {
-          return Center(child: Text(errorMessage));
-        },
-        additionalOptions: qualitiesLoaded.value
-            ? (context) => [
-                OptionItem(
-                  iconData: Icons.high_quality,
-                  title: 'Quality',
-                  subtitle: qualities[currentQualityIndex.value].label,
-                  onTap: (ctx) => showQualityDialog(ctx),
-                ),
-              ]
-            : null,
-      );
-
-      chewieController.value!.addListener(_onFullscreenChanged);
-
-      videoController!.addListener(_onPlayerStateChanged);
     } catch (e) {
       errorMessage.value = "Failed to load video";
       projectLogger.e("Video init error: $e");
@@ -213,21 +207,24 @@ class VideoPlaybackController extends GetxController {
   }
 
   void showQualityDialog(BuildContext context) {
-    showModalBottomSheet(
+    if (isFullScreen.value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('exit fullscreen to control the quality')),
+      );
+      return;
+    }
+
+    showDialog(
       context: context,
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Select Quality',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              ...List.generate(qualities.length, (i) {
+        return AlertDialog(
+          title: const Text('Select Quality'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: qualities.length,
+              itemBuilder: (ctx, i) {
                 return ListTile(
                   title: Text(qualities[i].label),
                   trailing: i == currentQualityIndex.value
@@ -238,9 +235,8 @@ class VideoPlaybackController extends GetxController {
                     switchQuality(i);
                   },
                 );
-              }),
-              const SizedBox(height: 8),
-            ],
+              },
+            ),
           ),
         );
       },
@@ -254,63 +250,24 @@ class VideoPlaybackController extends GetxController {
       return;
 
     _onPause();
-    final position = videoController?.value.position;
-    final wasPlaying = _isPlaying;
-
-    videoController?.removeListener(_onPlayerStateChanged);
-    final oldController = videoController;
-    final oldChewie = chewieController.value;
+    final position = player.state.position;
+    final wasPlaying = player.state.playing;
 
     try {
-      videoController = VideoPlayerController.networkUrl(
-        Uri.parse(qualities[index].url),
-      );
-      await videoController!.initialize();
+      await player.open(Media(qualities[index].url));
 
-      if (position != null && position.inSeconds > 0) {
-        await videoController!.seekTo(position);
+      if (position > Duration.zero) {
+        await player.seek(position);
       }
-
-      videoController!.addListener(_onPlayerStateChanged);
-
-      chewieController.value = oldChewie?.copyWith(
-        videoPlayerController: videoController!,
-      );
-      chewieController.value?.addListener(_onFullscreenChanged);
 
       currentQualityIndex.value = index;
 
       if (wasPlaying) {
-        videoController!.play();
+        await player.play();
       }
     } catch (e) {
-      videoController = oldController;
-      videoController?.addListener(_onPlayerStateChanged);
-      chewieController.value = oldChewie;
       projectLogger.e("Quality switch error: $e");
-    } finally {
-      oldController?.dispose();
     }
-  }
-
-  void _onPlayerStateChanged() {
-    final v = videoController!.value;
-
-    if (v.duration.inSeconds > 0) {
-      _videoDurationSeconds ??= v.duration.inSeconds;
-    }
-
-    if (v.isPlaying) {
-      _onPlay();
-    } else {
-      _onPause();
-    }
-  }
-
-  void _onFullscreenChanged() {
-    final chewie = chewieController.value;
-    if (chewie == null) return;
-    isFullScreen.value = chewie.isFullScreen;
   }
 
   void _onPlay() {
@@ -390,6 +347,7 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _tickDuration() {
+    if (!_ticking) return;
     final activeSessionSeconds = (_sessionStart != null && _isPlaying)
         ? DateTime.now().difference(_sessionStart!).inSeconds
         : 0;
@@ -410,6 +368,7 @@ class VideoPlaybackController extends GetxController {
   }
 
   Future<void> _tickLogging() async {
+    if (!_ticking) return;
     try {
       if (!logInitialized || _logId == null) return;
       final sec = viewDurationSeconds.value;
@@ -438,6 +397,33 @@ class VideoPlaybackController extends GetxController {
     }
   }
 
+  bool _ticking = true;
+  bool _disposed = false;
+
+  void stopTracking() {
+    _ticking = false;
+    _durationTimer?.cancel();
+    _logTimer?.cancel();
+    _playingSub?.cancel();
+    _durationSub?.cancel();
+    _completedSub?.cancel();
+    _errorSub?.cancel();
+    try {
+      player.stop();
+    } catch (_) {}
+  }
+
+  void cleanup() {
+    if (_disposed) return;
+    _disposed = true;
+    stopTracking();
+    try {
+      player.dispose();
+    } catch (e) {
+      projectLogger.e("Cleanup error: $e");
+    }
+  }
+
   @override
   void onClose() {
     if (_sessionStart != null) {
@@ -446,41 +432,38 @@ class VideoPlaybackController extends GetxController {
           .inSeconds;
       _accumulatedSeconds += sessionSeconds;
       _sessionStart = null;
-      viewDurationSeconds.value = _accumulatedSeconds;
     }
+
+    final finalDuration = _accumulatedSeconds;
 
     if (logInitialized &&
         _logId != null &&
-        viewDurationSeconds.value > _lastLoggedDuration) {
+        finalDuration > _lastLoggedDuration) {
       try {
         final finalData = {
           "user_id": user["id"],
           "type": "video_view",
           "video_url": videoUrl,
-          "view_duration_seconds": viewDurationSeconds.value,
+          "view_duration_seconds": finalDuration,
           "viewed": _thresholdReached,
           "video_total_duration_seconds": _videoDurationSeconds,
           "data": {
             "video_url": videoUrl,
-            "view_duration_seconds": viewDurationSeconds.value,
+            "view_duration_seconds": finalDuration,
             "viewed": _thresholdReached,
             "video_total_duration_seconds": _videoDurationSeconds,
           },
         };
         api.updateData("logs", finalData, {"id": _logId!});
         projectLogger.i(
-          "Final log update: ${viewDurationSeconds.value}s (id: $_logId)",
+          "Final log update: ${finalDuration}s (id: $_logId)",
         );
       } catch (e) {
         projectLogger.e("Error on final log update: $e");
       }
     }
 
-    _durationTimer?.cancel();
-    _logTimer?.cancel();
-    chewieController.value?.removeListener(_onFullscreenChanged);
-    videoController?.dispose();
-    chewieController.value?.dispose();
+    cleanup();
     super.onClose();
   }
 }
