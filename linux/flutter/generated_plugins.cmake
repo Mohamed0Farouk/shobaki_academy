@@ -4,8 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   file_saver
-  fvp
   gtk
+  media_kit_libs_linux
+  media_kit_video
   no_screenshot
   screen_retriever_linux
   syncfusion_pdfviewer_linux
