@@ -118,20 +118,23 @@ class VideoPlaybackController extends GetxController {
           int? height;
 
           if (currentResolution != null) {
-            final parts = currentResolution!.split('x');
+            final parts = currentResolution.split('x');
             width = int.tryParse(parts[0]);
             height = int.tryParse(parts[1]);
             label = '${height}p';
           }
 
-          qualities.add(VideoQuality(
-            label: label,
-            url: variantUrl,
-            bandwidth:
-                currentBandwidth != null ? int.parse(currentBandwidth) : null,
-            width: width,
-            height: height,
-          ));
+          qualities.add(
+            VideoQuality(
+              label: label,
+              url: variantUrl,
+              bandwidth: currentBandwidth != null
+                  ? int.parse(currentBandwidth)
+                  : null,
+              width: width,
+              height: height,
+            ),
+          );
 
           currentBandwidth = null;
           currentResolution = null;
@@ -140,10 +143,7 @@ class VideoPlaybackController extends GetxController {
 
       if (qualities.isNotEmpty) {
         qualities.sort((a, b) => (b.height ?? 0).compareTo(a.height ?? 0));
-        qualities.insert(
-          0,
-          VideoQuality(label: 'Auto', url: videoUrl),
-        );
+        qualities.insert(0, VideoQuality(label: 'Auto', url: videoUrl));
         qualitiesLoaded.value = true;
       }
     } catch (e) {
@@ -163,9 +163,7 @@ class VideoPlaybackController extends GetxController {
           ? qualities[currentQualityIndex.value].url
           : videoUrl;
 
-      videoController = VideoPlayerController.networkUrl(
-        Uri.parse(playUrl),
-      );
+      videoController = VideoPlayerController.networkUrl(Uri.parse(playUrl));
       await videoController!.initialize();
 
       if (videoController!.value.duration.inSeconds > 0) {
@@ -184,22 +182,20 @@ class VideoPlaybackController extends GetxController {
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ],
-        deviceOrientationsAfterFullScreen: [
-          DeviceOrientation.portraitUp,
-        ],
+        deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
         placeholder: const Center(child: CircularProgressIndicator()),
         errorBuilder: (context, errorMessage) {
           return Center(child: Text(errorMessage));
         },
         additionalOptions: qualitiesLoaded.value
             ? (context) => [
-                  OptionItem(
-                    iconData: Icons.high_quality,
-                    title: 'Quality',
-                    subtitle: qualities[currentQualityIndex.value].label,
-                    onTap: (ctx) => showQualityDialog(ctx),
-                  ),
-                ]
+                OptionItem(
+                  iconData: Icons.high_quality,
+                  title: 'Quality',
+                  subtitle: qualities[currentQualityIndex.value].label,
+                  onTap: (ctx) => showQualityDialog(ctx),
+                ),
+              ]
             : null,
       );
 
@@ -254,7 +250,8 @@ class VideoPlaybackController extends GetxController {
   Future<void> switchQuality(int index) async {
     if (index < 0 ||
         index >= qualities.length ||
-        index == currentQualityIndex.value) return;
+        index == currentQualityIndex.value)
+      return;
 
     _onPause();
     final position = videoController?.value.position;
@@ -328,8 +325,9 @@ class VideoPlaybackController extends GetxController {
     if (_isPlaying) {
       _isPlaying = false;
       if (_sessionStart != null) {
-        final sessionSeconds =
-            DateTime.now().difference(_sessionStart!).inSeconds;
+        final sessionSeconds = DateTime.now()
+            .difference(_sessionStart!)
+            .inSeconds;
         _accumulatedSeconds += sessionSeconds;
         _sessionStart = null;
         viewDurationSeconds.value = _accumulatedSeconds;
@@ -443,8 +441,9 @@ class VideoPlaybackController extends GetxController {
   @override
   void onClose() {
     if (_sessionStart != null) {
-      final sessionSeconds =
-          DateTime.now().difference(_sessionStart!).inSeconds;
+      final sessionSeconds = DateTime.now()
+          .difference(_sessionStart!)
+          .inSeconds;
       _accumulatedSeconds += sessionSeconds;
       _sessionStart = null;
       viewDurationSeconds.value = _accumulatedSeconds;
