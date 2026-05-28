@@ -46,6 +46,8 @@ class VideoPlaybackController extends GetxController {
   final RxBool qualitiesLoaded = false.obs;
 
   final RxBool isFullScreen = false.obs;
+  final RxBool isPlaying = false.obs;
+  final RxDouble playbackSpeed = 1.0.obs;
 
   // View tracking
   final RxInt viewDurationSeconds = 0.obs;
@@ -254,11 +256,12 @@ class VideoPlaybackController extends GetxController {
     final wasPlaying = player.state.playing;
 
     try {
-      await player.open(Media(qualities[index].url));
-
-      if (position > Duration.zero) {
-        await player.seek(position);
-      }
+      await player.open(
+        Media(
+          qualities[index].url,
+          start: position > Duration.zero ? position : null,
+        ),
+      );
 
       currentQualityIndex.value = index;
 
@@ -270,9 +273,53 @@ class VideoPlaybackController extends GetxController {
     }
   }
 
+  void setPlaybackSpeed(double speed) {
+    playbackSpeed.value = speed;
+    player.setRate(speed);
+  }
+
+  void seekRelative(int seconds) {
+    final pos = player.state.position;
+    final dur = player.state.duration;
+    final target = pos + Duration(seconds: seconds);
+    final clamped = target.isNegative ? Duration.zero : (target > dur ? dur : target);
+    player.seek(clamped);
+  }
+
+  void showSpeedDialog(BuildContext context) {
+    const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Playback Speed'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: speeds.length,
+            itemBuilder: (ctx, i) {
+              final s = speeds[i];
+              return ListTile(
+                title: Text('${s}x'),
+                trailing: s == playbackSpeed.value
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setPlaybackSpeed(s);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   void _onPlay() {
     if (!_isPlaying) {
       _isPlaying = true;
+      isPlaying.value = true;
       _sessionStart ??= DateTime.now();
       if (!logInitialized) _createInitialLog();
     }
@@ -281,6 +328,7 @@ class VideoPlaybackController extends GetxController {
   void _onPause() {
     if (_isPlaying) {
       _isPlaying = false;
+      isPlaying.value = false;
       if (_sessionStart != null) {
         final sessionSeconds = DateTime.now()
             .difference(_sessionStart!)
