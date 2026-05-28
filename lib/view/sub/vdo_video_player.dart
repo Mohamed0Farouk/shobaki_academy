@@ -3,8 +3,6 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
-import 'package:window_manager/window_manager.dart';
-import 'dart:io' show Platform;
 
 class VideoPlayerView extends StatefulWidget {
   final String videoUrl;
@@ -103,24 +101,152 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
               ? const Center(child: CircularProgressIndicator())
               : Stack(
                   children: [
-                    Video(
-                      controller: ctrl.videoController,
-                      onEnterFullscreen: () async {
-                        ctrl.isFullScreen.value = true;
-                        if (Platform.isWindows ||
-                            Platform.isMacOS ||
-                            Platform.isLinux) {
-                          await WindowManager.instance.setFullScreen(true);
-                        }
-                      },
-                      onExitFullscreen: () async {
-                        ctrl.isFullScreen.value = false;
-                        if (Platform.isWindows ||
-                            Platform.isMacOS ||
-                            Platform.isLinux) {
-                          await WindowManager.instance.setFullScreen(false);
-                        }
-                      },
+                    MaterialDesktopVideoControlsTheme(
+                      normal: MaterialDesktopVideoControlsThemeData(
+                        bottomButtonBar: [
+                          MaterialDesktopCustomButton(
+                            icon: const Icon(Icons.replay_10),
+                            onPressed: () => ctrl.seekRelative(-10),
+                          ),
+                          const MaterialDesktopPlayOrPauseButton(),
+                          MaterialDesktopCustomButton(
+                            icon: const Icon(Icons.forward_10),
+                            onPressed: () => ctrl.seekRelative(10),
+                          ),
+                          MaterialDesktopCustomButton(
+                            icon: Obx(
+                              () => Text(
+                                '${ctrl.playbackSpeed.value}x',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            onPressed: () => ctrl.showSpeedDialog(context),
+                          ),
+                          const MaterialDesktopPositionIndicator(),
+                          const Spacer(),
+                          const MaterialDesktopVolumeButton(),
+                          const MaterialDesktopFullscreenButton(),
+                        ],
+                      ),
+                      fullscreen: MaterialDesktopVideoControlsThemeData(
+                        bottomButtonBar: [
+                          MaterialDesktopCustomButton(
+                            icon: const Icon(Icons.replay_10),
+                            onPressed: () => ctrl.seekRelative(-10),
+                          ),
+                          const MaterialDesktopPlayOrPauseButton(),
+                          MaterialDesktopCustomButton(
+                            icon: const Icon(Icons.forward_10),
+                            onPressed: () => ctrl.seekRelative(10),
+                          ),
+                          MaterialDesktopCustomButton(
+                            icon: Obx(
+                              () => Text(
+                                '${ctrl.playbackSpeed.value}x',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            onPressed: () => ctrl.showSpeedDialog(context),
+                          ),
+                          const MaterialDesktopPositionIndicator(),
+                          const Spacer(),
+                          const MaterialDesktopVolumeButton(),
+                          const MaterialDesktopFullscreenButton(),
+                        ],
+                      ),
+                      child: MaterialVideoControlsTheme(
+                        normal: MaterialVideoControlsThemeData(
+                          primaryButtonBar: [
+                            MaterialCustomButton(
+                              icon: const Icon(Icons.replay_10),
+                              onPressed: () => ctrl.seekRelative(-10),
+                            ),
+                            const MaterialPlayOrPauseButton(iconSize: 48.0),
+                            MaterialCustomButton(
+                              icon: const Icon(Icons.forward_10),
+                              onPressed: () => ctrl.seekRelative(10),
+                            ),
+                            MaterialCustomButton(
+                              icon: Obx(
+                                () => Text(
+                                  '${ctrl.playbackSpeed.value}x',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () =>
+                                  ctrl.showSpeedDialog(context),
+                            ),
+                          ],
+                          bottomButtonBar: const [
+                            MaterialPositionIndicator(),
+                            Spacer(),
+                            MaterialFullscreenButton(),
+                          ],
+                          seekOnDoubleTap: true,
+                          volumeGesture: true,
+                          onVolumeChanged: (v) =>
+                              ctrl.player.setVolume(v * 100),
+                          visibleOnMount: false,
+                        ),
+                        fullscreen: MaterialVideoControlsThemeData(
+                          primaryButtonBar: [
+                            MaterialCustomButton(
+                              icon: const Icon(Icons.replay_10),
+                              onPressed: () => ctrl.seekRelative(-10),
+                            ),
+                            const MaterialPlayOrPauseButton(iconSize: 48.0),
+                            MaterialCustomButton(
+                              icon: const Icon(Icons.forward_10),
+                              onPressed: () => ctrl.seekRelative(10),
+                            ),
+                            MaterialCustomButton(
+                              icon: Obx(
+                                () => Text(
+                                  '${ctrl.playbackSpeed.value}x',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () =>
+                                  ctrl.showSpeedDialog(context),
+                            ),
+                          ],
+                          bottomButtonBar: const [
+                            MaterialPositionIndicator(),
+                            Spacer(),
+                            MaterialFullscreenButton(),
+                          ],
+                          seekOnDoubleTap: true,
+                          volumeGesture: true,
+                          onVolumeChanged: (v) =>
+                              ctrl.player.setVolume(v * 100),
+                        ),
+                        child: Video(
+                          controller: ctrl.videoController,
+                          controls: AdaptiveVideoControls,
+                          onEnterFullscreen: () async {
+                            ctrl.isFullScreen.value = true;
+                          },
+                          onExitFullscreen: () async {
+                            ctrl.isFullScreen.value = false;
+                          },
+                        ),
+                      ),
                     ),
                     if (ctrl.qualitiesLoaded.value && !ctrl.isFullScreen.value)
                       Positioned(
