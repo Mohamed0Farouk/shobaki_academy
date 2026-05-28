@@ -45,48 +45,6 @@ void main() async {
   // Enable screenshot prevention
   await noScreenshot.screenshotOff();
 
-  // Start detection on all platforms
-  await noScreenshot.startScreenRecordingListening();
-  await noScreenshot.startScreenshotListening();
-
-  var recordingWasActive = false;
-
-  noScreenshot.screenshotStream.listen((snapshot) async {
-    final controllerReady = Get.isRegistered<SecurityController>();
-    final controller = controllerReady
-        ? Get.find<SecurityController>()
-        : null;
-
-    // Windows: minimize window on recording (detection handled by MethodChannel)
-    if (snapshot.isScreenRecording && Platform.isWindows) {
-      await windowManager.minimize();
-    }
-
-    // Screenshot detection (non-Windows)
-    if (snapshot.wasScreenshotTaken &&
-        !Platform.isWindows &&
-        controller != null) {
-      controller.onScreenshotDetected(snapshot.sourceApp);
-    }
-
-    // Screen recording detection (non-Windows)
-    if (!Platform.isWindows && controller != null) {
-      if (snapshot.isScreenRecording && !recordingWasActive) {
-        recordingWasActive = true;
-        controller.onRecordingDetected(
-          snapshot.sourceApp,
-          isMobile: !Platform.isMacOS,
-        );
-        if (Platform.isMacOS) {
-          await windowManager.minimize();
-        }
-      } else if (!snapshot.isScreenRecording && recordingWasActive) {
-        recordingWasActive = false;
-        controller.onRecordingCleared();
-      }
-    }
-  });
-
   runApp(const MyApp());
 }
 

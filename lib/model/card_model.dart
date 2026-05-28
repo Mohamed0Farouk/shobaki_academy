@@ -414,7 +414,7 @@ class _SimpleCardState extends State<_SimpleCard>
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          filter: ui.ImageFilter.blur(sigmaX: 2.6, sigmaY: 2.6),
           child: Container(
             color: Colors.black.withValues(alpha: 0.25),
             child: Center(

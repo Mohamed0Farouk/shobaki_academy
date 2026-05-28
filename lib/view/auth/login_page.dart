@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
 
@@ -230,7 +231,7 @@ class _LoginPageState extends State<LoginPage> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           InkWell(
-                                            onTap: () => Get.toNamed('/signup'),
+                                            onTap: () => launchUrl(Uri.parse('https://alshobakiacademy.com/signup'), mode: LaunchMode.externalApplication),
                                             child: Text(
                                               'انشاء حساب جديد',
                                               style: TextStyle(
