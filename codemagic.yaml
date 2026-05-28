@@ -14,7 +14,7 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: |
-          flutter packages pub get
+          flutter pub get
       - name: Install pods
         script: |
           find . -name "Podfile" -execdir pod install \;
