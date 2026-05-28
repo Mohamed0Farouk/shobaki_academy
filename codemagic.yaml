@@ -1,71 +1,31 @@
 workflows:
   macos-release-build:
-    name: Flutter macOS Release Build
+    name: macOS Release Build
 
     instance_type: mac_mini_m2
-    max_build_duration: 60
+    max_build_duration: 30
 
     environment:
       flutter: 3.41.6
       xcode: latest
-      cocoapods: default
-
-      vars:
-        APP_NAME: "ShobakiAcademy"
-        BUNDLE_ID: "com.mohamedfarouk.shobakiAcademy"
-
-    cache:
-      cache_paths:
-        - $FLUTTER_ROOT/.pub-cache
-        - ~/.pub-cache
-        - ~/Library/Caches/CocoaPods
 
     scripts:
-      - name: Flutter Doctor
-        script: |
-          flutter doctor -v
+      - name: Enable macOS
+        script: flutter config --enable-macos-desktop
 
-      - name: Enable macOS desktop
-        script: |
-          flutter config --enable-macos-desktop
+      - name: Get Packages
+        script: flutter pub get
 
-      - name: Clean project
+      - name: Build macOS App
         script: |
-          flutter clean
+          flutter build macos --release
 
-      - name: Get dependencies
-        script: |
-          flutter pub get
-
-      - name: Install CocoaPods
-        script: |
-          cd macos
-          pod install --repo-update
-
-      - name: Build macOS app
-        script: |
-          flutter build macos --release \
-            --build-name=1.0.$PROJECT_BUILD_NUMBER \
-            --build-number=$PROJECT_BUILD_NUMBER
-
-      - name: Package .app
+      - name: Package App
         script: |
           mkdir -p artifacts
           cp -R build/macos/Build/Products/Release/*.app artifacts/
-
-      - name: Zip .app for sharing
-        script: |
           cd artifacts
-          zip -r ${APP_NAME}-macOS.zip *.app
+          zip -r app-macos.zip *.app
 
     artifacts:
       - artifacts/*.zip
-      - artifacts/*.app
-
-    publishing:
-      email:
-        recipients:
-          - mohamed.farouk.dev@gmail.com
-        notify:
-          success: true
-          failure: true
