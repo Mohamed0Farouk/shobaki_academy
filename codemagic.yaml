@@ -10,10 +10,8 @@ workflows:
       xcode: latest # <-- set to specific version e.g. 14.3, 15.0 to avoid unexpected updates.
       cocoapods: default
       vars:
-        BUNDLE_ID: "com.mohamedfarouk.shobakiAcademy
-"
+        BUNDLE_ID: "com.mohamedfarouk.shobakiAcademy"
     scripts:
-     
       - name: Get Flutter packages
         script: |
           flutter packages pub get
@@ -26,7 +24,7 @@ workflows:
           flutter build macos --release \
             --build-name=1.0.$PROJECT_BUILD_NUMBER \
             --build-number=$PROJECT_BUILD_NUMBER
-      
+
     artifacts:
       - build/macos/**/*.app
     publishing:
