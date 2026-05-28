@@ -9,33 +9,11 @@ workflows:
       flutter: stable
       xcode: latest # <-- set to specific version e.g. 14.3, 15.0 to avoid unexpected updates.
       cocoapods: default
-      groups:
-        - appstore_credentials # <-- (Includes CERTIFICATE_PRIVATE_KEY needed for automatic code-signing)
       vars:
-        BUNDLE_ID: "io.codemagic.macosDesktop"
+        BUNDLE_ID: "com.mohamedfarouk.shobakiAcademy
+"
     scripts:
-      - name: Set up keychain to be used for codesigning using Codemagic CLI 'keychain' command
-        script: |
-          keychain initialize
-      - name: Fetch Mac App Distribution certificate and Mac App Store profile
-        script: |
-          app-store-connect fetch-signing-files \
-            $BUNDLE_ID \
-            --platform MAC_OS \
-            --type MAC_APP_STORE \
-            --create
-      - name: Fetch Mac Installer Distribution certificates
-        script: |
-          # HINT: We can use MAC_APP_DISTRIBUTION if looking to package the artifact before submitting it to App Store. 
-          # And please note that the certificate type must match the one we are using in the Package macOS application script down below.
-          app-store-connect certificates list --type MAC_INSTALLER_DISTRIBUTION --save || \
-          app-store-connect certificates create --type MAC_INSTALLER_DISTRIBUTION --save
-      - name: Set up signing certificate
-        script: |
-          keychain add-certificates
-      - name: Set up code signing settings on Xcode project
-        script: |
-          xcode-project use-profiles
+     
       - name: Get Flutter packages
         script: |
           flutter packages pub get
@@ -48,33 +26,9 @@ workflows:
           flutter build macos --release \
             --build-name=1.0.$PROJECT_BUILD_NUMBER \
             --build-number=$PROJECT_BUILD_NUMBER
-      - name: Package macOS application
-        script: |
-          set -x
-
-          # Command to find the path to your generated app
-          APP_NAME=$(find $(pwd) -name "*.app")
-          cd $(dirname "$APP_NAME")
-          PACKAGE_NAME=$(basename "$APP_NAME" .app).pkg
-
-          # Create an unsigned package
-          xcrun productbuild --component "$APP_NAME" /Applications/ unsigned.pkg
-
-          # Find the installer certificate commmon name in keychain
-          INSTALLER_CERT_NAME=$(keychain list-certificates \
-            | jq '.[]
-            | select(.common_name
-            | contains("Mac Developer Installer"))
-            | .common_name' \
-            | xargs)
-
-          # Sign the package
-          xcrun productsign --sign "$INSTALLER_CERT_NAME" unsigned.pkg "$PACKAGE_NAME"
-
-          # Remove unsigned package
-          rm unsigned.pkg
+      
     artifacts:
-      - build/macos/**/*.pkg
+      - build/macos/**/*.app
     publishing:
       email:
         recipients:
