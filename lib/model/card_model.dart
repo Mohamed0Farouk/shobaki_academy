@@ -255,7 +255,8 @@ class _SimpleCardState extends State<_SimpleCard>
                     children: [
                       _buildImageArea(context, primary, radius, isTiny),
                       _buildMetadataRow(context, primary, isTiny, isSmall),
-                      if (widget.navlabel != null) _buildActionRow(context, primary),
+                      if (widget.navlabel != null)
+                        _buildActionRow(context, primary),
                     ],
                   ),
                   if (isLocked) _buildLockedOverlay(context, radius),
@@ -326,7 +327,8 @@ class _SimpleCardState extends State<_SimpleCard>
     bool isSmall,
   ) {
     final hasGrade = widget.grade != null;
-    final hasInfo = widget.questionsNumber != null || widget.examDuration != null;
+    final hasInfo =
+        widget.questionsNumber != null || widget.examDuration != null;
     final hasNote = widget.note != null && !isTiny;
 
     if (!hasGrade && !hasInfo && !hasNote) {
@@ -414,25 +416,22 @@ class _SimpleCardState extends State<_SimpleCard>
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 2.6, sigmaY: 2.6),
-          child: Container(
-            color: Colors.black.withValues(alpha: 0.25),
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.lock_outline, color: Colors.white70, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'غير متاح',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+          filter: ui.ImageFilter.blur(sigmaX: 0.75, sigmaY: 0.75),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, color: Colors.white70, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'غير متاح',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -442,19 +441,28 @@ class _SimpleCardState extends State<_SimpleCard>
 
   Future<void> _navigate(BuildContext context) async {
     final userData = _getUserData();
-    final isGuestOrReviewer = userData != null &&
+    final isGuestOrReviewer =
+        userData != null &&
         (userData['email'] == 'guest@example.com' ||
             userData['email'] == 'appletestaccount#97111111111111@gmail.com');
     if (isGuestOrReviewer) {
-      Get.to(() => widget.navPage!,
-          transition: Transition.fade, preventDuplicates: false, duration: const Duration(milliseconds: 350));
+      Get.to(
+        () => widget.navPage!,
+        transition: Transition.fade,
+        preventDuplicates: false,
+        duration: const Duration(milliseconds: 350),
+      );
       return;
     }
     final DeviceGuardController guard = Get.find<DeviceGuardController>();
     final isAllowed = await guard.checkNow();
     if (isAllowed == false) return;
-    Get.to(() => widget.navPage!,
-        transition: Transition.leftToRightWithFade, preventDuplicates: false, duration: const Duration(milliseconds: 450));
+    Get.to(
+      () => widget.navPage!,
+      transition: Transition.leftToRightWithFade,
+      preventDuplicates: false,
+      duration: const Duration(milliseconds: 450),
+    );
   }
 
   Map? _getUserData() {
