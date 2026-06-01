@@ -8,7 +8,7 @@
 PRODUCT_NAME = Al-Shobaki Academy
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.mohamedfarouk.shobakiAcademy
+PRODUCT_BUNDLE_IDENTIFIER = com.shobakiAcademy.app
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.mohamedfarouk. All rights reserved.
