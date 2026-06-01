@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -77,6 +78,9 @@ class VideoPlaybackController extends GetxController {
     videoController = VideoController(player);
     _initStreams();
     await _loadUser();
+    if (Platform.isMacOS) {
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
     await _initializePlayer();
     _startTracking();
     if (!logInitialized) _createInitialLog();

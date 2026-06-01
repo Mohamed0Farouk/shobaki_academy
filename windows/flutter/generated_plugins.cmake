@@ -13,12 +13,14 @@ list(APPEND FLUTTER_PLUGIN_LIST
   no_screenshot
   permission_handler_windows
   screen_retriever_windows
+  sentry_flutter
   syncfusion_pdfviewer_windows
   url_launcher_windows
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

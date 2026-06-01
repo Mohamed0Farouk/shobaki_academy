@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:get/get.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/security_controller.dart';
@@ -45,7 +46,14 @@ void main() async {
   // Enable screenshot prevention
   await noScreenshot.screenshotOff();
 
-  runApp(const MyApp());
+  await SentryFlutter.init((options) {
+    options.dsn =
+        'https://9c4e18f37e4082692ea17e1e94d4937a@o4509969754685440.ingest.de.sentry.io/4511492327866448';
+    // Adds request headers and IP for users,
+    // visit: https://docs.sentry.io/platforms/dart/data-management/data-collected/ for more info
+    options.sendDefaultPii = true;
+  }, appRunner: () => runApp(SentryWidget(child: MyApp())));
+  //runApp(const MyApp());
 }
 
 class GlobalBindings extends Bindings {

@@ -1,4 +1,4 @@
-platform :osx, '10.15'
+platform :osx, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -38,5 +38,51 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+  end
+
+  # ================================================================
+  # WORKAROUND: Replace bundled mpv framework with v0.6.3
+  # The bundled mpv v0.7.0 has an assertion failure in
+  # m_config_cache_from_shadow on macOS Monterey (12.x).
+  # See: media-kit/media-kit#830
+  # ================================================================
+  mpv_version = 'v0.6.3'
+  tarball = "libmpv-xcframeworks_#{mpv_version}_macos-universal-video-default.tar.gz"
+  url = "https://github.com/media-kit/libmpv-darwin-build/releases/download/#{mpv_version}/#{tarball}"
+
+  # Locate the pod's Frameworks directory
+  mpv_pod = installer.pods_project.targets.find { |t| t.name == 'media_kit_libs_macos_video' }
+  if mpv_pod
+    pod_root = installer.sandbox.pod_dir('media_kit_libs_macos_video')
+    frameworks_dir = File.join(pod_root, 'Frameworks')
+
+    if Dir.exist?(frameworks_dir)
+      cache_dir = File.join(pod_root, '.cache', 'xcframeworks')
+      FileUtils.mkdir_p(cache_dir)
+      cached_tarball = File.join(cache_dir, tarball)
+
+      unless File.exist?(cached_tarball)
+        puts "  [patch] Downloading mpv #{mpv_version} framework..."
+        success = system("curl -L --fail --silent --show-error -o \"#{cached_tarball}\" \"#{url}\"")
+        unless success
+          puts "  [patch] WARNING: Failed to download mpv #{mpv_version}, using bundled version"
+        end
+      end
+
+      if File.exist?(cached_tarball)
+        puts "  [patch] Replacing mpv framework with #{mpv_version}..."
+        system("rm -rf \"#{frameworks_dir}\"/*.xcframework")
+        system("tar -xzf \"#{cached_tarball}\" --strip-components 1 -C \"#{frameworks_dir}\" 2>/dev/null")
+
+        symlinks_dir = File.join(frameworks_dir, '.symlinks', 'mpv')
+        system("rm -rf \"#{File.join(frameworks_dir, '.symlinks')}\"")
+        system("mkdir -p \"#{symlinks_dir}\"")
+        symlink_script = File.join(pod_root, 'create_framework_symlinks.sh')
+        if File.exist?(symlink_script)
+          system("sh \"#{symlink_script}\" \"#{frameworks_dir}/Mpv.xcframework\" \"#{symlinks_dir}\"")
+        end
+        puts "  [patch] mpv framework replaced with #{mpv_version}"
+      end
+    end
   end
 end
