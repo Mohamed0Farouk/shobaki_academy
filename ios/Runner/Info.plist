@@ -57,6 +57,14 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app requires access to your photo library to let you select and upload a profile image.</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires access to your camera to let you take a photo for your profile picture.</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires access to your microphone if you wish to record videos within the app.</string>
 	<!-- <key>NSPhotoLibraryUsageDescription</key>
 	<string>نحتاج الوصول إلى مكتبة الصور لحفظ الملفات</string>
 	<key>NSPhotoLibraryAddOnlyUsageDescription</key>
