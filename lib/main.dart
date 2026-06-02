@@ -22,7 +22,9 @@ import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
+  if (!Platform.isMacOS) {
+    MediaKit.ensureInitialized();
+  }
 
   await dotenv.load(fileName: '.env');
 

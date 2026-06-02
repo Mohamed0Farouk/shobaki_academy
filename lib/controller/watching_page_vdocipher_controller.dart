@@ -4,12 +4,13 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shobaki_academy/controller/player_adapter.dart';
+import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
+import 'package:shobaki_academy/controller/macos_player_adapter.dart';
 
 class VideoQuality {
   final String label;
@@ -36,8 +37,7 @@ class VideoPlaybackController extends GetxController {
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
 
-  late final Player player;
-  late final VideoController videoController;
+  late final IPlayerAdapter player;
 
   late Map<String, dynamic> user;
 
@@ -68,14 +68,17 @@ class VideoPlaybackController extends GetxController {
 
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _durationSub;
-  StreamSubscription<String>? _errorSub;
+  StreamSubscription<String?>? _errorSub;
   StreamSubscription<bool>? _completedSub;
 
   @override
   Future<void> onInit() async {
     super.onInit();
-    player = Player();
-    videoController = VideoController(player);
+    if (Platform.isMacOS) {
+      player = MacOSPlayerAdapter();
+    } else {
+      player = MediaKitPlayerAdapter();
+    }
     _initStreams();
     await _loadUser();
     if (Platform.isMacOS) {
@@ -87,23 +90,23 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _initStreams() {
-    _durationSub = player.stream.duration.listen((d) {
+    _durationSub = player.onDurationChanged.listen((d) {
       if (d.inSeconds > 0) {
         _videoDurationSeconds ??= d.inSeconds;
       }
     });
-    _playingSub = player.stream.playing.listen((playing) {
+    _playingSub = player.onPlayingChanged.listen((playing) {
       if (playing) {
         _onPlay();
       } else {
         _onPause();
       }
     });
-    _completedSub = player.stream.completed.listen((completed) {
+    _completedSub = player.onCompleted.listen((completed) {
       if (completed) _onPause();
     });
-    _errorSub = player.stream.error.listen((error) {
-      projectLogger.e("Player error: $error");
+    _errorSub = player.onError.listen((error) {
+      if (error != null) projectLogger.e("Player error: $error");
     });
   }
 
@@ -197,7 +200,7 @@ class VideoPlaybackController extends GetxController {
           ? qualities[currentQualityIndex.value].url
           : videoUrl;
 
-      await player.open(Media(playUrl));
+      await player.open(playUrl);
 
       if (!logInitialized) {
         isLoading.value = false;
@@ -252,19 +255,18 @@ class VideoPlaybackController extends GetxController {
   Future<void> switchQuality(int index) async {
     if (index < 0 ||
         index >= qualities.length ||
-        index == currentQualityIndex.value)
+        index == currentQualityIndex.value) {
       return;
+    }
 
     _onPause();
-    final position = player.state.position;
-    final wasPlaying = player.state.playing;
+    final position = player.position;
+    final wasPlaying = player.isPlaying;
 
     try {
       await player.open(
-        Media(
-          qualities[index].url,
-          start: position > Duration.zero ? position : null,
-        ),
+        qualities[index].url,
+        start: position > Duration.zero ? position : null,
       );
 
       currentQualityIndex.value = index;
@@ -283,10 +285,12 @@ class VideoPlaybackController extends GetxController {
   }
 
   void seekRelative(int seconds) {
-    final pos = player.state.position;
-    final dur = player.state.duration;
+    final pos = player.position;
+    final dur = player.duration;
     final target = pos + Duration(seconds: seconds);
-    final clamped = target.isNegative ? Duration.zero : (target > dur ? dur : target);
+    final clamped = target.isNegative
+        ? Duration.zero
+        : (target > dur ? dur : target);
     player.seek(clamped);
   }
 
