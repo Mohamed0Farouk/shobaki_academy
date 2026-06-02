@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
 import 'package:shobaki_academy/controller/macos_player_adapter.dart';
+import 'package:shobaki_academy/view/sub/macos_video_controls.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
 
@@ -22,22 +25,27 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       Get.find<WatermarkController>();
   late final VideoPlaybackController ctrl;
 
-  ChewieController? _chewieController;
+  final Rx<ChewieController?> _chewieController = Rx<ChewieController?>(null);
+  StreamSubscription<bool>? _loadingSub;
+  late Worker _qualityWorker;
 
-  void _updateChewieController() {
-    final macos = ctrl.player as MacOSPlayerAdapter;
-    final videoCtrl = macos.nativeController;
+  VideoPlayerController? get _nativeCtrl =>
+      (ctrl.player as MacOSPlayerAdapter).nativeController;
+
+  void _initChewie() {
+    final videoCtrl = _nativeCtrl;
     if (videoCtrl == null) return;
-    if (_chewieController != null &&
-        _chewieController!.videoPlayerController == videoCtrl) {
-      return;
-    }
-    _chewieController?.dispose();
-    _chewieController = ChewieController(
+    if (_chewieController.value?.videoPlayerController == videoCtrl) return;
+    _chewieController.value?.dispose();
+    _chewieController.value = ChewieController(
       videoPlayerController: videoCtrl,
       autoPlay: true,
       allowFullScreen: false,
       showControls: true,
+      customControls: MacOSVideoControls(
+        controller: ctrl,
+        onFullscreenToggle: _toggleFullScreen,
+      ),
       errorBuilder: (ctx, msg) => Center(
         child: Text(msg, style: const TextStyle(color: Colors.white)),
       ),
@@ -49,14 +57,27 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     super.initState();
     ctrl = Get.put(VideoPlaybackController(widget.videoUrl));
 
+    _qualityWorker = ever(ctrl.currentQualityIndex, (_) => _initChewie());
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.updateWaterMarkState(true);
     });
+
+    _loadingSub = ctrl.isLoading.listen((loading) {
+      if (!loading && _chewieController.value == null) {
+        _initChewie();
+      }
+    });
+    if (!ctrl.isLoading.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _initChewie());
+    }
   }
 
   @override
   void dispose() {
-    _chewieController?.dispose();
+    _qualityWorker.dispose();
+    _loadingSub?.cancel();
+    _chewieController.value?.dispose();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.updateWaterMarkState(false);
     });
@@ -293,77 +314,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   Widget _buildMacOSPlayer() {
-    _updateChewieController();
-    final chewie = _chewieController;
+    final chewie = _chewieController.value;
     if (chewie == null) {
       return const Center(child: CircularProgressIndicator());
     }
-    return Stack(
-      children: [
-        Chewie(controller: chewie),
-        Positioned(
-          bottom: 56,
-          left: 0,
-          right: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _overlayButton(Icons.replay_10, () => ctrl.seekRelative(-10)),
-              const SizedBox(width: 24),
-              _overlayButton(Icons.forward_10, () => ctrl.seekRelative(10)),
-              const SizedBox(width: 24),
-              _speedBadge(),
-              const Spacer(),
-              Obx(
-                () => _overlayButton(
-                  ctrl.isFullScreen.value
-                      ? Icons.fullscreen_exit
-                      : Icons.fullscreen,
-                  _toggleFullScreen,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _overlayButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.black54,
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 20),
-        onPressed: onPressed,
-        padding: const EdgeInsets.all(8),
-      ),
-    );
-  }
-
-  Widget _speedBadge() {
-    return Obx(() {
-      return GestureDetector(
-        onTap: () => ctrl.showSpeedDialog(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            '${ctrl.playbackSpeed.value}x',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      );
-    });
+    return Chewie(controller: chewie);
   }
 
   Widget _buildQualityChip() {
@@ -377,7 +332,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           borderRadius: BorderRadius.circular(4),
           child: InkWell(
             borderRadius: BorderRadius.circular(4),
-            onTap: () => ctrl.showQualityDialog(context),
+            onTap: () => _showQualityDialog(),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 8,
@@ -407,5 +362,45 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         );
       }),
     );
+  }
+
+  Future<void> _showQualityDialog() async {
+    if (ctrl.isFullScreen.value) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('exit fullscreen to control the quality'),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Select Quality'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: ctrl.qualities.length,
+            itemBuilder: (ctx, i) => ListTile(
+              title: Text(ctrl.qualities[i].label),
+              trailing: i == ctrl.currentQualityIndex.value
+                  ? const Icon(Icons.check)
+                  : null,
+              onTap: () => Navigator.pop(ctx, i),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (selected == null || selected == ctrl.currentQualityIndex.value) {
+      return;
+    }
+
+    if (!mounted) return;
+    await ctrl.switchQuality(selected);
   }
 }
