@@ -48,14 +48,14 @@ void main() async {
   // Enable screenshot prevention
   await noScreenshot.screenshotOff();
 
-  await SentryFlutter.init((options) {
-    options.dsn =
-        'https://9c4e18f37e4082692ea17e1e94d4937a@o4509969754685440.ingest.de.sentry.io/4511492327866448';
-    // Adds request headers and IP for users,
-    // visit: https://docs.sentry.io/platforms/dart/data-management/data-collected/ for more info
-    options.sendDefaultPii = true;
-  }, appRunner: () => runApp(SentryWidget(child: MyApp())));
-  //runApp(const MyApp());
+  // await SentryFlutter.init((options) {
+  //   options.dsn =
+  //       'https://9c4e18f37e4082692ea17e1e94d4937a@o4509969754685440.ingest.de.sentry.io/4511492327866448';
+  //   // Adds request headers and IP for users,
+  //   // visit: https://docs.sentry.io/platforms/dart/data-management/data-collected/ for more info
+  //   options.sendDefaultPii = true;
+  // }, appRunner: () => runApp(SentryWidget(child: MyApp())));
+  runApp(const MyApp());
 }
 
 class GlobalBindings extends Bindings {
