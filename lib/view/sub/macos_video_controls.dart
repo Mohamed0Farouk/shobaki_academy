@@ -3,10 +3,12 @@ import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
-import 'package:chewie/src/notifiers/player_notifier.dart';
+
+class _ControlsNotifier {
+  bool hideStuff = false;
+}
 
 class MacOSVideoControls extends StatefulWidget {
   final VideoPlaybackController controller;
@@ -24,8 +26,8 @@ class MacOSVideoControls extends StatefulWidget {
 
 class _MacOSVideoControlsState extends State<MacOSVideoControls>
     with SingleTickerProviderStateMixin {
-  late PlayerNotifier notifier;
-  late VideoPlayerValue _latestValue;
+  final _controlsNotifier = _ControlsNotifier();
+  VideoPlayerValue _latestValue = VideoPlayerValue.uninitialized();
   double? _latestVolume;
   Timer? _hideTimer;
   Timer? _initTimer;
@@ -33,8 +35,8 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   late final FocusNode _focusNode;
 
   ChewieController? _chewieCtrl;
-  ChewieController get chewieCtrl => _chewieCtrl!;
-  VideoPlayerController get vpc => chewieCtrl.videoPlayerController;
+  ChewieController? get chewieCtrl => _chewieCtrl;
+  VideoPlayerController? get vpc => _chewieCtrl?.videoPlayerController;
 
   static const double _barHeight = 72.0;
 
@@ -43,14 +45,13 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     super.initState();
     _focusNode = FocusNode();
     _focusNode.requestFocus();
-    notifier = Provider.of<PlayerNotifier>(context, listen: false);
   }
 
   @override
   void didChangeDependencies() {
     final oldCtrl = _chewieCtrl;
     _chewieCtrl = ChewieController.of(context);
-    if (oldCtrl != chewieCtrl) {
+    if (oldCtrl != _chewieCtrl && _chewieCtrl != null) {
       _dispose();
       _initialize();
     }
@@ -58,7 +59,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   void _dispose() {
-    vpc.removeListener(_updateState);
+    vpc?.removeListener(_updateState);
     _hideTimer?.cancel();
     _initTimer?.cancel();
   }
@@ -71,37 +72,44 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   void _initialize() {
-    vpc.addListener(_updateState);
+    final ctrl = vpc;
+    final ch = chewieCtrl;
+    if (ctrl == null || ch == null) return;
+    ctrl.addListener(_updateState);
     _updateState();
-    if (vpc.value.isPlaying || chewieCtrl.autoPlay) {
+    if (ctrl.value.isPlaying || ch.autoPlay) {
       _startHideTimer();
     }
-    if (chewieCtrl.showControlsOnInitialize) {
+    if (ch.showControlsOnInitialize) {
       _initTimer = Timer(const Duration(milliseconds: 200), () {
-        notifier.hideStuff = false;
+        _controlsNotifier.hideStuff = false;
       });
     }
   }
 
   void _updateState() {
     if (!mounted) return;
+    final ctrl = vpc;
+    if (ctrl == null) return;
     setState(() {
-      _latestValue = vpc.value;
+      _latestValue = ctrl.value;
     });
   }
 
   void _cancelAndRestartTimer() {
     _hideTimer?.cancel();
     _startHideTimer();
-    notifier.hideStuff = false;
+    _controlsNotifier.hideStuff = false;
   }
 
   void _startHideTimer() {
-    final hideControlsTimer = chewieCtrl.hideControlsTimer.isNegative
+    final ch = chewieCtrl;
+    if (ch == null) return;
+    final hideControlsTimer = ch.hideControlsTimer.isNegative
         ? ChewieController.defaultHideControlsTimer
-        : chewieCtrl.hideControlsTimer;
+        : ch.hideControlsTimer;
     _hideTimer = Timer(hideControlsTimer, () {
-      notifier.hideStuff = true;
+      _controlsNotifier.hideStuff = true;
     });
   }
 
@@ -116,51 +124,60 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
       _seekRelative(-10);
     } else if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
-      if (chewieCtrl.isFullScreen) {
+      if (chewieCtrl?.isFullScreen == true) {
         _onExpandCollapse();
       }
     }
   }
 
   void _onExpandCollapse() {
-    notifier.hideStuff = true;
+    _controlsNotifier.hideStuff = true;
     widget.onFullscreenToggle();
   }
 
   void _playPause() {
-    if (vpc.value.isPlaying) {
-      notifier.hideStuff = false;
+    final ctrl = vpc;
+    if (ctrl == null) return;
+    if (ctrl.value.isPlaying) {
+      _controlsNotifier.hideStuff = false;
       _hideTimer?.cancel();
-      vpc.pause();
+      ctrl.pause();
     } else {
       _cancelAndRestartTimer();
-      if (!vpc.value.isInitialized) {
-        vpc.initialize().then((_) => vpc.play());
+      if (!ctrl.value.isInitialized) {
+        ctrl.initialize().then((_) => ctrl.play());
       } else {
-        vpc.play();
+        ctrl.play();
       }
     }
   }
 
   void _seekRelative(int seconds) {
+    final ctrl = vpc;
+    if (ctrl == null) return;
     _cancelAndRestartTimer();
     final position = _latestValue.position + Duration(seconds: seconds);
     final duration = _latestValue.duration;
     if (position < Duration.zero) {
-      vpc.seekTo(Duration.zero);
+      ctrl.seekTo(Duration.zero);
     } else if (position > duration) {
-      vpc.seekTo(duration);
+      ctrl.seekTo(duration);
     } else {
-      vpc.seekTo(position);
+      ctrl.seekTo(position);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final ch = chewieCtrl;
+    if (ch == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (_latestValue.hasError) {
-      return chewieCtrl.errorBuilder?.call(
+      return ch.errorBuilder?.call(
             context,
-            vpc.value.errorDescription!,
+            _latestValue.errorDescription!,
           ) ??
           const Center(child: Icon(Icons.error, color: Colors.white, size: 42));
     }
@@ -168,7 +185,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     final bool isFinished =
         _latestValue.position >= _latestValue.duration &&
         _latestValue.duration.inSeconds > 0;
-    final bool showPlayButton = !_dragging && !notifier.hideStuff;
+    final bool showPlayButton = !_dragging && !_controlsNotifier.hideStuff;
 
     return KeyboardListener(
       focusNode: _focusNode,
@@ -181,24 +198,24 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
         child: GestureDetector(
           onTap: () {
             if (_latestValue.isPlaying) {
-              if (chewieCtrl.pauseOnBackgroundTap) {
+              if (ch.pauseOnBackgroundTap) {
                 _playPause();
                 _cancelAndRestartTimer();
               } else {
                 setState(() {
-                  notifier.hideStuff = !notifier.hideStuff;
+                  _controlsNotifier.hideStuff = !_controlsNotifier.hideStuff;
                 });
-                if (!notifier.hideStuff) {
+                if (!_controlsNotifier.hideStuff) {
                   _cancelAndRestartTimer();
                 }
               }
             } else {
               _playPause();
-              notifier.hideStuff = true;
+              _controlsNotifier.hideStuff = true;
             }
           },
           child: AbsorbPointer(
-            absorbing: notifier.hideStuff,
+            absorbing: _controlsNotifier.hideStuff,
             child: Stack(
               children: [
                 _buildHitArea(isFinished, showPlayButton),
@@ -217,18 +234,19 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   Widget _buildHitArea(bool isFinished, bool showPlayButton) {
+    final ctrl = vpc;
     return GestureDetector(
       onTap: () {
         if (_latestValue.isPlaying) {
           setState(() {
-            notifier.hideStuff = !notifier.hideStuff;
+            _controlsNotifier.hideStuff = !_controlsNotifier.hideStuff;
           });
-          if (!notifier.hideStuff) {
+          if (!_controlsNotifier.hideStuff) {
             _cancelAndRestartTimer();
           }
         } else {
           _playPause();
-          notifier.hideStuff = true;
+          _controlsNotifier.hideStuff = true;
         }
       },
       child: Center(
@@ -248,10 +266,10 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
                   : AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: Icon(
-                        vpc.value.isPlaying
+                        ctrl?.value.isPlaying == true
                             ? Icons.pause
                             : Icons.play_arrow,
-                        key: ValueKey(vpc.value.isPlaying),
+                        key: ValueKey(ctrl?.value.isPlaying ?? false),
                         color: Colors.white,
                         size: 32,
                       ),
@@ -265,18 +283,20 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   Widget _buildBottomBar(BuildContext context) {
+    final ch = chewieCtrl;
+    if (ch == null) return const SizedBox.shrink();
     final iconColor = Colors.white;
 
     return AnimatedOpacity(
-      opacity: notifier.hideStuff ? 0.0 : 1.0,
+      opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
       duration: const Duration(milliseconds: 300),
       child: Container(
-        height: _barHeight + (chewieCtrl.isFullScreen ? 20.0 : 0),
+        height: _barHeight + (ch.isFullScreen ? 20.0 : 0),
         padding: EdgeInsets.only(
-          bottom: chewieCtrl.isFullScreen ? 10.0 : 15,
+          bottom: ch.isFullScreen ? 10.0 : 15,
         ),
         child: SafeArea(
-          bottom: chewieCtrl.isFullScreen,
+          bottom: ch.isFullScreen,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -288,21 +308,21 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
                     _buildReplayButton(),
                     _buildPlayPause(),
                     _buildForwardButton(),
-                    if (chewieCtrl.allowMuting) _buildMuteButton(iconColor),
+                    if (ch.allowMuting) _buildMuteButton(iconColor),
                     _buildPosition(iconColor),
                     const Spacer(),
-                    if (chewieCtrl.showOptions) _buildOptionsButton(),
-                    if (chewieCtrl.allowFullScreen) _buildFullscreenButton(),
+                    if (ch.showOptions) _buildOptionsButton(),
+                    if (ch.allowFullScreen) _buildFullscreenButton(),
                   ],
                 ),
               ),
-              if (!chewieCtrl.isLive)
+              if (!ch.isLive)
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(
                       right: 20,
                       left: 20,
-                      bottom: chewieCtrl.isFullScreen ? 5.0 : 0,
+                      bottom: ch.isFullScreen ? 5.0 : 0,
                     ),
                     child: _buildProgressBar(),
                   ),
@@ -338,7 +358,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
         color: Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Icon(
-          vpc.value.isPlaying ? Icons.pause : Icons.play_arrow,
+          vpc?.value.isPlaying == true ? Icons.pause : Icons.play_arrow,
           color: Colors.white,
           size: 28,
         ),
@@ -351,14 +371,14 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
       onTap: () {
         _cancelAndRestartTimer();
         if (_latestValue.volume == 0) {
-          vpc.setVolume(_latestVolume ?? 0.5);
+          vpc?.setVolume(_latestVolume ?? 0.5);
         } else {
-          _latestVolume = vpc.value.volume;
-          vpc.setVolume(0.0);
+          _latestVolume = vpc?.value.volume;
+          vpc?.setVolume(0.0);
         }
       },
       child: AnimatedOpacity(
-        opacity: notifier.hideStuff ? 0.0 : 1.0,
+        opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 300),
         child: ClipRect(
           child: Container(
@@ -388,7 +408,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
 
   Widget _buildOptionsButton() {
     return AnimatedOpacity(
-      opacity: notifier.hideStuff ? 0.0 : 1.0,
+      opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
       duration: const Duration(milliseconds: 250),
       child: IconButton(
         onPressed: () async {
@@ -421,10 +441,10 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     return GestureDetector(
       onTap: _onExpandCollapse,
       child: AnimatedOpacity(
-        opacity: notifier.hideStuff ? 0.0 : 1.0,
+        opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 300),
         child: Container(
-          height: _barHeight + (chewieCtrl.isFullScreen ? 15.0 : 0),
+          height: _barHeight + (chewieCtrl?.isFullScreen == true ? 15.0 : 0),
           margin: const EdgeInsets.only(right: 12),
           padding: const EdgeInsets.only(left: 8, right: 8),
           child: Center(
@@ -441,9 +461,12 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   Widget _buildProgressBar() {
+    final ctrl = vpc;
+    final ch = chewieCtrl;
+    if (ctrl == null || ch == null) return const SizedBox.shrink();
     return Expanded(
       child: MaterialVideoProgressBar(
-        vpc,
+        ctrl,
         onDragStart: () {
           setState(() => _dragging = true);
           _hideTimer?.cancel();
@@ -453,7 +476,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
           setState(() => _dragging = false);
           _startHideTimer();
         },
-        draggableProgressBar: chewieCtrl.draggableProgressBar,
+        draggableProgressBar: ch.draggableProgressBar,
       ),
     );
   }

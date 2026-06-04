@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/theme.dart';
+import 'package:shobaki_academy/utils/responsive_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -58,37 +59,66 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final isPhone = ResponsiveUtils.isPhone(context);
+
+    final content = _loading
+        ? Center(child: loading(context))
+        : _buildSettingsContent(theme, primary, isPhone);
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: _loading
-            ? Center(child: loading(context))
-            : SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildProfileHeader(theme, primary),
-                        const SizedBox(height: 20),
-                        _buildInfoCard(theme),
-                        const SizedBox(height: 24),
-                        if (_user?['email'] != 'guest@example.com')
-                          _buildAccountSection(context, theme, primary),
-                        const SizedBox(height: 24),
-                        _buildContactSection(theme),
-                        const SizedBox(height: 24),
-                        _buildLinksSection(theme),
-                        const SizedBox(height: 24),
-                        _buildAboutSection(theme),
-                        const SizedBox(height: 30),
-                      ],
-                    ),
-                  ),
+        body: isPhone
+            ? SafeArea(child: content)
+            : content,
+      ),
+    );
+  }
+
+  Widget _buildSettingsContent(ThemeData theme, Color primary, bool isPhone) {
+    final sections = [
+      _buildProfileHeader(theme, primary),
+      const SizedBox(height: 20),
+      _buildInfoCard(theme),
+      const SizedBox(height: 24),
+      if (_user?['email'] != 'guest@example.com')
+        _buildAccountSection(context, theme, primary),
+      const SizedBox(height: 24),
+      _buildContactSection(theme),
+      const SizedBox(height: 24),
+      _buildLinksSection(theme),
+      const SizedBox(height: 24),
+      _buildAboutSection(theme),
+      const SizedBox(height: 30),
+    ];
+
+    if (isPhone) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: sections,
+        ),
+      );
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: sections,
                 ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -55,12 +55,14 @@ class MacOSPlayerAdapter implements IPlayerAdapter {
 
   void _onControllerUpdate() {
     if (_isDisposed || _controller == null) return;
-    final v = _controller!.value;
-    _playingCtrl.add(v.isPlaying);
-    _durationCtrl.add(v.duration);
-    _positionCtrl.add(v.position);
-    if (v.isCompleted) _completedCtrl.add(true);
-    if (v.hasError) _errorCtrl.add(v.errorDescription);
+    try {
+      final v = _controller!.value;
+      if (!_playingCtrl.isClosed) _playingCtrl.add(v.isPlaying);
+      if (!_durationCtrl.isClosed) _durationCtrl.add(v.duration);
+      if (!_positionCtrl.isClosed) _positionCtrl.add(v.position);
+      if (v.isCompleted && !_completedCtrl.isClosed) _completedCtrl.add(true);
+      if (v.hasError && !_errorCtrl.isClosed) _errorCtrl.add(v.errorDescription);
+    } catch (_) {}
   }
 
   @override

@@ -1,41 +1,60 @@
-# UI Overhaul Todo
+# Shobaki Academy - Implementation Todo
 
-## Priority Legend
-🔥 Hot (must do) | ⚡ High | 📐 Medium | 💅 Polish
+## 1. macOS Player Quality Control ✅
 
----
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 1a | `controller/macos_player_adapter.dart:56-64` | Add try-catch to `_onControllerUpdate`, check stream closed before adding | ✅ |
+| 1b | `controller/watching_page_vdocipher_controller.dart:84-86` | Remove 300ms delay hack | ✅ |
+| 1c | `view/sub/macos_video_controls.dart` | Replace private `PlayerNotifier` import with local `_ControlsNotifier`, add null guards for `_chewieCtrl`/`vpc` | ✅ |
+| 1d | `view/sub/vdo_video_player.dart:32-33` | Guard `_nativeCtrl` with `Platform.isMacOS` | ✅ |
+| 1e | `view/sub/vdo_video_player.dart:60` | Guard quality worker with `Platform.isMacOS` | ✅ |
 
-### Foundation
-- [x] ⚡ **Evolve theme** — `lib/theme.dart`: Material 3 with `ColorScheme.fromSeed`, `cardShadow`/`cardShadowLifted` static members, simplified button/input/card themes, removed `Colors.blue.shade*` hardcodes
+## 2. Desktop White Space — Fill Height Layout ✅
 
-### Core: Card System
-- [x] 🔥 **Redesign `_SimpleCard`** — `lib/model/card_model.dart`: Apple-style title overlaid on image with gradient, `BackdropFilter` blur for locked state, hover scale 1.02 + shadow lift via `AnimationController` (300ms), thin divider + text/arrow action row, optional `onTap` param
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 2a | `view/topics/topics_page.dart` | Restructure: phone → `SafeArea > SingleChildScrollView`, desktop → `Column > Expanded > SingleChildScrollView` with fluid `ConstrainedBox(maxWidth: 1400)`. Remove `Center`, use `MainAxisAlignment.start` | ✅ |
+| 2b | `view/settings.dart` | Same restructure with `ConstrainedBox(maxWidth: 800)` | ✅ |
+| 2c | `view/results/results_page.dart` | Same restructure, extracted search bar & sections | ✅ |
+| 2d | `view/enrolled_topics/enrolled_topics.dart` | Remove `SafeArea` wrapper on desktop, keep on phone | ✅ |
 
-### Pages: Use Unified Card
-- [x] 🔥 **topics_page.dart** — Removed `_HoverableCard` (220+ lines), replaced with `CardModel(type: CardTypes.topic)`, added `LayoutBuilder` sidebar-aware grid column count, tablet-aware padding
-- [x] 🔥 **enrolled_topics.dart** — Removed `_HoverableTopicCard` (190+ lines), replaced with `CardModel(type: CardTypes.enrolledTopic)`, `LayoutBuilder` sidebar-aware grid, recommended badge preserved via `Stack`
-- [x] 🔥 **results_page.dart** — Removed `_topicCardWithData` (50+ lines) with asymmetric border radius, replaced with `CardModel(type: CardTypes.exam/homework)`, added `FadeInUp` entrance animations
+## 3. iPhone Landscape → Mobile Layout ✅
 
-### Remove Sign Up
-- [x] ⚡ **sign_up_page.dart** — Replaced full inline form with redirect page that opens `https://alshobakiacademy.com/signup` via `launchUrl` on init, shows status message + back-to-login button
-- [x] ⚡ **login_page.dart** — Updated sign-up link target to `/signup` (which now redirects to website)
+Already handled by width-based breakpoints. iPhone portrait (430px) = phone layout. iPhone landscape (932px) = tablet layout (now fixed to not have whitespace/overflow thanks to fluid widths).
 
-### Tablet Layout
-- [x] 📐 **Fix grid breakpoints** — `LayoutBuilder` + `constraints.maxWidth` in topics/enrolled/results pages; column count: `<400→1, <600→2, <900→3, <1200→4, else→5`; tablet gets 24px horizontal padding vs phone's smaller padding
+## 4. iPad Full Screen ✅
 
-### Page Overhauls
-- [x] ⚡ **topic_content_page.dart** — Removed `Material(elevation: 4)` from header, replaced `Chip`-based info chips with compact primary-tinted pill containers, replaced `Card(elevation: 2)` with `Container + cardShadow`
-- [x] 📐 **settings.dart** — Replaced raw `Colors.blue`/`Colors.redAccent` with theme colors, grouped into section cards (Profile, Info, Account, Contact, Links, About), replaced `BoxShadow` hardcodes with `AppTheme.cardShadow`, replaced logout/delete buttons with `ListTile` rows, removed unused dialogs/helpers (`_tile`, `_divider`, `showFirstLaunchDialog`, `showPaymentMethodsDialog`, etc.)
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 4a | `ios/Runner/Info.plist` | Add `UIRequiresFullScreen = true` to prevent iPad Slide Over | ✅ |
 
-### Auth Polish
-- [x] 💅 **login_page.dart** — Replaced solid primary decorative circles with subtle radial gradient orbs, replaced all hardcoded `Colors.grey` with theme-based colors, removed explicit button/input style overrides (uses theme defaults now)
-- [x] 💅 **forgot_password_page.dart** — Added subtle gradient orb, replaced `Colors.orange`/`Colors.red` with `theme.colorScheme.error`, replaced raw `OutlineInputBorder()` and custom button styles with theme defaults
-- [x] 💅 **otp_page.dart** — Added subtle gradient orb, simplified button styling to use theme, consolidated duplicate button patterns, cleaned up pin theme colors
+## 5. iPad → Same Layout as Desktop ✅
 
-### Fixes & Cleanup
-- [x] 🔥 **settings.dart crash** — Removed duplicate `_SettingsPageState` class that broke the build (undefined `_tile`/`_divider` methods and `expected_token` error)
-- [x] 🔥 **withOpacity → withValues(alpha:)** — Replaced all 28+ deprecated `withOpacity()` calls across `home.dart`, `books.dart`, `topic_content_page.dart`, `topics_page.dart`, `answers.dart`, `otp_page.dart`, `lecture_content_page.dart`, `topic_page.dart`
-- [x] 🔥 **answers.dart** — Fixed broken `AppTheme.surfaceColor` reference (no longer exists; replaced with inline `Color(0xFFF8F8F8)`)
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 5a | `view/home.dart:323-325` | Remove sidebar auto-collapse (600-1400px range) — sidebar starts expanded on tablets | ✅ |
+| 5b | `view/topics/topics_page.dart:35-37` | Replace fixed `contentWidth` with fluid `ConstrainedBox(maxWidth: 1400)` — no separate tablet width | ✅ |
 
-### Verify
-- [x] 🔥 **flutter analyze** — 0 errors, 0 warnings, 51 info issues (down from ~102)
+## 6. Orientation ✅
+
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 6a | `view/home.dart:326-338` | Remove `SystemChrome.setPreferredOrientations` block — all orientations allowed freely | ✅ |
+
+## 7. Supporting Changes ✅
+
+| # | File | Change | Status |
+|---|------|--------|--------|
+| 7a | `utils/constants.dart` | Add `contentMaxWidth = 1400.0` | ✅ |
+
+## Device Layout Summary
+
+| Device | Orientation | Layout | Sidebar | Content |
+|--------|:-----------:|:------:|:-------:|:-------:|
+| iPhone | Portrait | Phone (bottom nav) | None | Full width, scrollable, top-aligned |
+| iPhone | Landscape | Tablet (sidebar) | Expanded | Fluid max-width 1400, fills height |
+| Android phone | Portrait | Phone (bottom nav) | None | Full width, scrollable, top-aligned |
+| Android phone | Landscape | Tablet (sidebar) | Expanded | Fluid max-width 1400, fills height |
+| iPad | Any | Desktop (sidebar) | Expanded | Fluid max-width 1400, fills height |
+| Windows/Mac | Any | Desktop (sidebar) | Expanded | Fluid max-width 1400, fills height |

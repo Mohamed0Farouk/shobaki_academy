@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
   );
   late final NotchBottomBarController _notchBottomBarController;
   int _currentIndex = 0;
-  bool _sidebarCollapsed = false;
+  bool _sidebarCollapsed = true;
 
   /// ⭐ Prevents LateInitializationError
   List<Widget> _pages = [];
@@ -317,26 +317,6 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (_currentIndex >= _pages.length) _currentIndex = 0;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final width = MediaQuery.of(context).size.width;
-      if (width >= 600 && width < 1400) {
-        setState(() => _sidebarCollapsed = true);
-      }
-      if (width >= 600 && width < 1200) {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      } else {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.portraitUp,
-          DeviceOrientation.portraitDown,
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-        ]);
-      }
-    });
   }
 
   Future<void> _loadLocalUserName() async {
@@ -429,6 +409,7 @@ class _HomePageState extends State<HomePage> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Container(
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: primary,
             borderRadius: BorderRadius.circular(24),

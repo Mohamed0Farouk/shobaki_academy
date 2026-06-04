@@ -24,13 +24,15 @@ class AppConstants {
   static const double sidebarExpandedDesktop = 260.0;
 
   static const double cardMaxWidthPhone = double.infinity;
-  static const double cardMaxWidthTablet = 400.0;
-  static const double cardMaxWidthDesktop = 450.0;
+  static const double cardMaxWidthTablet = 500.0;
+  static const double cardMaxWidthDesktop = 800.0;
 
   static const double cardAspectRatio = 4 / 3;
   static const double bookAspectRatio = 1 / 1;
 
   static const double imageHeightPhone = 140.0;
-  static const double imageHeightTablet = 160.0;
-  static const double imageHeightDesktop = 180.0;
+  static const double imageHeightTablet = 190.0;
+  static const double imageHeightDesktop = 220.0;
+
+  static const double contentMaxWidth = 1800.0;
 }

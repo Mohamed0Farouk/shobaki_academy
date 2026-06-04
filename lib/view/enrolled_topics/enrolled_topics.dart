@@ -34,38 +34,41 @@ class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
     final isTablet = device == DeviceType.tablet;
     final hPad = isPhone ? 14.0 : (isTablet ? 24.0 : 20.0);
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff7f7f7),
-      body: SafeArea(
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSearchBar(),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Obx(() {
-                    if (controller.isLoading.value) {
-                      return Center(child: loading(context));
-                    }
-                    final allTopics = [
-                      ...controller.recommendations.value,
-                      ...controller.latestenrolledtopics.value,
-                    ];
-                    if (allTopics.isEmpty) {
-                      return _buildEmptyState(context);
-                    }
-                    return _buildTopicsGrid(context, allTopics);
-                  }),
-                ),
-              ],
+    final content = Directionality(
+      textDirection: TextDirection.rtl,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: isPhone ? 12 : 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: isPhone ? 0 : 12),
+              child: _buildSearchBar(),
             ),
-          ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return Center(child: loading(context));
+                }
+                final allTopics = [
+                  ...controller.recommendations.value,
+                  ...controller.latestenrolledtopics.value,
+                ];
+                if (allTopics.isEmpty) {
+                  return _buildEmptyState(context);
+                }
+                return _buildTopicsGrid(context, allTopics);
+              }),
+            ),
+          ],
         ),
       ),
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xfff7f7f7),
+      body: isPhone ? SafeArea(child: content) : content,
     );
   }
 
@@ -122,7 +125,7 @@ class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final aw = constraints.maxWidth;
-          final cols = aw < 400 ? 1 : aw < 600 ? 2 : aw < 900 ? 3 : aw < 1200 ? 4 : 5;
+          final cols = aw < 470 ? 1 : aw < 700 ? 2 : aw < 1000 ? 3 : 4;
           return GridView.builder(
             physics: const BouncingScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

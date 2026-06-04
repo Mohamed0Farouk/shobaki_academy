@@ -30,7 +30,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   late Worker _qualityWorker;
 
   VideoPlayerController? get _nativeCtrl =>
-      (ctrl.player as MacOSPlayerAdapter).nativeController;
+      Platform.isMacOS
+          ? (ctrl.player as MacOSPlayerAdapter).nativeController
+          : null;
 
   void _initChewie() {
     final videoCtrl = _nativeCtrl;
@@ -57,7 +59,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     super.initState();
     ctrl = Get.put(VideoPlaybackController(widget.videoUrl));
 
-    _qualityWorker = ever(ctrl.currentQualityIndex, (_) => _initChewie());
+    _qualityWorker = ever(ctrl.currentQualityIndex, (_) {
+      if (Platform.isMacOS) _initChewie();
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.updateWaterMarkState(true);

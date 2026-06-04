@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/topics_controller.dart';
 import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/constants.dart';
 import 'package:shobaki_academy/utils/responsive_utils.dart';
 
 class TopicsPage extends StatefulWidget {
@@ -31,99 +32,115 @@ class _TopicsPageState extends State<TopicsPage> {
     final device = ResponsiveUtils.getDeviceType(context);
     final isPhone = device == DeviceType.phone;
     final isTablet = device == DeviceType.tablet;
-    final isDesktop = device == DeviceType.desktop;
-    final contentWidth = isDesktop
-        ? 1200.0
-        : (isTablet ? 900.0 : double.infinity);
     final hPad = isPhone ? 8.0 : (isTablet ? 24.0 : 18.0);
+
+    final bodyContent = Directionality(
+      textDirection: TextDirection.rtl,
+      child: isPhone
+          ? _buildPhoneLayout(hPad)
+          : _buildDesktopLayout(hPad, isTablet),
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Center(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 420),
-                  curve: Curves.easeInOutCubic,
-                  width: contentWidth,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: hPad,
-                    vertical: isPhone ? 6 : 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildModernSearchBar(context),
-                      SizedBox(height: isPhone ? 32 : (isTablet ? 24 : 8)),
+      body: bodyContent,
+    );
+  }
 
-                      FadeInLeft(
-                        duration: const Duration(milliseconds: 500),
-                        delay: const Duration(milliseconds: 100),
-                        child: _buildSectionHeader("نرشحها لك", Icons.star),
-                      ),
-                      SizedBox(height: isPhone ? 14 : 16),
-
-                      Obx(() {
-                        final recs = controller.recommendations;
-                        if (controller.isLoading.value) {
-                          return Center(child: loading(context));
-                        }
-                        if (recs.isEmpty) {
-                          return FadeIn(
-                            child: const Center(child: Text("لا توجد ترشيحات")),
-                          );
-                        }
-                        return FadeInUp(
-                          duration: const Duration(milliseconds: 600),
-                          delay: const Duration(milliseconds: 120),
-                          child: _buildResponsiveGrid(recs, 0),
-                        );
-                      }),
-
-                      SizedBox(height: isPhone ? 14 : 16),
-
-                      FadeInLeft(
-                        duration: const Duration(milliseconds: 500),
-                        delay: const Duration(milliseconds: 200),
-                        child: _buildSectionHeader(
-                          "اخر المحتويات",
-                          Icons.fire_truck,
-                        ),
-                      ),
-                      SizedBox(height: isPhone ? 14 : 16),
-
-                      Obx(() {
-                        final latest = controller.latestTopics;
-                        if (controller.isLoading.value) {
-                          return Center(child: loading(context));
-                        }
-                        if (latest.isEmpty) {
-                          return FadeIn(
-                            child: const Center(child: Text("لا توجد مواضيع")),
-                          );
-                        }
-                        return FadeInUp(
-                          duration: const Duration(milliseconds: 640),
-                          delay: const Duration(milliseconds: 160),
-                          child: _buildResponsiveGrid(latest, 0),
-                        );
-                      }),
-
-                      SizedBox(height: isPhone ? 2 : 4),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+  Widget _buildPhoneLayout(double hPad) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: _buildContentSections(),
         ),
       ),
     );
+  }
+
+  Widget _buildDesktopLayout(double hPad, bool isTablet) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppConstants.contentMaxWidth),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 0),
+              child: _buildModernSearchBar(context),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: _buildContentSections(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildContentSections() {
+    return [
+      SizedBox(height: 8),
+      FadeInLeft(
+        duration: const Duration(milliseconds: 500),
+        delay: const Duration(milliseconds: 100),
+        child: _buildSectionHeader("نرشحها لك", Icons.star),
+      ),
+      const SizedBox(height: 14),
+      Obx(() {
+        final recs = controller.recommendations;
+        if (controller.isLoading.value) {
+          return Center(child: loading(context));
+        }
+        if (recs.isEmpty) {
+          return FadeIn(
+            child: const Center(child: Text("لا توجد ترشيحات")),
+          );
+        }
+        return FadeInUp(
+          duration: const Duration(milliseconds: 600),
+          delay: const Duration(milliseconds: 120),
+          child: _buildResponsiveGrid(recs, 0),
+        );
+      }),
+      const SizedBox(height: 14),
+      FadeInLeft(
+        duration: const Duration(milliseconds: 500),
+        delay: const Duration(milliseconds: 200),
+        child: _buildSectionHeader(
+          "اخر المحتويات",
+          Icons.fire_truck,
+        ),
+      ),
+      const SizedBox(height: 14),
+      Obx(() {
+        final latest = controller.latestTopics;
+        if (controller.isLoading.value) {
+          return Center(child: loading(context));
+        }
+        if (latest.isEmpty) {
+          return FadeIn(
+            child: const Center(child: Text("لا توجد مواضيع")),
+          );
+        }
+        return FadeInUp(
+          duration: const Duration(milliseconds: 640),
+          delay: const Duration(milliseconds: 160),
+          child: _buildResponsiveGrid(latest, 0),
+        );
+      }),
+      const SizedBox(height: 4),
+    ];
   }
 
   Widget _buildModernSearchBar(BuildContext context) {
@@ -207,12 +224,10 @@ class _TopicsPageState extends State<TopicsPage> {
   }
 
   int _gridColumns(double availableWidth) {
-    if (availableWidth < 400) return 1;
-    if (availableWidth < 600) return 2;
-    if (availableWidth < 900) return 3;
-    if (availableWidth < 1200) return 4;
-    if (availableWidth < 1600) return 5;
-    return 6;
+    if (availableWidth < 470) return 1;
+    if (availableWidth < 700) return 2;
+    if (availableWidth < 1000) return 3;
+    return 4;
   }
 
   Widget _buildResponsiveGrid(List<dynamic> items, int crossAxisCount) {

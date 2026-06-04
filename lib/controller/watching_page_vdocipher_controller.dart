@@ -81,9 +81,6 @@ class VideoPlaybackController extends GetxController {
     }
     _initStreams();
     await _loadUser();
-    if (Platform.isMacOS) {
-      await Future.delayed(const Duration(milliseconds: 300));
-    }
     await _initializePlayer();
     _startTracking();
     if (!logInitialized) _createInitialLog();
