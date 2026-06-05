@@ -124,7 +124,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
       _seekRelative(-10);
     } else if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
-      if (chewieCtrl?.isFullScreen == true) {
+      if (widget.controller.isFullScreen.value) {
         _onExpandCollapse();
       }
     }
@@ -294,6 +294,13 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
         height: _barHeight + (ch.isFullScreen ? 20.0 : 0),
         padding: EdgeInsets.only(
           bottom: ch.isFullScreen ? 10.0 : 15,
+        ),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black54],
+          ),
         ),
         child: SafeArea(
           bottom: ch.isFullScreen,

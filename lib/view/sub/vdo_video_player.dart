@@ -42,7 +42,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     _chewieController.value = ChewieController(
       videoPlayerController: videoCtrl,
       autoPlay: true,
-      allowFullScreen: false,
+      allowFullScreen: true,
       showControls: true,
       customControls: MacOSVideoControls(
         controller: ctrl,

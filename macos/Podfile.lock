@@ -26,12 +26,20 @@ PODS:
     - FlutterMacOS
   - screen_retriever_macos (0.0.1):
     - FlutterMacOS
+  - Sentry/HybridSDK (8.58.3)
+  - sentry_flutter (9.21.0):
+    - Flutter
+    - FlutterMacOS
+    - Sentry/HybridSDK (= 8.58.3)
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - syncfusion_pdfviewer_macos (0.0.1):
     - FlutterMacOS
   - url_launcher_macos (0.0.1):
+    - FlutterMacOS
+  - video_player_avfoundation (0.0.1):
+    - Flutter
     - FlutterMacOS
   - wakelock_plus (0.0.1):
     - FlutterMacOS
@@ -52,11 +60,17 @@ DEPENDENCIES:
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - quill_native_bridge_macos (from `Flutter/ephemeral/.symlinks/plugins/quill_native_bridge_macos/macos`)
   - screen_retriever_macos (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos`)
+  - sentry_flutter (from `Flutter/ephemeral/.symlinks/plugins/sentry_flutter/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
   - syncfusion_pdfviewer_macos (from `Flutter/ephemeral/.symlinks/plugins/syncfusion_pdfviewer_macos/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - video_player_avfoundation (from `Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin`)
   - wakelock_plus (from `Flutter/ephemeral/.symlinks/plugins/wakelock_plus/macos`)
   - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
+
+SPEC REPOS:
+  trunk:
+    - Sentry
 
 EXTERNAL SOURCES:
   app_links:
@@ -85,12 +99,16 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/quill_native_bridge_macos/macos
   screen_retriever_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever_macos/macos
+  sentry_flutter:
+    :path: Flutter/ephemeral/.symlinks/plugins/sentry_flutter/macos
   shared_preferences_foundation:
     :path: Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin
   syncfusion_pdfviewer_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/syncfusion_pdfviewer_macos/macos
   url_launcher_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  video_player_avfoundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/video_player_avfoundation/darwin
   wakelock_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/wakelock_plus/macos
   window_manager:
@@ -110,12 +128,15 @@ SPEC CHECKSUMS:
   path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
   quill_native_bridge_macos: 3a5f378bc757eb92825193853020b759b56cbb2c
   screen_retriever_macos: 776e0fa5d42c6163d2bf772d22478df4b302b161
+  Sentry: 108fdbb76299c4189af12246bf0308c09c278922
+  sentry_flutter: 980e0c8a15a07075f508f941653786ced138609b
   shared_preferences_foundation: 5086985c1d43c5ba4d5e69a4e8083a389e2909e6
   syncfusion_pdfviewer_macos: caeb5113e428fcad0cddcb054f5745b565c08fd7
   url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
+  video_player_avfoundation: e54d03b3b19f64f2c557354f72ce538387541ba6
   wakelock_plus: 9d63063ffb7af1c215209769067c57103bde719d
   window_manager: e25faf20d88283a0d46e7b1a759d07261ca27575
 
-PODFILE CHECKSUM: e24ccfef4c62112fc0662f7f005ccb1870ae0b65
+PODFILE CHECKSUM: cfce38f9ad0b5392464ee2bb6084509c87b71447
 
 COCOAPODS: 1.16.2
