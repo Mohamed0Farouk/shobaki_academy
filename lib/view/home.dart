@@ -3,6 +3,7 @@ import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_not
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/extentions.dart';
@@ -111,65 +112,65 @@ class _HomePageState extends State<HomePage> {
     final normalItems = <BottomBarItem>[
       BottomBarItem(
         activeItem: Icon(
-          Icons.home_rounded,
+          PhosphorIconsFill.house,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.home_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.house),
       ),
       BottomBarItem(
-        inActiveItem: Icon(Icons.bookmarks_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.bookOpen),
         activeItem: Icon(
-          Icons.bookmarks_rounded,
+          PhosphorIconsFill.bookOpen,
           color: Theme.of(context).primaryColor,
         ),
       ),
       BottomBarItem(
-        activeItem: Icon(Icons.bookmark, color: Theme.of(context).primaryColor),
-        inActiveItem: Icon(Icons.bookmark_border),
+        activeItem: Icon(PhosphorIconsFill.bookmark, color: Theme.of(context).primaryColor),
+        inActiveItem: Icon(PhosphorIconsRegular.bookmark),
       ),
       if (useHomeworksAndExams)
         BottomBarItem(
           activeItem: Icon(
-            Icons.area_chart_rounded,
+            PhosphorIconsFill.chartBar,
             color: Theme.of(context).primaryColor,
           ),
-          inActiveItem: Icon(Icons.area_chart_outlined),
+          inActiveItem: Icon(PhosphorIconsRegular.chartBar),
         ),
       BottomBarItem(
         activeItem: Icon(
-          Icons.person_rounded,
+          PhosphorIconsFill.user,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.person_outline_rounded),
+        inActiveItem: Icon(PhosphorIconsRegular.user),
       ),
     ];
 
     final normalSidebarItems = <_SidebarItem>[
       _SidebarItem(
         label: 'المحتويات',
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home_rounded,
+        icon: PhosphorIconsRegular.house,
+        activeIcon: PhosphorIconsFill.house,
       ),
       _SidebarItem(
         label: 'الملازم',
-        icon: Icons.bookmarks_outlined,
-        activeIcon: Icons.bookmarks_rounded,
+        icon: PhosphorIconsRegular.bookOpen,
+        activeIcon: PhosphorIconsFill.bookOpen,
       ),
       _SidebarItem(
         label: 'الاشتراكات',
-        icon: Icons.bookmark_border,
-        activeIcon: Icons.bookmark,
+        icon: PhosphorIconsRegular.bookmark,
+        activeIcon: PhosphorIconsFill.bookmark,
       ),
       if (useHomeworksAndExams)
         _SidebarItem(
           label: 'النتائج',
-          icon: Icons.area_chart_outlined,
-          activeIcon: Icons.area_chart_rounded,
+          icon: PhosphorIconsRegular.chartBar,
+          activeIcon: PhosphorIconsFill.chartBar,
         ),
       _SidebarItem(
         label: 'الملف الشخصي',
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
+        icon: PhosphorIconsRegular.user,
+        activeIcon: PhosphorIconsFill.user,
       ),
     ];
 
@@ -184,56 +185,56 @@ class _HomePageState extends State<HomePage> {
     final guestItems = <BottomBarItem>[
       BottomBarItem(
         activeItem: Icon(
-          Icons.home_rounded,
+          PhosphorIconsFill.house,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.home_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.house),
       ),
       BottomBarItem(
-        inActiveItem: Icon(Icons.bookmarks_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.bookOpen),
         activeItem: Icon(
-          Icons.bookmarks_rounded,
+          PhosphorIconsFill.bookOpen,
           color: Theme.of(context).primaryColor,
         ),
       ),
       if (useHomeworksAndExams)
         BottomBarItem(
           activeItem: Icon(
-            Icons.area_chart_rounded,
+            PhosphorIconsFill.chartBar,
             color: Theme.of(context).primaryColor,
           ),
-          inActiveItem: Icon(Icons.area_chart_outlined),
+          inActiveItem: Icon(PhosphorIconsRegular.chartBar),
         ),
       BottomBarItem(
         activeItem: Icon(
-          Icons.person_rounded,
+          PhosphorIconsFill.user,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.person_outline_rounded),
+        inActiveItem: Icon(PhosphorIconsRegular.user),
       ),
     ];
 
     final guestSidebarItems = <_SidebarItem>[
       _SidebarItem(
         label: 'المحتويات',
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home_rounded,
+        icon: PhosphorIconsRegular.house,
+        activeIcon: PhosphorIconsFill.house,
       ),
       _SidebarItem(
         label: 'الملازم',
-        icon: Icons.bookmarks_outlined,
-        activeIcon: Icons.bookmarks_rounded,
+        icon: PhosphorIconsRegular.bookOpen,
+        activeIcon: PhosphorIconsFill.bookOpen,
       ),
       if (useHomeworksAndExams)
         _SidebarItem(
           label: 'النتائج',
-          icon: Icons.area_chart_outlined,
-          activeIcon: Icons.area_chart_rounded,
+          icon: PhosphorIconsRegular.chartBar,
+          activeIcon: PhosphorIconsFill.chartBar,
         ),
       _SidebarItem(
         label: 'الملف الشخصي',
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
+        icon: PhosphorIconsRegular.user,
+        activeIcon: PhosphorIconsFill.user,
       ),
     ];
 
@@ -248,56 +249,56 @@ class _HomePageState extends State<HomePage> {
     final reviewItems = <BottomBarItem>[
       BottomBarItem(
         activeItem: Icon(
-          Icons.home_rounded,
+          PhosphorIconsFill.house,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.home_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.house),
       ),
       BottomBarItem(
-        inActiveItem: Icon(Icons.bookmarks_outlined),
+        inActiveItem: Icon(PhosphorIconsRegular.bookOpen),
         activeItem: Icon(
-          Icons.bookmarks_rounded,
+          PhosphorIconsFill.bookOpen,
           color: Theme.of(context).primaryColor,
         ),
       ),
       if (useHomeworksAndExams)
         BottomBarItem(
           activeItem: Icon(
-            Icons.area_chart_rounded,
+            PhosphorIconsFill.chartBar,
             color: Theme.of(context).primaryColor,
           ),
-          inActiveItem: Icon(Icons.area_chart_outlined),
+          inActiveItem: Icon(PhosphorIconsRegular.chartBar),
         ),
       BottomBarItem(
         activeItem: Icon(
-          Icons.person_rounded,
+          PhosphorIconsFill.user,
           color: Theme.of(context).primaryColor,
         ),
-        inActiveItem: Icon(Icons.person_outline_rounded),
+        inActiveItem: Icon(PhosphorIconsRegular.user),
       ),
     ];
 
     final reviewSidebarItems = <_SidebarItem>[
       _SidebarItem(
         label: 'المحتويات',
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home_rounded,
+        icon: PhosphorIconsRegular.house,
+        activeIcon: PhosphorIconsFill.house,
       ),
       _SidebarItem(
         label: 'الملازم',
-        icon: Icons.bookmarks_outlined,
-        activeIcon: Icons.bookmarks_rounded,
+        icon: PhosphorIconsRegular.bookOpen,
+        activeIcon: PhosphorIconsFill.bookOpen,
       ),
       if (useHomeworksAndExams)
         _SidebarItem(
           label: 'النتائج',
-          icon: Icons.area_chart_outlined,
-          activeIcon: Icons.area_chart_rounded,
+          icon: PhosphorIconsRegular.chartBar,
+          activeIcon: PhosphorIconsFill.chartBar,
         ),
       _SidebarItem(
         label: 'الملف الشخصي',
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
+        icon: PhosphorIconsRegular.user,
+        activeIcon: PhosphorIconsFill.user,
       ),
     ];
 
@@ -370,6 +371,7 @@ class _HomePageState extends State<HomePage> {
                   children: _pages,
                   onPageChanged: (value) {
                     setState(() => _currentIndex = value);
+                    _notchBottomBarController.index = value;
                   },
                 ),
               ),
@@ -384,9 +386,10 @@ class _HomePageState extends State<HomePage> {
         body: PageView(
           controller: _pageController,
           children: _pages,
-          onPageChanged: (value) {
-            setState(() => _currentIndex = value);
-          },
+            onPageChanged: (value) {
+              setState(() => _currentIndex = value);
+              _notchBottomBarController.index = value;
+            },
         ),
         bottomNavigationBar: bottomNavBar(context),
       );
@@ -454,7 +457,7 @@ class _HomePageState extends State<HomePage> {
                               color: Colors.white.withValues(alpha: 0.15),
                             ),
                             child: Icon(
-                              Icons.school_rounded,
+                              PhosphorIconsFill.graduationCap,
                               color: Colors.white,
                               size: 24,
                             ),
@@ -494,7 +497,7 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.white.withValues(alpha: 0.15),
                           ),
                           child: Icon(
-                            Icons.school_rounded,
+                            PhosphorIconsFill.graduationCap,
                             color: Colors.white,
                             size: 24,
                           ),
@@ -562,7 +565,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         child: const Icon(
-                          Icons.lock_outline,
+                          PhosphorIconsRegular.lock,
                           color: Colors.orange,
                           size: 18,
                         ),
@@ -592,7 +595,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           Row(
             children: [
-              Icon(Icons.lock_outline, color: Colors.orange, size: 14),
+              Icon(PhosphorIconsRegular.lock, color: Colors.orange, size: 14),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -654,7 +657,7 @@ class _HomePageState extends State<HomePage> {
           child: AnimatedRotation(
             turns: _sidebarCollapsed ? 0.5 : 0,
             duration: const Duration(milliseconds: 400),
-            child: Icon(Icons.chevron_left, color: Colors.white, size: 20),
+            child: Icon(PhosphorIconsRegular.caretLeft, color: Colors.white, size: 20),
           ),
         ),
       ),
@@ -786,7 +789,7 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.lock_outline, color: Colors.orange, size: 16),
+                const Icon(PhosphorIconsRegular.lock, color: Colors.orange, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

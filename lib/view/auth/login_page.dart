@@ -105,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                                       'assets/app_icon_1024.png',
                                       width: 80,
                                       height: 80,
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.fill,
                                     ),
                                   ),
                                   const SizedBox(width: 16),

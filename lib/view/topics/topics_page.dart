@@ -225,7 +225,7 @@ class _TopicsPageState extends State<TopicsPage> {
   }
 
   int _gridColumns(double availableWidth) {
-    return ResponsiveUtils.gridColumnsFromTargetWidth(availableWidth, targetCardWidth: 300, maxColumns: 5);
+    return ResponsiveUtils.gridColumnsFromTargetWidth(availableWidth, targetCardWidth: 300, maxColumns: 4);
   }
 
   Widget _buildResponsiveGrid(List<dynamic> items, int crossAxisCount) {

@@ -8,7 +8,6 @@ import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/theme.dart';
-import 'package:shobaki_academy/utils/constants.dart';
 import 'package:shobaki_academy/utils/image_utils.dart';
 import 'package:shobaki_academy/utils/responsive_utils.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
@@ -289,10 +288,10 @@ class _SimpleCardState extends State<_SimpleCard>
     return Stack(
       children: [
         AspectRatio(
-          aspectRatio: AppConstants.cardAspectRatio,
+          aspectRatio: ResponsiveUtils.cardImageAspectRatio(context),
           child: ImageUtils.networkWithFallback(
             widget.thumbnail,
-            fit: BoxFit.cover,
+            fit: BoxFit.fill,
             context: context,
             placeholder: _imagePlaceholder(isTiny),
           ),

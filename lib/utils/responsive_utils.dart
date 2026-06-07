@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shobaki_academy/utils/constants.dart';
 
@@ -23,8 +24,25 @@ class ResponsiveUtils {
   static bool isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width >= AppConstants.tabletBreakpoint;
 
+  static double cardScaleFactor(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final widthScale = size.width / 1280.0;
+    final heightScale = size.height / 720.0;
+    return max(widthScale, heightScale).clamp(1.0, 2.0);
+  }
+
+  static double cardImageAspectRatio(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final viewportAspect = size.width / size.height;
+    const referenceAspect = 1280.0 / 720.0;
+    if (viewportAspect < referenceAspect) {
+      final adjusted = AppConstants.cardAspectRatio * (viewportAspect / referenceAspect);
+      return adjusted.clamp(0.5, 2.0);
+    }
+    return AppConstants.cardAspectRatio;
+  }
+
   static double cardMaxWidth(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
     final device = getDeviceType(context);
     switch (device) {
       case DeviceType.phone:
@@ -32,8 +50,8 @@ class ResponsiveUtils {
       case DeviceType.tablet:
         return AppConstants.cardMaxWidthTablet;
       case DeviceType.desktop:
-        if (width < 1400) return 280.0;
-        return AppConstants.cardMaxWidthDesktop;
+        final scale = cardScaleFactor(context);
+        return (AppConstants.cardMaxWidthDesktop * scale).clamp(280, 600);
     }
   }
 

@@ -74,6 +74,7 @@ dependencies:
   no_screenshot: ^1.0.0
   window_manager: ^0.5.1
   sentry_flutter: ^9.21.0
+  phosphor_flutter: ^2.1.0
 
 dev_dependencies:
   flutter_test:

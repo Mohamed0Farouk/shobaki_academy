@@ -724,7 +724,7 @@ class _BookCardState extends State<_BookCard>
                           aspectRatio: AppConstants.bookAspectRatio,
                           child: ImageUtils.networkWithFallback(
                             widget.book.thumbnail,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.fill,
                             context: context,
                             placeholder: _buildPlaceholder(),
                           ),

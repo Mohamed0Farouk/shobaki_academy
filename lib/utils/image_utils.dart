@@ -6,7 +6,7 @@ class ImageUtils {
     String? url, {
     double? height,
     double? width,
-    BoxFit fit = BoxFit.cover,
+    BoxFit fit = BoxFit.fill,
     required BuildContext context,
     Widget? placeholder,
     Widget? errorWidget,
@@ -154,7 +154,7 @@ class ImageUtils {
     required String url,
     double? height,
     double? width,
-    BoxFit fit = BoxFit.cover,
+    BoxFit fit = BoxFit.fill,
   }) {
     return Image.network(
       url,

@@ -376,7 +376,7 @@ class TopicContentPage extends StatelessWidget {
           children: [
             ImageUtils.networkWithFallback(
               thumb,
-              fit: BoxFit.cover,
+              fit: BoxFit.fill,
               context: context,
               placeholder: _headerPlaceholder(context),
             ),
