@@ -166,7 +166,7 @@ class SecurityController extends GetxController {
       print('Sending alert: $message');
 
       await Dio().post(
-        '$apiUrl/api/send-message',
+        '${apiUrl}api/send-message',
         data: {'phone_number': adminPhone, 'message': message},
       );
     } catch (_) {}
