@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shobaki_academy/utils/responsive_utils.dart';
 
 class ImageUtils {
   static Widget networkWithFallback(
@@ -62,7 +61,7 @@ class ImageUtils {
   }
 
   static Widget _defaultPlaceholder(BuildContext context, {double? height}) {
-    final defaultHeight = height ?? ResponsiveUtils.imageHeight(context);
+    final defaultHeight = height ?? 200.0;
     return Container(
       height: defaultHeight,
       color: Colors.grey[200],
@@ -77,7 +76,7 @@ class ImageUtils {
   }
 
   static Widget _errorPlaceholder(BuildContext context, {double? height}) {
-    final defaultHeight = height ?? ResponsiveUtils.imageHeight(context);
+    final defaultHeight = height ?? 200.0;
     return Container(
       height: defaultHeight,
       color: Colors.grey[200],

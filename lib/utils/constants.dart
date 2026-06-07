@@ -11,6 +11,9 @@ class AppConstants {
   static const double phoneBreakpoint = 600.0;
   static const double tabletBreakpoint = 1200.0;
 
+  static const double heightShortBreakpoint = 700.0;
+  static const double heightMediumBreakpoint = 1080.0;
+
   static const double cardRadiusPhone = 12.0;
   static const double cardRadiusTablet = 14.0;
   static const double cardRadiusDesktop = 16.0;
@@ -29,10 +32,6 @@ class AppConstants {
 
   static const double cardAspectRatio = 4 / 3;
   static const double bookAspectRatio = 1 / 1;
-
-  static const double imageHeightPhone = 140.0;
-  static const double imageHeightTablet = 190.0;
-  static const double imageHeightDesktop = 220.0;
 
   static const double contentMaxWidth = 1800.0;
 }

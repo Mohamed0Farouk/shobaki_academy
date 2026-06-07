@@ -45,6 +45,7 @@ class VideoPlaybackController extends GetxController {
   final List<VideoQuality> qualities = [];
   final RxInt currentQualityIndex = 0.obs;
   final RxBool qualitiesLoaded = false.obs;
+  final RxBool lastPlayIntent = false.obs;
 
   final RxBool isFullScreen = false.obs;
   final RxBool isPlaying = false.obs;
@@ -259,11 +260,12 @@ class VideoPlaybackController extends GetxController {
         start: position > Duration.zero ? position : null,
       );
 
-      currentQualityIndex.value = index;
-
       if (wasPlaying) {
         await player.play();
       }
+
+      lastPlayIntent.value = wasPlaying;
+      currentQualityIndex.value = index;
     } catch (e) {
       projectLogger.e("Quality switch error: $e");
     }

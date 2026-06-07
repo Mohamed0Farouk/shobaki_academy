@@ -125,14 +125,24 @@ class _EnrolledTopicsPageState extends State<EnrolledTopicsPage> {
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final aw = constraints.maxWidth;
-          final cols = aw < 470 ? 1 : aw < 700 ? 2 : aw < 1000 ? 3 : 4;
+          final ah = constraints.maxHeight;
+          final cols = aw < 470
+              ? 1
+              : aw < 700
+                  ? 2
+                  : ah < 700
+                      ? 2
+                      : aw < 1000
+                          ? 3
+                          : 4;
+          final gap = ResponsiveUtils.cardGridGap(context);
           return GridView.builder(
             physics: const BouncingScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: cols,
               childAspectRatio: 0.95,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 10,
+              mainAxisSpacing: gap,
+              crossAxisSpacing: gap,
             ),
             itemCount: allTopics.length,
             itemBuilder: (_, i) {

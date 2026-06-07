@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shobaki_academy/utils/constants.dart';
 
 enum DeviceType { phone, tablet, desktop }
+enum HeightCategory { short, medium, tall }
 
 class ResponsiveUtils {
   static DeviceType getDeviceType(BuildContext context) {
@@ -24,6 +25,35 @@ class ResponsiveUtils {
   static bool isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width >= AppConstants.tabletBreakpoint;
 
+  static HeightCategory getHeightCategory(BuildContext context) {
+    final height = MediaQuery.of(context).size.height;
+    if (height < AppConstants.heightShortBreakpoint) return HeightCategory.short;
+    if (height < AppConstants.heightMediumBreakpoint) return HeightCategory.medium;
+    return HeightCategory.tall;
+  }
+
+  static double sectionSpacing(BuildContext context) {
+    switch (getHeightCategory(context)) {
+      case HeightCategory.short:
+        return 8;
+      case HeightCategory.medium:
+        return 12;
+      case HeightCategory.tall:
+        return 16;
+    }
+  }
+
+  static double cardGridGap(BuildContext context) {
+    switch (getHeightCategory(context)) {
+      case HeightCategory.short:
+        return 8;
+      case HeightCategory.medium:
+        return 10;
+      case HeightCategory.tall:
+        return 12;
+    }
+  }
+
   static double cardScaleFactor(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final widthScale = size.width / 1280.0;
@@ -41,7 +71,7 @@ class ResponsiveUtils {
     const referenceAspect = 1280.0 / 720.0;
     if (viewportAspect < referenceAspect) {
       final adjusted = AppConstants.cardAspectRatio * (viewportAspect / referenceAspect);
-      return adjusted.clamp(0.5, 2.0);
+      return adjusted.clamp(1.0, 2.0);
     }
     return AppConstants.cardAspectRatio;
   }
@@ -56,18 +86,6 @@ class ResponsiveUtils {
       case DeviceType.desktop:
         final scale = cardScaleFactor(context);
         return (AppConstants.cardMaxWidthDesktop * scale).clamp(280, 600);
-    }
-  }
-
-  static double imageHeight(BuildContext context) {
-    final device = getDeviceType(context);
-    switch (device) {
-      case DeviceType.phone:
-        return AppConstants.imageHeightPhone;
-      case DeviceType.tablet:
-        return AppConstants.imageHeightTablet;
-      case DeviceType.desktop:
-        return AppConstants.imageHeightDesktop;
     }
   }
 

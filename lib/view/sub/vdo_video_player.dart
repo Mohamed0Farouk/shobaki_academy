@@ -60,7 +60,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     ctrl = Get.put(VideoPlaybackController(widget.videoUrl));
 
     _qualityWorker = ever(ctrl.currentQualityIndex, (_) {
-      if (Platform.isMacOS) _initChewie(autoPlay: false);
+      if (Platform.isMacOS) _initChewie(autoPlay: ctrl.lastPlayIntent.value);
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -97,7 +96,7 @@ class _TopicsPageState extends State<TopicsPage> {
         delay: const Duration(milliseconds: 100),
         child: _buildSectionHeader("نرشحها لك", Icons.star),
       ),
-      const SizedBox(height: 14),
+      SizedBox(height: ResponsiveUtils.sectionSpacing(context)),
       Obx(() {
         final recs = controller.recommendations;
         if (controller.isLoading.value) {
@@ -111,10 +110,10 @@ class _TopicsPageState extends State<TopicsPage> {
         return FadeInUp(
           duration: const Duration(milliseconds: 600),
           delay: const Duration(milliseconds: 120),
-          child: _buildResponsiveGrid(recs, 0),
+          child: _buildResponsiveGrid(recs),
         );
       }),
-      const SizedBox(height: 14),
+      SizedBox(height: ResponsiveUtils.sectionSpacing(context)),
       FadeInLeft(
         duration: const Duration(milliseconds: 500),
         delay: const Duration(milliseconds: 200),
@@ -123,7 +122,7 @@ class _TopicsPageState extends State<TopicsPage> {
           Icons.fire_truck,
         ),
       ),
-      const SizedBox(height: 14),
+      SizedBox(height: ResponsiveUtils.sectionSpacing(context)),
       Obx(() {
         final latest = controller.latestTopics;
         if (controller.isLoading.value) {
@@ -137,7 +136,7 @@ class _TopicsPageState extends State<TopicsPage> {
         return FadeInUp(
           duration: const Duration(milliseconds: 640),
           delay: const Duration(milliseconds: 160),
-          child: _buildResponsiveGrid(latest, 0),
+          child: _buildResponsiveGrid(latest),
         );
       }),
       const SizedBox(height: 4),
@@ -224,21 +223,18 @@ class _TopicsPageState extends State<TopicsPage> {
     );
   }
 
-  int _gridColumns(double availableWidth) {
-    return ResponsiveUtils.gridColumnsFromTargetWidth(availableWidth, targetCardWidth: 300, maxColumns: 4);
-  }
-
-  Widget _buildResponsiveGrid(List<dynamic> items, int crossAxisCount) {
+  Widget _buildResponsiveGrid(List<dynamic> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final cols = _gridColumns(width);
-        final gap = 10.0;
+        final height = constraints.maxHeight;
+        final cols = _gridColumns(width, height: height);
+        final gap = ResponsiveUtils.cardGridGap(context);
         final childWidth = (width - (cols - 1) * gap) / cols;
-        final cardWidth = min(childWidth, ResponsiveUtils.cardMaxWidth(context));
+        final cardWidth = childWidth.clamp(0.0, ResponsiveUtils.cardMaxWidth(context));
         return Wrap(
           spacing: gap,
-          runSpacing: 12,
+          runSpacing: gap,
           children: items.asMap().entries.map((entry) {
             final index = entry.key;
             final item = entry.value;
@@ -263,5 +259,12 @@ class _TopicsPageState extends State<TopicsPage> {
         );
       },
     );
+  }
+
+  int _gridColumns(double availableWidth, {double? height}) {
+    if (availableWidth < 600) return 1;
+    final maxCols = (height != null && height < 700) ? 2 : 4;
+    final cols = (availableWidth / 300).floor();
+    return cols.clamp(1, maxCols);
   }
 }

@@ -102,14 +102,6 @@ bool IsRecordingSoftwareRunning()
         L"teamviewer",
         L"anydesk",
 
-        // NVIDIA / AMD
-        // L"shadowplay",
-        // L"geforce",
-        // L"nvcontainer",
-        // L"amdrelive",
-        // L"amddvr",
-        // L"relive",
-
         // Streaming platforms
         L"streamlabs",
         L"slobs",

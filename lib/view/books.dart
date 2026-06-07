@@ -18,8 +18,13 @@ class BooksPage extends StatelessWidget {
     final controller = Get.put(BooksController());
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
-    final crossAxisCount = isDesktop ? 4 : (isTablet ? 3 : 2);
-    final childAspectRatio = isDesktop ? 1.0 : 1.2;
+    final hCat = ResponsiveUtils.getHeightCategory(context);
+    final crossAxisCount = isDesktop
+        ? (hCat == HeightCategory.short ? 3 : 4)
+        : (isTablet
+            ? (hCat == HeightCategory.short ? 2 : 3)
+            : 2);
+    final childAspectRatio = crossAxisCount <= 2 ? 1.2 : 1.0;
 
     // Add this observable for view mode (list view is default)
     final isGridView = false.obs;
@@ -91,20 +96,20 @@ class BooksPage extends StatelessWidget {
                     mainAxisSpacing: 12,
                   ),
                   itemCount: controller.books.length,
-                  itemBuilder: (context, index) {
-                    final book = controller.books[index];
-                    return BounceInUp(
-                      from: 100,
-                      duration: const Duration(milliseconds: 500),
-                      delay: Duration(milliseconds: index * 80),
-                      child: _BookCard(
-                        book: book,
-                        isGuest: controller.isGuest.value,
-                        isReviewer: controller.isReviewer.value,
-                        controller: controller,
-                      ),
-                    );
-                  },
+                    itemBuilder: (context, index) {
+                      final book = controller.books[index];
+                      return BounceInUp(
+                        from: 100,
+                        duration: const Duration(milliseconds: 500),
+                        delay: Duration(milliseconds: index * 80),
+                        child: _BookCard(
+                          book: book,
+                          isGuest: controller.isGuest.value,
+                          isReviewer: controller.isReviewer.value,
+                          controller: controller,
+                        ),
+                      );
+                    },
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(12),
