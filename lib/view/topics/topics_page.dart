@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -224,10 +225,7 @@ class _TopicsPageState extends State<TopicsPage> {
   }
 
   int _gridColumns(double availableWidth) {
-    if (availableWidth < 470) return 1;
-    if (availableWidth < 700) return 2;
-    if (availableWidth < 1000) return 3;
-    return 4;
+    return ResponsiveUtils.gridColumnsFromTargetWidth(availableWidth, targetCardWidth: 300, maxColumns: 5);
   }
 
   Widget _buildResponsiveGrid(List<dynamic> items, int crossAxisCount) {
@@ -237,6 +235,7 @@ class _TopicsPageState extends State<TopicsPage> {
         final cols = _gridColumns(width);
         final gap = 10.0;
         final childWidth = (width - (cols - 1) * gap) / cols;
+        final cardWidth = min(childWidth, ResponsiveUtils.cardMaxWidth(context));
         return Wrap(
           spacing: gap,
           runSpacing: 12,
@@ -248,7 +247,7 @@ class _TopicsPageState extends State<TopicsPage> {
               delay: Duration(milliseconds: 100 + (index * 50)),
               duration: const Duration(milliseconds: 600),
               child: SizedBox(
-                width: childWidth,
+                width: cardWidth,
                 child: CardModel(
                   type: CardTypes.topic,
                   title: item['title'] ?? '',

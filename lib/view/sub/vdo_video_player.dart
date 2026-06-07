@@ -34,14 +34,14 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           ? (ctrl.player as MacOSPlayerAdapter).nativeController
           : null;
 
-  void _initChewie() {
+  void _initChewie({bool autoPlay = true}) {
     final videoCtrl = _nativeCtrl;
     if (videoCtrl == null) return;
     if (_chewieController.value?.videoPlayerController == videoCtrl) return;
     _chewieController.value?.dispose();
     _chewieController.value = ChewieController(
       videoPlayerController: videoCtrl,
-      autoPlay: true,
+      autoPlay: autoPlay,
       allowFullScreen: true,
       showControls: true,
       customControls: MacOSVideoControls(
@@ -60,7 +60,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     ctrl = Get.put(VideoPlaybackController(widget.videoUrl));
 
     _qualityWorker = ever(ctrl.currentQualityIndex, (_) {
-      if (Platform.isMacOS) _initChewie();
+      if (Platform.isMacOS) _initChewie(autoPlay: false);
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -155,14 +155,17 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                 )
               : ctrl.isLoading.value
               ? const Center(child: CircularProgressIndicator())
-              : Stack(
-                  children: [
-                    Platform.isMacOS
-                        ? _buildMacOSPlayer()
-                        : _buildMediaKitPlayer(),
-                    if (ctrl.qualitiesLoaded.value && !ctrl.isFullScreen.value)
-                      _buildQualityChip(),
-                  ],
+              : Container(
+                  color: Colors.black,
+                  child: Stack(
+                    children: [
+                      Platform.isMacOS
+                          ? _buildMacOSPlayer()
+                          : _buildMediaKitPlayer(),
+                      if (ctrl.qualitiesLoaded.value)
+                        _buildQualityChip(),
+                    ],
+                  ),
                 ),
         ),
       );
@@ -369,16 +372,6 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   Future<void> _showQualityDialog() async {
-    if (ctrl.isFullScreen.value) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('exit fullscreen to control the quality'),
-        ),
-      );
-      return;
-    }
-
     final selected = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(

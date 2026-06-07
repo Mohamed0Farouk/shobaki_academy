@@ -32,6 +32,9 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   Timer? _hideTimer;
   Timer? _initTimer;
   bool _dragging = false;
+  bool _draggingVolume = false;
+  double _sliderVolume = 0.5;
+  String? _hoveredButton;
   late final FocusNode _focusNode;
 
   ChewieController? _chewieCtrl;
@@ -82,7 +85,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     }
     if (ch.showControlsOnInitialize) {
       _initTimer = Timer(const Duration(milliseconds: 200), () {
-        _controlsNotifier.hideStuff = false;
+        _setShowControls(true);
       });
     }
   }
@@ -93,13 +96,23 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     if (ctrl == null) return;
     setState(() {
       _latestValue = ctrl.value;
+      if (!_draggingVolume) {
+        _sliderVolume = ctrl.value.volume;
+      }
+    });
+  }
+
+  void _setShowControls(bool show) {
+    if (!mounted) return;
+    setState(() {
+      _controlsNotifier.hideStuff = !show;
     });
   }
 
   void _cancelAndRestartTimer() {
     _hideTimer?.cancel();
     _startHideTimer();
-    _controlsNotifier.hideStuff = false;
+    _setShowControls(true);
   }
 
   void _startHideTimer() {
@@ -109,7 +122,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
         ? ChewieController.defaultHideControlsTimer
         : ch.hideControlsTimer;
     _hideTimer = Timer(hideControlsTimer, () {
-      _controlsNotifier.hideStuff = true;
+      _setShowControls(false);
     });
   }
 
@@ -131,7 +144,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   void _onExpandCollapse() {
-    _controlsNotifier.hideStuff = true;
+    _setShowControls(false);
     widget.onFullscreenToggle();
   }
 
@@ -139,7 +152,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     final ctrl = vpc;
     if (ctrl == null) return;
     if (ctrl.value.isPlaying) {
-      _controlsNotifier.hideStuff = false;
+      _setShowControls(true);
       _hideTimer?.cancel();
       ctrl.pause();
     } else {
@@ -167,6 +180,39 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     }
   }
 
+  Widget _iconButton({
+    required String id,
+    required Widget icon,
+    required VoidCallback onTap,
+  }) {
+    final isHovered = _hoveredButton == id;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        _cancelAndRestartTimer();
+        setState(() => _hoveredButton = id);
+      },
+      onExit: (_) => setState(() => _hoveredButton = null),
+      child: GestureDetector(
+        onTap: () {
+          _cancelAndRestartTimer();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isHovered
+                ? Colors.white.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: SizedBox(width: 24, height: 24, child: icon),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ch = chewieCtrl;
@@ -191,6 +237,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
       focusNode: _focusNode,
       onKeyEvent: _handleKeyPress,
       child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         onHover: (_) {
           _focusNode.requestFocus();
           _cancelAndRestartTimer();
@@ -203,7 +250,8 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
                 _cancelAndRestartTimer();
               } else {
                 setState(() {
-                  _controlsNotifier.hideStuff = !_controlsNotifier.hideStuff;
+                  _controlsNotifier.hideStuff =
+                      !_controlsNotifier.hideStuff;
                 });
                 if (!_controlsNotifier.hideStuff) {
                   _cancelAndRestartTimer();
@@ -211,7 +259,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
               }
             } else {
               _playPause();
-              _controlsNotifier.hideStuff = true;
+              _setShowControls(false);
             }
           },
           child: AbsorbPointer(
@@ -246,7 +294,7 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
           }
         } else {
           _playPause();
-          _controlsNotifier.hideStuff = true;
+          _setShowControls(false);
         }
       },
       child: Center(
@@ -285,7 +333,6 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   Widget _buildBottomBar(BuildContext context) {
     final ch = chewieCtrl;
     if (ch == null) return const SizedBox.shrink();
-    final iconColor = Colors.white;
 
     return AnimatedOpacity(
       opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
@@ -311,12 +358,13 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
             children: [
               Flexible(
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildReplayButton(),
                     _buildPlayPause(),
                     _buildForwardButton(),
-                    if (ch.allowMuting) _buildMuteButton(iconColor),
-                    _buildPosition(iconColor),
+                    if (ch.allowMuting) _buildVolumeControl(),
+                    _buildPosition(),
                     const Spacer(),
                     if (ch.showOptions) _buildOptionsButton(),
                     if (ch.allowFullScreen) _buildFullscreenButton(),
@@ -342,66 +390,131 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   Widget _buildReplayButton() {
-    return IconButton(
-      icon: const Icon(Icons.replay_10, color: Colors.white),
-      onPressed: () => _seekRelative(-10),
-      tooltip: 'Replay 10s',
+    return _iconButton(
+      id: 'replay',
+      icon: const Icon(Icons.replay_10, color: Colors.white, size: 24),
+      onTap: () => _seekRelative(-10),
     );
   }
 
   Widget _buildForwardButton() {
-    return IconButton(
-      icon: const Icon(Icons.forward_10, color: Colors.white),
-      onPressed: () => _seekRelative(10),
-      tooltip: 'Forward 10s',
+    return _iconButton(
+      id: 'forward',
+      icon: const Icon(Icons.forward_10, color: Colors.white, size: 24),
+      onTap: () => _seekRelative(10),
     );
   }
 
-  GestureDetector _buildPlayPause() {
-    return GestureDetector(
-      onTap: _playPause,
-      child: Container(
-        height: _barHeight,
-        color: Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Icon(
-          vpc?.value.isPlaying == true ? Icons.pause : Icons.play_arrow,
-          color: Colors.white,
-          size: 28,
-        ),
+  Widget _buildPlayPause() {
+    return _iconButton(
+      id: 'playpause',
+      icon: Icon(
+        vpc?.value.isPlaying == true ? Icons.pause : Icons.play_arrow,
+        color: Colors.white,
+        size: 24,
       ),
+      onTap: _playPause,
     );
   }
 
-  GestureDetector _buildMuteButton(Color iconColor) {
-    return GestureDetector(
-      onTap: () {
-        _cancelAndRestartTimer();
-        if (_latestValue.volume == 0) {
-          vpc?.setVolume(_latestVolume ?? 0.5);
-        } else {
-          _latestVolume = vpc?.value.volume;
-          vpc?.setVolume(0.0);
-        }
-      },
-      child: AnimatedOpacity(
-        opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
-        duration: const Duration(milliseconds: 300),
-        child: ClipRect(
-          child: Container(
-            height: _barHeight,
-            padding: const EdgeInsets.only(right: 8),
-            child: Icon(
-              _latestValue.volume > 0 ? Icons.volume_up : Icons.volume_off,
-              color: Colors.white,
+  Widget _buildVolumeControl() {
+    final isHovered = _hoveredButton == 'volume';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) {
+            _cancelAndRestartTimer();
+            setState(() => _hoveredButton = 'volume');
+          },
+          onExit: (_) {
+            if (!_draggingVolume) {
+              setState(() => _hoveredButton = null);
+            }
+          },
+          child: GestureDetector(
+            onTap: () {
+              _cancelAndRestartTimer();
+              if (_latestValue.volume == 0) {
+                final restore = _latestVolume ?? 0.5;
+                vpc?.setVolume(restore);
+              } else {
+                _latestVolume = vpc?.value.volume;
+                vpc?.setVolume(0.0);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isHovered
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Icon(
+                    _latestValue.volume > 0
+                        ? Icons.volume_up
+                        : Icons.volume_off,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 80,
+            height: 24,
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 6,
+                ),
+                overlayShape: const RoundSliderOverlayShape(
+                  overlayRadius: 12,
+                ),
+                activeTrackColor: Colors.white,
+                inactiveTrackColor: Colors.white38,
+                thumbColor: Colors.white,
+                overlayColor: Colors.white24,
+              ),
+              child: Slider(
+                value: _draggingVolume
+                    ? _sliderVolume
+                    : _latestValue.volume,
+                onChanged: (v) {
+                  _cancelAndRestartTimer();
+                  setState(() {
+                    _draggingVolume = true;
+                    _sliderVolume = v;
+                  });
+                  vpc?.setVolume(v);
+                },
+                onChangeEnd: (v) {
+                  setState(() => _draggingVolume = false);
+                  if (vpc?.value.isPlaying == true) {
+                    _startHideTimer();
+                  }
+                  if (_hoveredButton != 'volume') {
+                    setState(() => _hoveredButton = null);
+                  }
+                },
+              ),
+            ),
+          ),
+        ],
     );
   }
 
-  Widget _buildPosition(Color iconColor) {
+
+  Widget _buildPosition() {
     final position = _latestValue.position;
     final duration = _latestValue.duration;
     return Padding(
@@ -414,56 +527,43 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
   }
 
   Widget _buildOptionsButton() {
-    return AnimatedOpacity(
-      opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
-      duration: const Duration(milliseconds: 250),
-      child: IconButton(
-        onPressed: () async {
-          _hideTimer?.cancel();
-          await showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (ctx) => _OptionsDialog(
-              onSpeedTap: () {
-                Navigator.pop(ctx);
-                widget.controller.showSpeedDialog(context);
-              },
-              onQualityTap: () {
-                Navigator.pop(ctx);
-                widget.controller.showQualityDialog(context);
-              },
-            ),
-          );
-          if (_latestValue.isPlaying) {
-            _startHideTimer();
-          }
-        },
-        icon: const Icon(Icons.settings, color: Colors.white),
-        tooltip: 'Options',
-      ),
+    return _iconButton(
+      id: 'options',
+      icon: const Icon(Icons.settings, color: Colors.white, size: 24),
+      onTap: () async {
+        _hideTimer?.cancel();
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (ctx) => _OptionsDialog(
+            onSpeedTap: () {
+              Navigator.pop(ctx);
+              widget.controller.showSpeedDialog(context);
+            },
+            onQualityTap: () {
+              Navigator.pop(ctx);
+              widget.controller.showQualityDialog(context);
+            },
+          ),
+        );
+        if (_latestValue.isPlaying) {
+          _startHideTimer();
+        }
+      },
     );
   }
 
-  GestureDetector _buildFullscreenButton() {
-    return GestureDetector(
+  Widget _buildFullscreenButton() {
+    return _iconButton(
+      id: 'fullscreen',
+      icon: Obx(() => Icon(
+        widget.controller.isFullScreen.value
+            ? Icons.fullscreen_exit
+            : Icons.fullscreen,
+        color: Colors.white,
+        size: 24,
+      )),
       onTap: _onExpandCollapse,
-      child: AnimatedOpacity(
-        opacity: _controlsNotifier.hideStuff ? 0.0 : 1.0,
-        duration: const Duration(milliseconds: 300),
-        child: Container(
-          height: _barHeight + (chewieCtrl?.isFullScreen == true ? 15.0 : 0),
-          margin: const EdgeInsets.only(right: 12),
-          padding: const EdgeInsets.only(left: 8, right: 8),
-          child: Center(
-            child: Obx(() => Icon(
-              widget.controller.isFullScreen.value
-                  ? Icons.fullscreen_exit
-                  : Icons.fullscreen,
-              color: Colors.white,
-            )),
-          ),
-        ),
-      ),
     );
   }
 
@@ -471,20 +571,18 @@ class _MacOSVideoControlsState extends State<MacOSVideoControls>
     final ctrl = vpc;
     final ch = chewieCtrl;
     if (ctrl == null || ch == null) return const SizedBox.shrink();
-    return Expanded(
-      child: MaterialVideoProgressBar(
-        ctrl,
-        onDragStart: () {
-          setState(() => _dragging = true);
-          _hideTimer?.cancel();
-        },
-        onDragUpdate: () => _hideTimer?.cancel(),
-        onDragEnd: () {
-          setState(() => _dragging = false);
-          _startHideTimer();
-        },
-        draggableProgressBar: ch.draggableProgressBar,
-      ),
+    return MaterialVideoProgressBar(
+      ctrl,
+      onDragStart: () {
+        setState(() => _dragging = true);
+        _hideTimer?.cancel();
+      },
+      onDragUpdate: () => _hideTimer?.cancel(),
+      onDragEnd: () {
+        setState(() => _dragging = false);
+        _startHideTimer();
+      },
+      draggableProgressBar: ch.draggableProgressBar,
     );
   }
 

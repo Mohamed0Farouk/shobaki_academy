@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -175,6 +176,7 @@ class _SimpleCardState extends State<_SimpleCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _rotationAnimation;
   late Animation<double> _shadowAnimation;
 
   @override
@@ -184,7 +186,10 @@ class _SimpleCardState extends State<_SimpleCard>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
+      CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
+    );
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 8 * math.pi / 180).animate(
       CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
     );
     _shadowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -206,17 +211,14 @@ class _SimpleCardState extends State<_SimpleCard>
     final isTiny = screenWidth < 280;
     final isSmall = screenWidth < 360;
     final radius = ResponsiveUtils.cardRadius(context);
-    final maxWidth = ResponsiveUtils.cardMaxWidth(context);
     final isLocked = widget.navlabel == null;
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => _hoverController.forward(),
-          onExit: (_) => _hoverController.reverse(),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => _hoverController.forward(),
+        onExit: (_) => _hoverController.reverse(),
           child: GestureDetector(
             onTap: () {
               if (widget.onTap != null) {
@@ -228,15 +230,25 @@ class _SimpleCardState extends State<_SimpleCard>
             child: AnimatedBuilder(
               animation: _hoverController,
               builder: (context, child) {
-                final shadow = _shadowAnimation.value > 0.5
+                final showAccent = _shadowAnimation.value > 0.5;
+                final shadow = showAccent
                     ? AppTheme.cardShadowLifted
                     : [AppTheme.cardShadow];
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
+                return Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..scale(_scaleAnimation.value)
+                    ..rotateZ(_rotationAnimation.value),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(radius),
+                      border: Border(
+                        top: BorderSide(
+                          color: showAccent ? primary : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
                       boxShadow: shadow,
                     ),
                     child: ClipRRect(
@@ -265,7 +277,6 @@ class _SimpleCardState extends State<_SimpleCard>
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -313,8 +324,8 @@ class _SimpleCardState extends State<_SimpleCard>
               fontWeight: FontWeight.bold,
               color: Colors.white,
               height: 1.2,
-            ),
           ),
+        ),
         ),
       ],
     );

@@ -24,8 +24,8 @@ class AppConstants {
   static const double sidebarExpandedDesktop = 260.0;
 
   static const double cardMaxWidthPhone = double.infinity;
-  static const double cardMaxWidthTablet = 500.0;
-  static const double cardMaxWidthDesktop = 800.0;
+  static const double cardMaxWidthTablet = double.infinity;
+  static const double cardMaxWidthDesktop = 310.0;
 
   static const double cardAspectRatio = 4 / 3;
   static const double bookAspectRatio = 1 / 1;

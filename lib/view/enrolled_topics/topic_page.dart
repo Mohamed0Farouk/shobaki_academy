@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,6 +9,7 @@ import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/responsive_utils.dart';
 
 class TopicPage extends StatefulWidget {
   const TopicPage({super.key, required this.topicId});
@@ -25,11 +27,7 @@ class _TopicPageState extends State<TopicPage> {
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width > 900;
     final crossAxisCount = isDesktop
-        ? (size.width > 1600
-              ? 5
-              : size.width > 1200
-              ? 4
-              : 4)
+        ? ResponsiveUtils.gridColumnsFromTargetWidth(size.width, targetCardWidth: 300, maxColumns: 4)
         : 1;
 
     return Scaffold(
@@ -83,6 +81,7 @@ class _TopicPageState extends State<TopicPage> {
   ) {
     if (!isDesktop) {
       final itemWidth = (MediaQuery.of(context).size.width - 50) / 2;
+      final cardWidth = min(itemWidth, ResponsiveUtils.cardMaxWidth(context));
       // 28 = horizontal padding (8+8) + spacing between columns (12)
 
       return SingleChildScrollView(
@@ -93,8 +92,8 @@ class _TopicPageState extends State<TopicPage> {
             runSpacing: 12, // vertical gap between rows
             children: items.map((item) {
               return SizedBox(
-                width: itemWidth,
-                child: item, // card sizes itself in height naturally
+                width: cardWidth,
+                child: item,
               );
             }).toList(),
           ),
@@ -107,13 +106,16 @@ class _TopicPageState extends State<TopicPage> {
         textDirection: TextDirection.ltr,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final itemWidth = (constraints.maxWidth - (12 * 4)) / 5;
+            final cols = crossAxisCount;
+            final gap = 12.0;
+            final itemWidth = (constraints.maxWidth - (gap * (cols - 1))) / cols;
+            final cardWidth = min(itemWidth, ResponsiveUtils.cardMaxWidth(context));
 
             return Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: gap,
+              runSpacing: gap,
               children: items.map((child) {
-                return SizedBox(width: itemWidth, child: child);
+                return SizedBox(width: cardWidth, child: child);
               }).toList(),
             );
           },

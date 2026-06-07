@@ -213,13 +213,6 @@ class VideoPlaybackController extends GetxController {
   }
 
   void showQualityDialog(BuildContext context) {
-    if (isFullScreen.value) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('exit fullscreen to control the quality')),
-      );
-      return;
-    }
-
     showDialog(
       context: context,
       builder: (ctx) {

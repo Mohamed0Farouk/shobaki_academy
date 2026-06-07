@@ -21,14 +21,14 @@ class AppTheme {
 
   static List<BoxShadow> get cardShadowLifted => [
     BoxShadow(
-      color: Colors.black.withValues(alpha: 0.10),
-      blurRadius: 20,
-      offset: const Offset(0, 8),
+      color: Colors.black.withValues(alpha: 0.14),
+      blurRadius: 24,
+      offset: const Offset(0, 10),
     ),
     BoxShadow(
-      color: Colors.black.withValues(alpha: 0.04),
-      blurRadius: 4,
-      offset: const Offset(0, 2),
+      color: Colors.black.withValues(alpha: 0.06),
+      blurRadius: 6,
+      offset: const Offset(0, 4),
     ),
   ];
 
