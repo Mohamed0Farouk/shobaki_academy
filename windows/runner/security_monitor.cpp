@@ -84,7 +84,79 @@ bool IsRecordingSoftwareRunning()
 
         // Windows
         L"gamebar",
-        L"screenrecorder"};
+        L"screenrecorder",
+        L"snippingtool",
+        L"screensketch",
+
+        // Meeting / conferencing
+        L"zoom",
+        L"meet",
+        L"teams",
+        L"skype",
+        L"webex",
+        L"gotomeeting",
+        L"gotowebinar",
+        L"gotoassist",
+
+        // Remote desktop (can be used for recording/observation)
+        L"teamviewer",
+        L"anydesk",
+
+        // NVIDIA / AMD
+        // L"shadowplay",
+        // L"geforce",
+        // L"nvcontainer",
+        // L"amdrelive",
+        // L"amddvr",
+        // L"relive",
+
+        // Streaming platforms
+        L"streamlabs",
+        L"slobs",
+        L"twitchstudio",
+        L"streamelements",
+
+        // Screen capture / screenshots
+        L"lightshot",
+        L"snipaste",
+        L"monosnap",
+        L"cloudapp",
+        L"tinytake",
+
+        // Capture / recording
+        L"fraps",
+        L"dxtory",
+        L"action",
+        L"mirillis",
+        L"medal",
+        L"medaltv",
+        L"outplayed",
+        L"overwolf",
+        L"loom",
+        L"manycam",
+        L"splitcam",
+        L"sharex",
+        L"greenshot",
+        L"picpick",
+        L"durecorder",
+        L"azrecorder",
+        L"screenpresso",
+        L"movavi",
+        L"icecream",
+        L"ezvid",
+        L"democreator",
+        L"debut",
+        L"vmix",
+        L"wirecast",
+        L"vlc",
+        L"clipchamp",
+        L"discord",
+        L"camstudio",
+        L"screentogif",
+        L"activepresenter",
+        L"recordcast",
+        L"psr",
+        L"stepsrecorder"};
 
     return CheckProcesses(
         targets,

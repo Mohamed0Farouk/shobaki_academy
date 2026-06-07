@@ -32,6 +32,10 @@ class ResponsiveUtils {
   }
 
   static double cardImageAspectRatio(BuildContext context) {
+    final device = getDeviceType(context);
+    if (device == DeviceType.phone) {
+      return AppConstants.cardAspectRatio;
+    }
     final size = MediaQuery.of(context).size;
     final viewportAspect = size.width / size.height;
     const referenceAspect = 1280.0 / 720.0;
