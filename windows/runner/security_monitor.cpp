@@ -88,19 +88,19 @@ bool IsRecordingSoftwareRunning()
         L"snippingtool",
         L"screensketch",
 
-        // Meeting / conferencing
-        L"zoom",
-        L"meet",
-        L"teams",
-        L"skype",
-        L"webex",
-        L"gotomeeting",
-        L"gotowebinar",
-        L"gotoassist",
+        // // Meeting / conferencing
+        // L"zoom",
+        // L"meet",
+        // L"teams",
+        // L"skype",
+        // L"webex",
+        // L"gotomeeting",
+        // L"gotowebinar",
+        // L"gotoassist",
 
-        // Remote desktop (can be used for recording/observation)
-        L"teamviewer",
-        L"anydesk",
+        // // Remote desktop (can be used for recording/observation)
+        // L"teamviewer",
+        // L"anydesk",
 
         // Streaming platforms
         L"streamlabs",

@@ -27,19 +27,19 @@ private let recordingAppNames: Set<String> = [
     "recordit",
     "droplr",
 
-    // Video Conferencing (with recording capability)
-    "zoom",
-    "zoom.us",
-    "microsoft teams",
-    "teams",
-    "discord",
-    "skype",
-    "google meet",
-    "chrome",
-    "firefox",
+    // // Video Conferencing (with recording capability)
+    // "zoom",
+    // "zoom.us",
+    // "microsoft teams",
+    // "teams",
+    // "discord",
+    // "skype",
+    // "google meet",
+    // "chrome",
+    // "firefox",
 
-    // Communication Apps (with screen capture)
-    "slack",
+    // // Communication Apps (with screen capture)
+    // "slack",
 
     // System/Native Recording
     "quicktime player",
