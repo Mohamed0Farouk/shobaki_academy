@@ -27,6 +27,9 @@ static bool CheckProcesses(
         do
         {
             std::wstring exe = entry.szExeFile;
+            size_t dot = exe.rfind(L'.');
+            if (dot != std::wstring::npos)
+                exe = exe.substr(0, dot);
 
             std::transform(
                 exe.begin(),
@@ -34,15 +37,9 @@ static bool CheckProcesses(
                 exe.begin(),
                 towlower);
 
-            for (auto target : targets)
+            for (const auto &target : targets)
             {
-                std::transform(
-                    target.begin(),
-                    target.end(),
-                    target.begin(),
-                    towlower);
-
-                if (exe.find(target) != std::wstring::npos)
+                if (exe == target)
                 {
                     detected = entry.szExeFile;
 
@@ -67,13 +64,12 @@ bool IsRecordingSoftwareRunning()
         // OBS
         L"obs64",
         L"obs32",
-        L"obs",
 
         // Popular
         L"bandicam",
-        L"camtasia",
-        L"snagit",
-        L"xsplit",
+        L"camtasiastudio",
+        L"snagit32",
+        L"xsplit.core",
 
         // Lightweight
         L"ocam",
@@ -84,71 +80,24 @@ bool IsRecordingSoftwareRunning()
 
         // Windows
         L"gamebar",
-        L"screenrecorder",
         L"snippingtool",
-        L"screensketch",
-
-        // // Meeting / conferencing
-        // L"zoom",
-        // L"meet",
-        // L"teams",
-        // L"skype",
-        // L"webex",
-        // L"gotomeeting",
-        // L"gotowebinar",
-        // L"gotoassist",
-
-        // // Remote desktop (can be used for recording/observation)
-        // L"teamviewer",
-        // L"anydesk",
 
         // Streaming platforms
-        L"streamlabs",
-        L"slobs",
+        L"streamlabs-obs",
         L"twitchstudio",
-        L"streamelements",
-
-        // Screen capture / screenshots
-        L"lightshot",
-        L"snipaste",
-        L"monosnap",
-        L"cloudapp",
-        L"tinytake",
 
         // Capture / recording
-        L"fraps",
-        L"dxtory",
-        L"action",
-        L"mirillis",
-        L"medal",
-        L"medaltv",
-        L"outplayed",
-        L"overwolf",
-        L"loom",
-        L"manycam",
-        L"splitcam",
         L"sharex",
         L"greenshot",
         L"picpick",
-        L"durecorder",
-        L"azrecorder",
-        L"screenpresso",
-        L"movavi",
-        L"icecream",
+        L"screenrecorder",
         L"ezvid",
-        L"democreator",
-        L"debut",
-        L"vmix",
-        L"wirecast",
-        L"vlc",
         L"clipchamp",
-        L"discord",
         L"camstudio",
-        L"screentogif",
+        L"camtasiarecorder",
         L"activepresenter",
-        L"recordcast",
-        L"psr",
-        L"stepsrecorder"};
+        
+    };
 
     return CheckProcesses(
         targets,
