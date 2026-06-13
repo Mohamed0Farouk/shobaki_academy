@@ -14,9 +14,12 @@ class ApiClient {
         'students',
         filters: {'email': email, 'password': password},
       );
+      if (response.isEmpty) {
+        throw Exception('خطأ في تسجيل الدخول: يرجى التحقق من بيانات الدخول');
+      }
       return response[0];
     } catch (e) {
-      throw Exception('Login failed: $e');
+      rethrow;
     }
   }
 

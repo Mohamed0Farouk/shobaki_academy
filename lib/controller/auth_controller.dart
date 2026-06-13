@@ -81,9 +81,12 @@ class AuthController extends GetxController {
   // unified error handler
   void _handleError(Object e) {
     Get.close(1);
+    final msg = e.toString().startsWith('Exception: ')
+        ? e.toString().substring(11)
+        : e.toString();
     showSnackbar(
       'خطأ',
-      e.toString(),
+      msg,
       backgroundColor: Colors.red,
       snackPosition: SnackPosition.BOTTOM,
     );

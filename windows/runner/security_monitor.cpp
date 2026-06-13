@@ -69,14 +69,11 @@ bool IsRecordingSoftwareRunning()
         L"bandicam",
         L"camtasiastudio",
         L"snagit32",
-        L"xsplit.core",
 
         // Lightweight
         L"ocam",
         L"apowerrec",
         L"screenrec",
-        L"flashback",
-        L"bbflashback",
 
         // Windows
         L"gamebar",
@@ -85,18 +82,7 @@ bool IsRecordingSoftwareRunning()
         // Streaming platforms
         L"streamlabs-obs",
         L"twitchstudio",
-
-        // Capture / recording
-        L"sharex",
-        L"greenshot",
-        L"picpick",
-        L"screenrecorder",
-        L"ezvid",
-        L"clipchamp",
-        L"camstudio",
         L"camtasiarecorder",
-        L"activepresenter",
-        
     };
 
     return CheckProcesses(
