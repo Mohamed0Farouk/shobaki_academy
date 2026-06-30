@@ -22,6 +22,16 @@ class MainFlutterWindow: NSWindow {
         result(isRecordingSoftwareRunning())
       case "getDetectedApp":
         result(getDetectedRecordingApp())
+      case "getDetectedApps":
+        result(getDetectedRecordingApps())
+      case "closeDetectedApp":
+        if let appName = call.arguments as? String {
+          closeDetectedApp(appName)
+        }
+        result(nil)
+      case "closeAllDetectedApps":
+        closeAllDetectedApps()
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

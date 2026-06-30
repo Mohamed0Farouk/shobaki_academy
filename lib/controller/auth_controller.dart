@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -208,14 +209,38 @@ class AuthController extends GetxController {
       if (ctx != null) Get.close(1);
 
       if (userData['disabled'] == true) {
+        try {
+          await api.insertData('logs', {
+            'user_id': userData['id'],
+            'type': 'login_blocked',
+            'data': {
+              'device_fingerprint': deviceSig,
+              'platform': Platform.operatingSystem,
+              'name': userData['name'],
+              'reason': 'account_disabled',
+            },
+          });
+        } catch (_) {}
         showSnackbar(
           'مشكلة فنية',
           'لقد تم حجبك تواصل مع الدعم لحل المشكلة',
-          backgroundColor: Colors.yellow,
+          backgroundColor: Colors.red,
           snackPosition: SnackPosition.BOTTOM,
         );
         return;
       }
+
+      try {
+        await api.insertData('logs', {
+          'user_id': userData['id'],
+          'type': 'login',
+          'data': {
+            'device_fingerprint': deviceSig,
+            'platform': Platform.operatingSystem,
+            'name': userData['name'],
+          },
+        });
+      } catch (_) {}
 
       watermarkController.updateWatermark();
 
@@ -298,6 +323,18 @@ class AuthController extends GetxController {
       Get.close(1);
 
       if (userData['disabled'] == true) {
+        try {
+          await api.insertData('logs', {
+            'user_id': userData['id'],
+            'type': 'login_blocked',
+            'data': {
+              'device_fingerprint': currentFingerprint,
+              'platform': Platform.operatingSystem,
+              'name': userData['name'],
+              'reason': 'account_disabled',
+            },
+          });
+        } catch (_) {}
         showSnackbar(
           'مشكلة فنية',
           'لقد تم حجبك تواصل مع الدعم لحل المشكلة',
@@ -306,6 +343,18 @@ class AuthController extends GetxController {
         );
         return false;
       }
+
+      try {
+        await api.insertData('logs', {
+          'user_id': userData['id'],
+          'type': 'login',
+          'data': {
+            'device_fingerprint': currentFingerprint,
+            'platform': Platform.operatingSystem,
+            'name': userData['name'],
+          },
+        });
+      } catch (_) {}
 
       // navigation:
       // - reviewer account -> navigate to home with inReview parameter
@@ -402,6 +451,34 @@ class AuthController extends GetxController {
 
   Future<void> signout() async {
     final localDb = db.sharedPref;
+
+    String? userId;
+    String? userName;
+    String? deviceFingerprint;
+    try {
+      final jsonUser = localDb?.getString('UserData');
+      if (jsonUser != null) {
+        final user = jsonDecode(jsonUser);
+        userId = user['id'];
+        userName = user['name'];
+      }
+      deviceFingerprint = await DeviceFingerprint.getFingerprint();
+    } catch (_) {}
+
+    if (userId != null) {
+      try {
+        await api.insertData('logs', {
+          'user_id': userId,
+          'type': 'logout',
+          'data': {
+            'device_fingerprint': deviceFingerprint ?? '',
+            'platform': Platform.operatingSystem,
+            'name': userName ?? '',
+          },
+        });
+      } catch (_) {}
+    }
+
     localDb?.remove('UserData');
     localDb?.setBool('isGuestMode', false);
     localDb?.setBool('isLoggedIn', false);
@@ -410,6 +487,12 @@ class AuthController extends GetxController {
     isLoggedIn.value = false;
     isVerified.value = false;
     inReview.value = false;
+
+    try {
+      final guard = Get.find<DeviceGuardController>();
+      guard.stop();
+    } catch (_) {}
+
     await api.signOut();
     Get.offAllNamed('/login');
   }

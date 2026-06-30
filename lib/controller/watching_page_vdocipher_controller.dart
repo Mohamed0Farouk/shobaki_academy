@@ -30,9 +30,16 @@ class VideoQuality {
 
 class VideoPlaybackController extends GetxController {
   final String videoUrl;
+  final int maxSessionDurationSeconds;
   final api = ApiClient();
 
-  VideoPlaybackController(this.videoUrl);
+  static const int defaultMaxSessionSeconds = 10800;
+  static const int defaultMaxPauseSeconds = 1800;
+
+  VideoPlaybackController(
+    this.videoUrl, {
+    this.maxSessionDurationSeconds = defaultMaxSessionSeconds,
+  });
 
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
@@ -67,6 +74,10 @@ class VideoPlaybackController extends GetxController {
   String? _logId;
   int? _videoDurationSeconds;
 
+  DateTime? _watchSessionStart;
+  DateTime? _pauseStart;
+  bool _sessionExpired = false;
+
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<String?>? _errorSub;
@@ -83,8 +94,8 @@ class VideoPlaybackController extends GetxController {
     _initStreams();
     await _loadUser();
     await _initializePlayer();
+    await _createInitialLog();
     _startTracking();
-    if (!logInitialized) _createInitialLog();
   }
 
   void _initStreams() {
@@ -317,18 +328,22 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _onPlay() {
+    if (_sessionExpired) return;
     if (!_isPlaying) {
       _isPlaying = true;
       isPlaying.value = true;
+      _watchSessionStart ??= DateTime.now();
       _sessionStart ??= DateTime.now();
-      if (!logInitialized) _createInitialLog();
+      _pauseStart = null;
     }
   }
 
   void _onPause() {
+    if (_sessionExpired) return;
     if (_isPlaying) {
       _isPlaying = false;
       isPlaying.value = false;
+      _pauseStart ??= DateTime.now();
       if (_sessionStart != null) {
         final sessionSeconds = DateTime.now()
             .difference(_sessionStart!)
@@ -395,9 +410,28 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _tickDuration() {
-    if (!_ticking) return;
+    if (!_ticking || _sessionExpired) return;
+
+    final now = DateTime.now();
+
+    if (_pauseStart != null && !_isPlaying) {
+      final pauseSeconds = now.difference(_pauseStart!).inSeconds;
+      if (pauseSeconds >= defaultMaxPauseSeconds) {
+        _onSessionExpired(reason: 'تم تجاوز مدة الإيقاف المؤقت (30 دقيقة)');
+        return;
+      }
+    }
+
+    if (_watchSessionStart != null) {
+      final sessionSeconds = now.difference(_watchSessionStart!).inSeconds;
+      if (sessionSeconds >= maxSessionDurationSeconds) {
+        _onSessionExpired(reason: 'انتهت مدة الجلسة (3 ساعات)');
+        return;
+      }
+    }
+
     final activeSessionSeconds = (_sessionStart != null && _isPlaying)
-        ? DateTime.now().difference(_sessionStart!).inSeconds
+        ? now.difference(_sessionStart!).inSeconds
         : 0;
     final total = _accumulatedSeconds + activeSessionSeconds;
     viewDurationSeconds.value = total;
@@ -443,6 +477,34 @@ class VideoPlaybackController extends GetxController {
     } catch (e) {
       projectLogger.e("Error while logging view: $e");
     }
+  }
+
+  void _onSessionExpired({String reason = 'انتهت مدة الجلسة'}) {
+    if (_sessionExpired) return;
+    _sessionExpired = true;
+    _ticking = false;
+    _durationTimer?.cancel();
+    _logTimer?.cancel();
+
+    player.pause();
+    _onPause();
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('انتهت الجلسة'),
+        content: Text(reason),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back();
+              Get.back();
+            },
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
   }
 
   bool _ticking = true;

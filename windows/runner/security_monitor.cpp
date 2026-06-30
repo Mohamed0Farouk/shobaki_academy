@@ -6,18 +6,21 @@
 #include <algorithm>
 
 static std::wstring detected_process;
+static std::vector<std::wstring> detected_processes;
 
-static bool CheckProcesses(
+static void CheckAllProcesses(
     const std::vector<std::wstring> &targets,
-    std::wstring &detected)
+    std::vector<std::wstring> &detected)
 {
+    detected.clear();
+
     HANDLE snapshot =
         CreateToolhelp32Snapshot(
             TH32CS_SNAPPROCESS,
             0);
 
     if (snapshot == INVALID_HANDLE_VALUE)
-        return false;
+        return;
 
     PROCESSENTRY32W entry;
     entry.dwSize = sizeof(PROCESSENTRY32W);
@@ -41,11 +44,8 @@ static bool CheckProcesses(
             {
                 if (exe == target)
                 {
-                    detected = entry.szExeFile;
-
-                    CloseHandle(snapshot);
-
-                    return true;
+                    detected.push_back(entry.szExeFile);
+                    break;
                 }
             }
 
@@ -53,14 +53,11 @@ static bool CheckProcesses(
     }
 
     CloseHandle(snapshot);
-
-    return false;
 }
 
-bool IsRecordingSoftwareRunning()
+static std::vector<std::wstring> GetTargetProcesses()
 {
-    std::vector<std::wstring> targets = {
-
+    return {
         // OBS
         L"obs64",
         L"obs32",
@@ -84,13 +81,90 @@ bool IsRecordingSoftwareRunning()
         L"twitchstudio",
         L"camtasiarecorder",
     };
+}
 
-    return CheckProcesses(
-        targets,
-        detected_process);
+bool IsRecordingSoftwareRunning()
+{
+    CheckAllProcesses(
+        GetTargetProcesses(),
+        detected_processes);
+
+    if (!detected_processes.empty())
+    {
+        detected_process = detected_processes[0];
+    }
+    else
+    {
+        detected_process.clear();
+    }
+
+    return !detected_processes.empty();
 }
 
 const wchar_t *GetDetectedRecordingApp()
 {
     return detected_process.c_str();
+}
+
+std::vector<std::wstring> GetDetectedRecordingApps()
+{
+    return detected_processes;
+}
+
+bool CloseDetectedApp(const wchar_t* processName)
+{
+    if (processName == nullptr || wcslen(processName) == 0)
+        return false;
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(
+        TH32CS_SNAPPROCESS, 0);
+
+    if (snapshot == INVALID_HANDLE_VALUE)
+        return false;
+
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(PROCESSENTRY32W);
+    bool success = false;
+
+    if (Process32FirstW(snapshot, &entry))
+    {
+        do
+        {
+            if (_wcsicmp(processName, entry.szExeFile) == 0)
+            {
+                HANDLE hProcess = OpenProcess(
+                    PROCESS_TERMINATE,
+                    FALSE,
+                    entry.th32ProcessID);
+
+                if (hProcess != NULL)
+                {
+                    success = TerminateProcess(
+                        hProcess, 0) != 0;
+                    CloseHandle(hProcess);
+                }
+
+                break;
+            }
+
+        } while (Process32NextW(snapshot, &entry));
+    }
+
+    CloseHandle(snapshot);
+    return success;
+}
+
+bool CloseAllDetectedApps()
+{
+    bool allSuccess = true;
+
+    for (const auto &process : detected_processes)
+    {
+        if (!CloseDetectedApp(process.c_str()))
+        {
+            allSuccess = false;
+        }
+    }
+
+    return allSuccess;
 }

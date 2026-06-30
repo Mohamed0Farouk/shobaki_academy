@@ -13,8 +13,13 @@ import 'package:shobaki_academy/controller/watermark_controller.dart';
 
 class VideoPlayerView extends StatefulWidget {
   final String videoUrl;
+  final int maxSessionDurationSeconds;
 
-  const VideoPlayerView({super.key, required this.videoUrl});
+  const VideoPlayerView({
+    super.key,
+    required this.videoUrl,
+    this.maxSessionDurationSeconds = VideoPlaybackController.defaultMaxSessionSeconds,
+  });
 
   @override
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
@@ -57,7 +62,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   @override
   void initState() {
     super.initState();
-    ctrl = Get.put(VideoPlaybackController(widget.videoUrl));
+    ctrl = Get.put(VideoPlaybackController(
+      widget.videoUrl,
+      maxSessionDurationSeconds: widget.maxSessionDurationSeconds,
+    ));
 
     _qualityWorker = ever(ctrl.currentQualityIndex, (_) {
       if (Platform.isMacOS) _initChewie(autoPlay: ctrl.lastPlayIntent.value);

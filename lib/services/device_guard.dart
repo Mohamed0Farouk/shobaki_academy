@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
@@ -41,9 +43,22 @@ class DeviceGuardController extends GetxController {
       try {
         final response = await _client
             .from('students')
-            .select('device_fingerprint')
+            .select('device_fingerprint, disabled')
             .eq('id', _userId!)
             .single();
+
+        if (response['disabled'] == true) {
+          showSnackbar(
+            'تم حجب الحساب',
+            'لقد تم حجب حسابك. تواصل مع الدعم.',
+            backgroundColor: Colors.redAccent,
+            snackPosition: SnackPosition.BOTTOM,
+            duration: const Duration(seconds: 5),
+          );
+          await _forceLogout();
+          _isChecking = false;
+          return;
+        }
 
         final serverFingerprint = response['device_fingerprint'];
         print(
@@ -78,6 +93,27 @@ class DeviceGuardController extends GetxController {
   Future<void> _forceLogout() async {
     final auth = Get.put(AuthController());
 
+    String? userName;
+    try {
+      final jsonUser = auth.db.sharedPref?.getString('UserData');
+      if (jsonUser != null) {
+        final user = jsonDecode(jsonUser);
+        userName = user['name'];
+      }
+    } catch (_) {}
+
+    try {
+      await _client.from('logs').insert({
+        'user_id': _userId,
+        'type': 'login_blocked',
+        'data': {
+          'device_fingerprint': _localFingerprint,
+          'platform': Platform.operatingSystem,
+          'name': userName ?? '',
+        },
+      });
+    } catch (_) {}
+
     _subscription?.cancel();
     await auth.signout();
     stop();
@@ -100,9 +136,21 @@ class DeviceGuardController extends GetxController {
     try {
       final response = await _client
           .from('students')
-          .select('device_fingerprint')
+          .select('device_fingerprint, disabled')
           .eq('id', _userId!)
           .single();
+
+      if (response['disabled'] == true) {
+        showSnackbar(
+          'تم حجب الحساب',
+          'لقد تم حجب حسابك. تواصل مع الدعم.',
+          backgroundColor: Colors.redAccent,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 5),
+        );
+        await _forceLogout();
+        return false;
+      }
 
       final serverFingerprint = response['device_fingerprint'];
 

@@ -86,6 +86,7 @@ bool FlutterWindow::OnCreate()
         if (call.method_name() ==
             "getDetectedApp")
         {
+          IsRecordingSoftwareRunning();
           std::wstring process =
               GetDetectedRecordingApp();
 
@@ -117,6 +118,107 @@ bool FlutterWindow::OnCreate()
           result->Success(
               flutter::EncodableValue(
                   process_utf8));
+
+          return;
+        }
+
+        if (call.method_name() ==
+            "getDetectedApps")
+        {
+          IsRecordingSoftwareRunning();
+          auto apps = GetDetectedRecordingApps();
+          flutter::EncodableList list;
+
+          for (const auto &app : apps)
+          {
+            int size_needed =
+                WideCharToMultiByte(
+                    CP_UTF8,
+                    0,
+                    app.c_str(),
+                    -1,
+                    NULL,
+                    0,
+                    NULL,
+                    NULL);
+
+            std::string app_utf8(
+                size_needed,
+                0);
+
+            WideCharToMultiByte(
+                CP_UTF8,
+                0,
+                app.c_str(),
+                -1,
+                &app_utf8[0],
+                size_needed,
+                NULL,
+                NULL);
+
+            list.push_back(
+                flutter::EncodableValue(
+                    app_utf8));
+          }
+
+          result->Success(
+              flutter::EncodableValue(
+                  list));
+
+          return;
+        }
+
+        if (call.method_name() ==
+            "closeDetectedApp")
+        {
+          const auto* args =
+              std::get_if<std::string>(
+                  &*call.arguments());
+
+          bool success = false;
+
+          if (args != nullptr)
+          {
+            int wide_len =
+                MultiByteToWideChar(
+                    CP_UTF8,
+                    0,
+                    args->c_str(),
+                    -1,
+                    NULL,
+                    0);
+
+            std::wstring wide_str(
+                wide_len, L'\0');
+
+            MultiByteToWideChar(
+                CP_UTF8,
+                0,
+                args->c_str(),
+                -1,
+                &wide_str[0],
+                wide_len);
+
+            success = CloseDetectedApp(
+                wide_str.c_str());
+          }
+
+          result->Success(
+              flutter::EncodableValue(
+                  success));
+
+          return;
+        }
+
+        if (call.method_name() ==
+            "closeAllDetectedApps")
+        {
+          bool success =
+              CloseAllDetectedApps();
+
+          result->Success(
+              flutter::EncodableValue(
+                  success));
 
           return;
         }

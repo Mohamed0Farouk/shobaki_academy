@@ -9,6 +9,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/security_controller.dart';
+import 'package:shobaki_academy/controller/version_controller.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
@@ -65,6 +66,7 @@ class GlobalBindings extends Bindings {
     Get.put(NetworkController(), permanent: true);
     Get.put(DeviceGuardController(), permanent: true);
     Get.put(AuthController(), permanent: true);
+    Get.put(VersionController(), permanent: true);
   }
 }
 

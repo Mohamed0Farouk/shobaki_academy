@@ -19,7 +19,7 @@ class SecurityController extends GetxController {
   final detectionType = DetectionType.none.obs;
   final isRecordingDetected = false.obs;
   final isScreenshotDetected = false.obs;
-  final detectedApp = ''.obs;
+  final detectedApps = <String>[].obs;
   final countdown = 60.obs;
   final isFlickering = false.obs;
   final isMobileRecording = false.obs;
@@ -33,9 +33,12 @@ class SecurityController extends GetxController {
   DateTime? _detectionTime;
   bool _pendingBlock = false;
 
-  void onRecordingDetected(String appName, {bool isMobile = false}) {
-    if (isRecordingDetected.value) return;
-    detectedApp.value = appName;
+  void onRecordingDetected(List<String> apps, {bool isMobile = false}) {
+    if (isRecordingDetected.value) {
+      detectedApps.assignAll(apps);
+      return;
+    }
+    detectedApps.assignAll(apps);
     isRecordingDetected.value = true;
     detectionType.value = DetectionType.recording;
     isMobileRecording.value = isMobile;
@@ -59,11 +62,11 @@ class SecurityController extends GetxController {
   }
 
   void onScreenshotDetected(String appName) {
-    detectedApp.value = appName;
+    detectedApps.assignAll([appName]);
     isScreenshotDetected.value = true;
     detectionType.value = DetectionType.screenshot;
     _detectionTime = DateTime.now();
-    _sendWhatsAppAlert();
+    //_sendWhatsAppAlert();
     _showScreenshotAlert();
     Future.delayed(const Duration(seconds: 5), () {
       if (detectionType.value == DetectionType.screenshot) {
@@ -110,7 +113,7 @@ class SecurityController extends GetxController {
   Future<void> _executeStageAction(int stage) async {
     switch (stage) {
       case 0:
-        await _sendWhatsAppAlert();
+        //await _sendWhatsAppAlert();
         break;
       case 1:
         _navigateToHome();
@@ -156,11 +159,12 @@ class SecurityController extends GetxController {
       final timestamp =
           '${ts.hour}:${ts.minute.toString().padLeft(2, '0')} ${ts.day}/${ts.month}/${ts.year}';
 
+      final appsList = detectedApps.join('، ');
       final message =
           '🚨 تنبيه أمان - محاولة تسجيل شاشة\n'
           'الطالب: $studentName\n'
           'رقم الهاتف: $studentPhone\n'
-          'البرنامج المكتشف: ${detectedApp.value}\n'
+          'البرامج المكتشفة: $appsList\n'
           'الوقت: $timestamp';
 
       print('Sending alert: $message');
@@ -209,6 +213,18 @@ class SecurityController extends GetxController {
     await AuthController.to.signout();
   }
 
+  Future<void> closeDetectedApp(String appName) async {
+    try {
+      await _channel.invokeMethod('closeDetectedApp', appName);
+    } catch (_) {}
+  }
+
+  Future<void> closeAllDetectedApps() async {
+    try {
+      await _channel.invokeMethod('closeAllDetectedApps');
+    } catch (_) {}
+  }
+
   void _showScreenshotAlert() {
     showSnackbar(
       'تنبيه',
@@ -233,18 +249,18 @@ class SecurityController extends GetxController {
   void _startMonitoring() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) async {
       try {
-        final detected =
-            await _channel.invokeMethod<bool>('isRecordingDetected') ?? false;
+        final apps = (await _channel.invokeMethod<List<dynamic>>('getDetectedApps') ?? [])
+            .cast<String>();
 
-        if (detected && !_wasDetected) {
-          final app =
-              await _channel.invokeMethod<String>('getDetectedApp') ?? '';
-          onRecordingDetected(app);
-        } else if (!detected && _wasDetected) {
+        if (apps.isNotEmpty && !_wasDetected) {
+          onRecordingDetected(apps);
+        } else if (apps.isNotEmpty && _wasDetected) {
+          detectedApps.assignAll(apps);
+        } else if (apps.isEmpty && _wasDetected) {
           onRecordingCleared();
         }
 
-        _wasDetected = detected;
+        _wasDetected = apps.isNotEmpty;
       } catch (_) {}
     });
   }
