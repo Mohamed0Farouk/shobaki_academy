@@ -13,6 +13,7 @@ import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/utils/image_utils.dart';
 import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
+import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
 
 // ignore: must_be_immutable
 class TopicContentPage extends StatelessWidget {
@@ -877,49 +878,50 @@ class TopicContentPage extends StatelessWidget {
       final videoInfo = (lecture['videos'] as Map).values.first;
       final videoUrl = videoInfo['url'];
       final maxViewCount =
-          videoInfo['max_view_count'] ?? 0; // Get max views from video data
+          videoInfo['max_view_count'] ?? 0;
 
-      final userViews = await _getUserVideoViewCount(videoUrl, userData!['id']);
-      final isLimited = await _isVideoViewLimitReached(
-        videoUrl,
-        maxViewCount,
-        userViews,
-        userData['id'],
-      );
-
-      print('#user views for $videoUrl: $userViews / $maxViewCount');
-
-      // 1. Build the base card widget (no SizedBox wrapper needed)
-      Widget baseCard =
+      final isAccessible =
           isSubscribed ||
               topicData!['free'] == true ||
-              userData['email'] == 'appletestaccount#97111111111111@gmail.com'
-          ? CardModel(
-              type: CardTypes.video,
-              thumbnail: lecture["thumbnail"],
-              title: lecture['title'] ?? '',
-              description: lecture['description'] ?? '',
-              id: lecture['id'] ?? '',
-              url: lecture['videos'].values.first['url'] ?? '',
-            )
-          : CardModel(
-              type: CardTypes.lecture,
-              thumbnail: lecture["thumbnail"],
-              title: lecture['title'] ?? '',
-              description: lecture['description'] ?? '',
-              id: lecture['id'] ?? '',
-              nav: null,
-            );
+              userData!['email'] == 'appletestaccount#97111111111111@gmail.com';
 
-      // 2. Wrap in InkWell only when needed (same size as card)
+      final cardWidget = CardModel(
+        thumbnail: lecture["thumbnail"],
+        title: lecture['title'] ?? '',
+        description: lecture['description'] ?? '',
+        id: lecture['id'] ?? '',
+        type: CardTypes.lecture,
+        navLabel: isAccessible ? 'بدء المشاهدة' : null,
+        nav: null,
+        onTap: isAccessible
+            ? () async {
+                final userViews =
+                    await _getUserVideoViewCount(videoUrl, userData!['id']);
+                final isLimited = await _isVideoViewLimitReached(
+                  videoUrl,
+                  maxViewCount,
+                  userViews,
+                  userData['id'],
+                );
+
+                if (isLimited) {
+                  _showViewLimitDialog(context);
+                } else {
+                  Get.to(
+                    () => VideoPlayerView(videoUrl: videoUrl),
+                    transition: Transition.downToUp,
+                    duration: const Duration(milliseconds: 600),
+                  );
+                }
+              }
+            : null,
+      );
+
       Widget card = FadeInUp(
         from: 100,
         duration: const Duration(milliseconds: 600),
-        child:
-            isSubscribed ||
-                topicData!['free'] == true ||
-                userData['email'] == 'appletestaccount#97111111111111@gmail.com'
-            ? baseCard
+        child: isAccessible
+            ? cardWidget
             : InkWell(
                 onTap: () {
                   if (isGuest) {
@@ -928,27 +930,10 @@ class TopicContentPage extends StatelessWidget {
                     showSubscripeAnnotationDialog(context: context);
                   }
                 },
-                child: baseCard,
+                child: cardWidget,
               ),
       );
 
-      // 3. Stack lock overlay using StackFit.passthrough so Stack = card size
-      if (isLimited) {
-        final lockMsg = 'المشاهدات\n ($userViews/$maxViewCount)';
-        card = Stack(
-          fit: StackFit.passthrough, // ← key fix: Stack adopts the card's size
-          children: [
-            card,
-            Positioned.fill(
-              child: FadeInUp(
-                from: 100,
-                duration: const Duration(milliseconds: 600),
-                child: buildLockedOverlay(lockMsg, context),
-              ),
-            ),
-          ],
-        );
-      }
       widgets.add(card);
     }
     return widgets;
@@ -1107,6 +1092,37 @@ class TopicContentPage extends StatelessWidget {
           const Icon(Icons.lock_rounded, color: Colors.white),
         ],
       ),
+    );
+  }
+
+  void _showViewLimitDialog(BuildContext context) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text(
+          'تم الوصول للحد الأقصى',
+          textAlign: TextAlign.center,
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange),
+            SizedBox(height: 16),
+            Text(
+              'تم الوصول للحد الأقصى من المشاهدات لهذا الفيديو، يرجى التواصل مع الدعم الفني',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 }

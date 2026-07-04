@@ -565,9 +565,7 @@ class VideoPlaybackController extends GetxController {
           },
         };
         api.updateData("logs", finalData, {"id": _logId!});
-        projectLogger.i(
-          "Final log update: ${finalDuration}s (id: $_logId)",
-        );
+        projectLogger.i("Final log update: ${finalDuration}s (id: $_logId)");
       } catch (e) {
         projectLogger.e("Error on final log update: $e");
       }

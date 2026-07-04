@@ -338,7 +338,7 @@ class AuthController extends GetxController {
         showSnackbar(
           'مشكلة فنية',
           'لقد تم حجبك تواصل مع الدعم لحل المشكلة',
-          backgroundColor: Colors.yellow,
+          backgroundColor: Colors.red,
           snackPosition: SnackPosition.BOTTOM,
         );
         return false;

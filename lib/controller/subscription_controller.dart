@@ -30,6 +30,20 @@ class SubscriptionController extends GetxController {
           )
           .then((value) async {
             if (value.isNotEmpty) {
+              final allowedContent = value[0]['allowed_content'];
+              if (allowedContent != null &&
+                  allowedContent is List &&
+                  allowedContent.isNotEmpty) {
+                if (!allowedContent.contains(topicId)) {
+                  _showErrorSnackbar(
+                    'توجد مشكلة',
+                    'هذا الكود لا يدعم الاشتراك في هذا المحتوى',
+                    Colors.red,
+                  );
+                  return;
+                }
+              }
+
               if (value[0]['limited'] && value[0]['remain_uses'] > 0) {
                 await api.updateData(
                   'student_codes',
@@ -70,7 +84,7 @@ class SubscriptionController extends GetxController {
               _showErrorSnackbar(
                 'توجد مشكلة',
                 "انت تستخدم كود خاطئ",
-                Colors.yellow,
+                Colors.red,
               );
               return;
             }
@@ -115,7 +129,7 @@ class SubscriptionController extends GetxController {
         showSnackbar(
           'توجد مشكلة',
           'الكود غير صحيح',
-          backgroundColor: Colors.yellow,
+          backgroundColor: Colors.red,
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 3),
         );

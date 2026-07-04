@@ -95,11 +95,17 @@ class VersionController extends GetxController {
   String _getStoreUrl() {
     if (Platform.isAndroid) {
       // Replace with your actual Google Play package ID
-      return 'https://play.google.com/store/apps/details?id=mohamedfarouk.atoms&pcampaignid=web_share';
+      return 'https://play.google.com/store/apps/details?id=com.mohamedfarouk.shobaki_academy';
     } else if (Platform.isIOS) {
       // Replace with your actual App Store app ID
-      return 'https://apps.apple.com/us/app/id6752791447';
-    }
+      return 'https://apps.apple.com/us/app/alshobaki-academy/id6759484066';
+    }else if (Platform.isWindows) {
+      // Replace with your actual Microsoft Store app ID
+      return 'https://alshobakiacademy.com/';
+    }else if (Platform.isMacOS) {
+      // Replace with your actual Mac App Store app ID
+      return 'https://apps.apple.com/us/app/alshobaki-academy/id6759484066?platform=mac';
+    } 
     return '';
   }
 
