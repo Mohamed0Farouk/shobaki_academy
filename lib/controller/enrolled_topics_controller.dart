@@ -54,6 +54,7 @@ class EnrolledTopicsController extends GetxController {
   /// Uses select parameter with foreign key relations for optimization
   Future<void> loadenrolledtopics() async {
     try {
+      isLoading.value = true;
       if (_studentId == null || _studentId!.isEmpty) {
         isGuest.value = true;
         isLoading.value = false;

@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
+import 'package:shobaki_academy/controller/enrolled_topics_controller.dart';
 import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
@@ -44,7 +45,7 @@ class _HomePageState extends State<HomePage> {
 
   final PageController _pageController = PageController(
     initialPage: 0,
-    keepPage: true,
+    keepPage: false,
   );
   late final NotchBottomBarController _notchBottomBarController;
   int _currentIndex = 0;
@@ -125,7 +126,10 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       BottomBarItem(
-        activeItem: Icon(PhosphorIconsFill.bookmark, color: Theme.of(context).primaryColor),
+        activeItem: Icon(
+          PhosphorIconsFill.bookmark,
+          color: Theme.of(context).primaryColor,
+        ),
         inActiveItem: Icon(PhosphorIconsRegular.bookmark),
       ),
       if (useHomeworksAndExams)
@@ -332,7 +336,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _maybeRefreshSubscriptions(int index) {
+    if (index >= 0 && index < _pages.length && _pages[index] is EnrolledTopicsPage) {
+      try {
+        Get.find<EnrolledTopicsController>().loadenrolledtopics();
+      } catch (_) {}
+    }
+  }
+
   void _onTapNav(int idx) {
+    _maybeRefreshSubscriptions(idx);
     setState(() => _currentIndex = idx);
 
     /// ⭐ Safe: PageView is now attached
@@ -367,9 +380,11 @@ class _HomePageState extends State<HomePage> {
                 color: Theme.of(context).scaffoldBackgroundColor,
                 child: PageView(
                   controller: _pageController,
+
                   physics: const NeverScrollableScrollPhysics(),
                   children: _pages,
                   onPageChanged: (value) {
+                    _maybeRefreshSubscriptions(value);
                     setState(() => _currentIndex = value);
                     _notchBottomBarController.index = value;
                   },
@@ -386,10 +401,11 @@ class _HomePageState extends State<HomePage> {
         body: PageView(
           controller: _pageController,
           children: _pages,
-            onPageChanged: (value) {
-              setState(() => _currentIndex = value);
-              _notchBottomBarController.index = value;
-            },
+          onPageChanged: (value) {
+            _maybeRefreshSubscriptions(value);
+            setState(() => _currentIndex = value);
+            _notchBottomBarController.index = value;
+          },
         ),
         bottomNavigationBar: bottomNavBar(context),
       );
@@ -657,7 +673,11 @@ class _HomePageState extends State<HomePage> {
           child: AnimatedRotation(
             turns: _sidebarCollapsed ? 0.5 : 0,
             duration: const Duration(milliseconds: 400),
-            child: Icon(PhosphorIconsRegular.caretLeft, color: Colors.white, size: 20),
+            child: Icon(
+              PhosphorIconsRegular.caretLeft,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -789,7 +809,11 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                const Icon(PhosphorIconsRegular.lock, color: Colors.orange, size: 16),
+                const Icon(
+                  PhosphorIconsRegular.lock,
+                  color: Colors.orange,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

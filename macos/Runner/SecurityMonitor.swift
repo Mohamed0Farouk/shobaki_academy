@@ -75,11 +75,13 @@ public func isRecordingSoftwareRunning() -> Bool {
 
 /// Get the name of the first detected recording application
 public func getDetectedRecordingApp() -> String {
+    _ = isRecordingSoftwareRunning()
     return detectedApps.first ?? ""
 }
 
 /// Get all detected recording application names
 public func getDetectedRecordingApps() -> [String] {
+    _ = isRecordingSoftwareRunning()
     return detectedApps
 }
 

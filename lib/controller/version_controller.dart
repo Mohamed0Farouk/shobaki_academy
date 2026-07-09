@@ -99,13 +99,13 @@ class VersionController extends GetxController {
     } else if (Platform.isIOS) {
       // Replace with your actual App Store app ID
       return 'https://apps.apple.com/us/app/alshobaki-academy/id6759484066';
-    }else if (Platform.isWindows) {
+    } else if (Platform.isWindows) {
       // Replace with your actual Microsoft Store app ID
       return 'https://alshobakiacademy.com/';
-    }else if (Platform.isMacOS) {
+    } else if (Platform.isMacOS) {
       // Replace with your actual Mac App Store app ID
       return 'https://apps.apple.com/us/app/alshobaki-academy/id6759484066?platform=mac';
-    } 
+    }
     return '';
   }
 
