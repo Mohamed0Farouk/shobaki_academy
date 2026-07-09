@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -218,8 +219,8 @@ class RecordingDetectedOverlay extends StatelessWidget {
                       ),
                     if (!isMobile) const SizedBox(height: 8),
 
-                    // ── Close section (desktop only) ──
-                    if (!isMobile && apps.isNotEmpty) ...[
+                    // ── Close section (desktop only, unsupported on macOS) ──
+                    if (!isMobile && !Platform.isMacOS && apps.isNotEmpty) ...[
                       // Section header
                       Row(
                         children: [

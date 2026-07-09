@@ -10,7 +10,14 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
-    self.sharingType = .none
+    NSApplication.shared.windows.forEach { $0.sharingType = .none }
+    NotificationCenter.default.addObserver(
+        forName: NSWindow.didBecomeKeyNotification,
+        object: nil,
+        queue: .main
+    ) { notification in
+        (notification.object as? NSWindow)?.sharingType = .none
+    }
 
     let channel = FlutterMethodChannel(
       name: "shobaki/security",
@@ -24,14 +31,6 @@ class MainFlutterWindow: NSWindow {
         result(getDetectedRecordingApp())
       case "getDetectedApps":
         result(getDetectedRecordingApps())
-      case "closeDetectedApp":
-        if let appName = call.arguments as? String {
-          closeDetectedApp(appName)
-        }
-        result(nil)
-      case "closeAllDetectedApps":
-        closeAllDetectedApps()
-        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

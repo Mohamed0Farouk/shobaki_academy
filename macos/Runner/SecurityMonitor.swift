@@ -85,30 +85,6 @@ public func getDetectedRecordingApps() -> [String] {
     return detectedApps
 }
 
-/// Force close a specific recording application by executable name
-public func closeDetectedApp(_ appName: String) {
-    if appName.isEmpty { return }
-
-    for app in NSWorkspace.shared.runningApplications {
-        guard let execURL = app.executableURL else { continue }
-        let execName = execURL.lastPathComponent
-        let nameOnly = execName.hasSuffix(".app")
-            ? String(execName.dropLast(4))
-            : execName
-        if nameOnly == appName {
-            app.forceTerminate()
-            return
-        }
-    }
-}
-
-/// Force close all detected recording applications
-public func closeAllDetectedApps() {
-    for appName in detectedApps {
-        closeDetectedApp(appName)
-    }
-}
-
 // MARK: - Detection Methods
 
 /// Detect native macOS screen recording by checking for screencaptureui process
