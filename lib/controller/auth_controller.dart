@@ -9,6 +9,7 @@ import 'package:shobaki_academy/services/device_fingerprint.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/services/whatsapp_notification.dart';
 import 'package:uuid/uuid.dart';
 
 class AuthController extends GetxController {
@@ -449,20 +450,47 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> signout() async {
+  Future<void> signout({String reason = 'voluntary'}) async {
     final localDb = db.sharedPref;
 
     String? userId;
-    String? userName;
+    Map<String, dynamic>? userData;
     String? deviceFingerprint;
     try {
       final jsonUser = localDb?.getString('UserData');
       if (jsonUser != null) {
-        final user = jsonDecode(jsonUser);
-        userId = user['id'];
-        userName = user['name'];
+        userData = jsonDecode(jsonUser) as Map<String, dynamic>;
+        userId = userData['id'];
       }
       deviceFingerprint = await DeviceFingerprint.getFingerprint();
+    } catch (_) {}
+
+    // Send WhatsApp notification based on reason
+    try {
+      if (userData != null && userData['email']?.toString() != 'guest@example.com') {
+        final now = DateTime.now();
+        String message;
+        switch (reason) {
+          case 'blocked_by_security':
+            message = WhatsAppNotification.buildSignOutBlockedMessage(
+              student: userData,
+              signOutTime: now,
+            );
+            break;
+          case 'device_changed':
+            message = WhatsAppNotification.buildSignOutDeviceChangeMessage(
+              student: userData,
+              signOutTime: now,
+            );
+            break;
+          default:
+            message = WhatsAppNotification.buildSignOutVoluntaryMessage(
+              student: userData,
+              signOutTime: now,
+            );
+        }
+        await WhatsAppNotification.sendAdminMessage(message);
+      }
     } catch (_) {}
 
     if (userId != null) {
@@ -473,7 +501,8 @@ class AuthController extends GetxController {
           'data': {
             'device_fingerprint': deviceFingerprint ?? '',
             'platform': Platform.operatingSystem,
-            'name': userName ?? '',
+            'name': userData?['name'] ?? '',
+            'reason': reason,
           },
         });
       } catch (_) {}
@@ -559,6 +588,15 @@ class AuthController extends GetxController {
       final jsonUser = localDb?.getString('UserData');
       if (jsonUser == null) return;
       final user = json.decode(jsonUser);
+
+      // Send comprehensive WhatsApp notification BEFORE deletion
+      try {
+        final message = await WhatsAppNotification.buildDeleteAccountMessage(
+          student: user,
+        );
+        await WhatsAppNotification.sendAdminMessage(message);
+      } catch (_) {}
+
       await api.deleteAccount(id: user['id']);
       localDb?.remove('UserData');
       Get.offAllNamed('/login');

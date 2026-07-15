@@ -48,7 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_auth!.isGuestMode.value) {
         await _auth.exitGuestMode();
       }
-      await _auth.signout();
+      await _auth.signout(reason: 'voluntary');
     } catch (_) {
       Get.close(1);
       Get.offAllNamed('/login');

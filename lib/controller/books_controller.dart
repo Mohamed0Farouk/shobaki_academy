@@ -14,6 +14,7 @@ class Book {
   final String url;
   final String? thumbnail;
   final bool free;
+  final bool hidden;
   final DateTime createdAt;
 
   Book({
@@ -22,6 +23,7 @@ class Book {
     required this.url,
     this.thumbnail,
     required this.free,
+    this.hidden = false,
     required this.createdAt,
   });
 
@@ -32,6 +34,7 @@ class Book {
       url: json['url'] as String,
       thumbnail: json['thumbnail'] as String?,
       free: json['free'] as bool? ?? false,
+      hidden: json['hidden'] as bool? ?? false,
       createdAt: DateTime.parse(
         json['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
@@ -123,13 +126,16 @@ class BooksController extends GetxController {
       if (userData != null && userData!['stage'] != null) {
         final response = await _api.fetchWithConditions(
           'books',
-          filters: {'stage': userData!['stage']},
+          filters: {'stage': userData!['stage'], 'hidden': false},
         );
         books.value = (response)
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
             .toList();
       } else {
-        final response = await _api.fetchData('books');
+        final response = await _api.fetchWithConditions(
+          'books',
+          filters: {'hidden': false},
+        );
         books.value = (response)
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
             .toList();
@@ -192,6 +198,7 @@ class BooksController extends GetxController {
       final pattern = '%$query%';
       final filters = <String, dynamic>{
         'title': {'operator': 'ilike', 'value': pattern},
+        'hidden': false,
       };
 
       if (userData != null && userData!['stage'] != null) {

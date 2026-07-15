@@ -2,14 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/services/whatsapp_notification.dart';
 
 enum DetectionType { none, recording, screenshot }
 
@@ -66,7 +65,7 @@ class SecurityController extends GetxController {
     isScreenshotDetected.value = true;
     detectionType.value = DetectionType.screenshot;
     _detectionTime = DateTime.now();
-    //_sendWhatsAppAlert();
+    _sendScreenshotAlert();
     _showScreenshotAlert();
     Future.delayed(const Duration(seconds: 5), () {
       if (detectionType.value == DetectionType.screenshot) {
@@ -113,7 +112,7 @@ class SecurityController extends GetxController {
   Future<void> _executeStageAction(int stage) async {
     switch (stage) {
       case 0:
-        //await _sendWhatsAppAlert();
+        await _sendRecordingAlert();
         break;
       case 1:
         _navigateToHome();
@@ -136,43 +135,53 @@ class SecurityController extends GetxController {
     }
   }
 
-  Future<void> _sendWhatsAppAlert() async {
+  /// Send initial recording detection alert (stage 0)
+  Future<void> _sendRecordingAlert() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('UserData');
-      if (raw != null) {
-        final user = jsonDecode(raw);
-        if (user['email']?.toString() == 'guest@example.com') return;
-      }
+      if (raw == null) return;
+      final user = jsonDecode(raw) as Map<String, dynamic>;
+      if (user['email']?.toString() == 'guest@example.com') return;
 
-      String studentName = 'غير معروف';
-      String studentPhone = 'غير معروف';
-      if (raw != null) {
-        final user = jsonDecode(raw);
-        studentName = user['name']?.toString() ?? 'غير معروف';
-        studentPhone = user['phone_number']?.toString() ?? 'غير معروف';
-      }
-
-      final apiUrl = dotenv.get('ALSHOBAKI_API', fallback: '');
-      final adminPhone = dotenv.get('ADMIN_WHATSAPP', fallback: '');
-      final ts = _detectionTime ?? DateTime.now();
-      final timestamp =
-          '${ts.hour}:${ts.minute.toString().padLeft(2, '0')} ${ts.day}/${ts.month}/${ts.year}';
-
-      final appsList = detectedApps.join('، ');
-      final message =
-          '🚨 تنبيه أمان - محاولة تسجيل شاشة\n'
-          'الطالب: $studentName\n'
-          'رقم الهاتف: $studentPhone\n'
-          'البرامج المكتشفة: $appsList\n'
-          'الوقت: $timestamp';
-
-      print('Sending alert: $message');
-
-      await Dio().post(
-        '${apiUrl}api/send-message',
-        data: {'phone_number': adminPhone, 'message': message},
+      final message = WhatsAppNotification.buildScreenshotAlertMessage(
+        student: user,
+        detectedApp: detectedApps.join('، '),
+        detectionTime: _detectionTime ?? DateTime.now(),
       );
+      await WhatsAppNotification.sendAdminMessage(message);
+    } catch (_) {}
+  }
+
+  /// Send screenshot detection alert
+  Future<void> _sendScreenshotAlert() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('UserData');
+      if (raw == null) return;
+      final user = jsonDecode(raw) as Map<String, dynamic>;
+      if (user['email']?.toString() == 'guest@example.com') return;
+
+      final message = WhatsAppNotification.buildScreenshotAlertMessage(
+        student: user,
+        detectedApp: detectedApps.isNotEmpty ? detectedApps.first : 'غير معروف',
+        detectionTime: _detectionTime ?? DateTime.now(),
+      );
+      await WhatsAppNotification.sendAdminMessage(message);
+    } catch (_) {}
+  }
+
+  /// Send block notification when 60s countdown ends (before disabling account)
+  Future<void> _sendBlockNotification(Map<String, dynamic> user) async {
+    try {
+      if (user['email']?.toString() == 'guest@example.com') return;
+
+      final message = WhatsAppNotification.buildBlockMessage(
+        student: user,
+        detectedApps: detectedApps.toList(),
+        detectionTime: _detectionTime ?? DateTime.now(),
+      );
+      await WhatsAppNotification.sendAdminMessage(message);
     } catch (_) {}
   }
 
@@ -197,11 +206,15 @@ class SecurityController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('UserData');
       if (raw != null) {
-        final user = jsonDecode(raw);
+        final user = jsonDecode(raw) as Map<String, dynamic>;
         if (user['email']?.toString() == 'guest@example.com') {
-          await AuthController.to.signout();
+          await AuthController.to.signout(reason: 'blocked_by_security');
           return;
         }
+
+        // Send block notification BEFORE disabling the account
+        await _sendBlockNotification(user);
+
         final api = ApiClient();
         await api.updateData(
           'students',
@@ -210,7 +223,7 @@ class SecurityController extends GetxController {
         );
       }
     } catch (_) {}
-    await AuthController.to.signout();
+    await AuthController.to.signout(reason: 'blocked_by_security');
   }
 
   Future<void> closeDetectedApp(String appName) async {

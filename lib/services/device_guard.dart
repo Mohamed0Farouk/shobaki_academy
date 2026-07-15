@@ -55,7 +55,7 @@ class DeviceGuardController extends GetxController {
             snackPosition: SnackPosition.BOTTOM,
             duration: const Duration(seconds: 5),
           );
-          await _forceLogout();
+          await _forceLogout(reason: 'blocked');
           _isChecking = false;
           return;
         }
@@ -73,7 +73,7 @@ class DeviceGuardController extends GetxController {
             snackPosition: SnackPosition.BOTTOM,
             duration: const Duration(seconds: 5),
           );
-          await _forceLogout();
+          await _forceLogout(reason: 'device_changed');
         }
       } catch (e) {
         showSnackbar(
@@ -83,14 +83,14 @@ class DeviceGuardController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
         );
-        await _forceLogout();
+        await _forceLogout(reason: 'blocked');
       }
 
       _isChecking = false;
     });
   }
 
-  Future<void> _forceLogout() async {
+  Future<void> _forceLogout({String reason = 'blocked'}) async {
     final auth = Get.put(AuthController());
 
     String? userName;
@@ -110,12 +110,13 @@ class DeviceGuardController extends GetxController {
           'device_fingerprint': _localFingerprint,
           'platform': Platform.operatingSystem,
           'name': userName ?? '',
+          'reason': reason,
         },
       });
     } catch (_) {}
 
     _subscription?.cancel();
-    await auth.signout();
+    await auth.signout(reason: reason);
     stop();
   }
 
@@ -148,7 +149,7 @@ class DeviceGuardController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
         );
-        await _forceLogout();
+        await _forceLogout(reason: 'blocked');
         return false;
       }
 
@@ -162,7 +163,7 @@ class DeviceGuardController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
         );
-        await _forceLogout();
+        await _forceLogout(reason: 'device_changed');
         return false;
       }
 
