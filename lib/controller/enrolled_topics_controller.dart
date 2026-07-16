@@ -29,8 +29,14 @@ class EnrolledTopicsController extends GetxController {
   EnrolledTopicsController({this.userStageArg});
 
   @override
-  void onInit() {
-    super.onInit();
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
+  }
+
+  /// Load recommended and latest enrolled topics using students_subscriptions
+  /// Uses select parameter with foreign key relations for optimization
+  Future<void> loadenrolledtopics() async {
     final LocalDB prefs = Get.find();
     final jsonUserData = prefs.sharedPref!.getString('UserData');
     final Map<String, dynamic>? userData = jsonUserData != null
@@ -42,17 +48,6 @@ class EnrolledTopicsController extends GetxController {
     if (_studentId == null) {
       isGuest.value = true;
     }
-  }
-
-  @override
-  void onClose() {
-    searchController.dispose();
-    super.onClose();
-  }
-
-  /// Load recommended and latest enrolled topics using students_subscriptions
-  /// Uses select parameter with foreign key relations for optimization
-  Future<void> loadenrolledtopics() async {
     try {
       isLoading.value = true;
       if (_studentId == null || _studentId!.isEmpty) {
@@ -124,12 +119,12 @@ class EnrolledTopicsController extends GetxController {
       latestenrolledtopics.assignAll(latest);
     } catch (e) {
       projectLogger.e('Error loading enrolled topics: $e');
-      showSnackbar(
-        'خطأ',
-        'فشل في جلب المحتويات: $e',
-        backgroundColor: Colors.red,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      // showSnackbar(
+      //   'خطأ',
+      //   'فشل في جلب المحتويات: $e',
+      //   backgroundColor: Colors.red,
+      //   snackPosition: SnackPosition.BOTTOM,
+      // );
     } finally {
       isLoading.value = false;
     }

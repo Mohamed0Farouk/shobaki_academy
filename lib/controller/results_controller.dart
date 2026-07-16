@@ -67,12 +67,14 @@ class ResultsController extends GetxController {
       );
     } catch (e) {
       // keep lists unchanged on error but show notification
-      showSnackbar(
-        'خطأ',
-        'فشل في جلب المحتويات: $e',
-        backgroundColor: Colors.red,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      projectLogger.e('Error loading results: $e');
+
+      // showSnackbar(
+      //   'خطأ',
+      //   'فشل في جلب المحتويات: $e',
+      //   backgroundColor: Colors.red,
+      //   snackPosition: SnackPosition.BOTTOM,
+      // );
     } finally {
       isLoading.value = false;
     }

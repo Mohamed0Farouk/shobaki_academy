@@ -105,12 +105,15 @@ class TopicsController extends GetxController {
       recommendations.assignAll(rec);
       latestTopics.assignAll(latest);
     } catch (e) {
-      showSnackbar(
-        'خطأ',
-        'فشل في جلب المحتويات: $e',
-        backgroundColor: Colors.red,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      projectLogger.e('Error loading topics: $e');
+
+      // showSnackbar(
+      //   'خطأ',
+      //   'فشل في جلب المحتويات: $e',
+      //   backgroundColor: Colors.red,
+      //   snackPosition: SnackPosition.BOTTOM,
+      // );
+      print('Error loading topics: $e');
     } finally {
       isLoading.value = false;
     }
