@@ -83,7 +83,7 @@ class DeviceGuardController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
         );
-        await _forceLogout(reason: 'blocked');
+        await _forceLogout(reason: 'server_connection_error , ${e.toString()}');
       }
 
       _isChecking = false;
