@@ -78,7 +78,7 @@ class DeviceGuardController extends GetxController {
       } catch (e) {
         showSnackbar(
           'تم تسجيل خروجك',
-          'تم تسجيل خروجك لوجود مشكلة في التعرف على الحساب .',
+          'تم تسجيل خروجك لوجود مشكلة في الاتصال.',
           backgroundColor: Colors.redAccent,
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 5),
