@@ -231,7 +231,14 @@ class _LoginPageState extends State<LoginPage> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           InkWell(
-                                            onTap: () => launchUrl(Uri.parse('https://alshobakiacademy.com/signup'), mode: LaunchMode.externalApplication),
+                                            mouseCursor: SystemMouseCursors.click,
+                                            onTap: () => launchUrl(
+                                              Uri.parse(
+                                                'https://alshobakiacademy.com/signup',
+                                              ),
+                                              mode: LaunchMode
+                                                  .externalApplication,
+                                            ),
                                             child: Text(
                                               'انشاء حساب جديد',
                                               style: TextStyle(
@@ -243,6 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                                             ),
                                           ),
                                           InkWell(
+                                            mouseCursor: SystemMouseCursors.click,
                                             onTap: () =>
                                                 Get.toNamed('/forgot_password'),
                                             child: Text(
@@ -278,6 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                                               );
                                             }
                                           },
+
                                           child: Text(
                                             'تسجيل الدخول',
                                             style: theme.textTheme.bodyLarge,
@@ -307,6 +316,7 @@ class _LoginPageState extends State<LoginPage> {
                                       },
                                     ),
                                   InkWell(
+                                    mouseCursor: SystemMouseCursors.click,
                                     child: Text(
                                       'الاكمال كضيف',
                                       style: theme.textTheme.bodyMedium

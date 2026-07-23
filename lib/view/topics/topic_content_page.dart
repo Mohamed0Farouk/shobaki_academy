@@ -461,7 +461,7 @@ class TopicContentPage extends StatelessWidget {
                 enableScroll: false,
                 padding: EdgeInsets.zero,
                 textStyle: Theme.of(context).textTheme.bodyMedium,
-                maxLines: 4,
+                maxLines: 15,
               ),
             ),
           ),
@@ -877,13 +877,12 @@ class TopicContentPage extends StatelessWidget {
     for (var lecture in lecturesData) {
       final videoInfo = (lecture['videos'] as Map).values.first;
       final videoUrl = videoInfo['url'];
-      final maxViewCount =
-          videoInfo['max_view_count'] ?? 0;
+      final maxViewCount = videoInfo['max_view_count'] ?? 0;
 
       final isAccessible =
           isSubscribed ||
-              topicData!['free'] == true ||
-              userData!['email'] == 'appletestaccount#97111111111111@gmail.com';
+          topicData!['free'] == true ||
+          userData!['email'] == 'appletestaccount#97111111111111@gmail.com';
 
       final cardWidget = CardModel(
         thumbnail: lecture["thumbnail"],
@@ -895,8 +894,10 @@ class TopicContentPage extends StatelessWidget {
         nav: null,
         onTap: isAccessible
             ? () async {
-                final userViews =
-                    await _getUserVideoViewCount(videoUrl, userData!['id']);
+                final userViews = await _getUserVideoViewCount(
+                  videoUrl,
+                  userData!['id'],
+                );
                 final isLimited = await _isVideoViewLimitReached(
                   videoUrl,
                   maxViewCount,
@@ -1098,10 +1099,7 @@ class TopicContentPage extends StatelessWidget {
   void _showViewLimitDialog(BuildContext context) {
     Get.dialog(
       AlertDialog(
-        title: const Text(
-          'تم الوصول للحد الأقصى',
-          textAlign: TextAlign.center,
-        ),
+        title: const Text('تم الوصول للحد الأقصى', textAlign: TextAlign.center),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
