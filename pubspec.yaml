@@ -86,6 +86,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  msix: ^3.18.0
 
 flutter_launcher_icons:
   macos:
@@ -129,3 +130,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+msix_config:
+  display_name: Alshobaki Academy
+  publisher_display_name: Al Shobaki Academy
+  publisher: CN=B03CE755-77E9-48E7-AD8D-EDC30C5DDB0D
+  identity_name: AlShobakiAcademy.AlshobakiAcademy
+  msix_version: 1.0.0.0
+  logo_path: F:\Projects\Al Shobaki\shobaki_academy\assets\app_icon_1024.png
+  capabilities: internetClient
+  languages: en-us
