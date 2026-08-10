@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 19.0.0+19
+version: 20.0.0+20
 
 environment:
   sdk: ^3.9.2
@@ -134,7 +134,7 @@ msix_config:
   publisher_display_name: Al Shobaki Academy
   publisher: CN=B03CE755-77E9-48E7-AD8D-EDC30C5DDB0D
   identity_name: AlShobakiAcademy.AlshobakiAcademy
-  msix_version: 1.0.0.0
-  logo_path: F:\Projects\Al Shobaki\shobaki_academy\assets\app_icon_1024.png
+  msix_version: 2.0.0.0
+  logo_path: assets\app_icon_1024.png
   capabilities: internetClient
   languages: en-us
