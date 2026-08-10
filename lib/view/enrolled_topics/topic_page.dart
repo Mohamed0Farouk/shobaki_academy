@@ -7,9 +7,11 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/model/card_model.dart';
 import 'package:shobaki_academy/services/api.dart';
+import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/utils/responsive_utils.dart';
+import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
 
 class TopicPage extends StatefulWidget {
   const TopicPage({super.key, required this.topicId});
@@ -222,44 +224,43 @@ class _TopicPageState extends State<TopicPage> {
             final maxViewCount =
                 value['max_view_count'] ?? 0; // Get max views from video data
 
-            final userViews = await _getUserVideoViewCount(
-              videoUrl,
-              userData['id'],
-            );
-            final isLimited = await _isVideoViewLimitReached(
-              videoUrl,
-              maxViewCount,
-              userViews,
-              userData['id'],
-            );
-
-            Widget card = CardModel(
+            final card = CardModel(
               type: CardTypes.video,
               title: value['title'],
               description: value['description'],
               thumbnail: sortedData[i]['thumbnail'],
-              // note: Text(
-              //   ' المشاهدات  ($userViews/$maxViewCount)',
-              //   style: Theme.of(context).textTheme.bodySmall,
-              // ),
               id: '',
               url: value['url'],
-            );
+              onTap: () async {
+                final userViews = await _getUserVideoViewCount(
+                  videoUrl,
+                  userData['id'],
+                );
+                final isLimited = await _isVideoViewLimitReached(
+                  videoUrl,
+                  maxViewCount,
+                  userViews,
+                  userData['id'],
+                );
 
-            print(
-              'user views for ${value['title']}: $userViews / $maxViewCount',
-            );
+                if (isLimited) {
+                  _showViewLimitDialog(context);
+                  return;
+                }
 
-            if (isLimited) {
-              final lockMsg =
-                  'وصلت للحد الأقصى من\n المشاهدات ($userViews/$maxViewCount)';
-              card = Stack(
-                children: [
-                  Padding(padding: const EdgeInsets.all(15), child: card),
-                  buildLockedOverlay(lockMsg),
-                ],
-              );
-            }
+                final isGuestOrReviewer =
+                    userData['email'] == 'guest@example.com' ||
+                    userData['email'] ==
+                        'appletestaccount#97111111111111@gmail.com';
+                if (!isGuestOrReviewer) {
+                  final DeviceGuardController guard =
+                      Get.find<DeviceGuardController>();
+                  final isAllowed = await guard.checkNow();
+                  if (isAllowed == false) return;
+                }
+                Get.to(() => VideoPlayerView(videoUrl: videoUrl));
+              },
+            );
             widgets.add(card);
           }
         }
@@ -326,30 +327,31 @@ class _TopicPageState extends State<TopicPage> {
     return userViewCount >= maxViewCount;
   }
 
-  Widget buildLockedOverlay(String message) {
-    return Positioned.fill(
-      child: Card(
-        shadowColor: Colors.black.withValues(alpha: 0.12),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        color: Colors.black.withValues(alpha: 0.5),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+  void _showViewLimitDialog(BuildContext context) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('تم الوصول للحد الأقصى', textAlign: TextAlign.center),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(Icons.lock_outline, size: 48, color: Colors.orange),
+            SizedBox(height: 16),
             Text(
-              message,
+              'تم الوصول للحد الأقصى من المشاهدات لهذا الفيديو، يرجى التواصل مع الدعم الفني',
               textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge!.copyWith(color: Colors.white),
+              style: TextStyle(fontSize: 14, height: 1.5),
             ),
-            const Icon(Icons.lock_rounded, color: Colors.white),
           ],
         ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 }

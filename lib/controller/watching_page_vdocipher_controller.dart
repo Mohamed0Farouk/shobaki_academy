@@ -83,6 +83,21 @@ class VideoPlaybackController extends GetxController {
   StreamSubscription<String?>? _errorSub;
   StreamSubscription<bool>? _completedSub;
 
+  static const int _maxLoadAttempts = 3;
+  static const List<Duration> _loadTimeouts = [
+    Duration(seconds: 3),
+    Duration(seconds: 4),
+    Duration(seconds: 6),
+  ];
+  Duration get _loadTimeoutForAttempt =>
+      _loadTimeouts[_loadAttempts.clamp(0, _loadTimeouts.length - 1)];
+  int _loadAttempts = 0;
+  Timer? _loadWatchdog;
+  Timer? _retryTimer;
+  bool _loadFailurePending = false;
+  String? _pendingUrl;
+  Duration? _pendingStart;
+
   @override
   Future<void> onInit() async {
     super.onInit();
@@ -102,6 +117,7 @@ class VideoPlaybackController extends GetxController {
     _durationSub = player.onDurationChanged.listen((d) {
       if (d.inSeconds > 0) {
         _videoDurationSeconds ??= d.inSeconds;
+        _onMediaLoaded();
       }
     });
     _playingSub = player.onPlayingChanged.listen((playing) {
@@ -115,8 +131,86 @@ class VideoPlaybackController extends GetxController {
       if (completed) _onPause();
     });
     _errorSub = player.onError.listen((error) {
-      if (error != null) projectLogger.e("Player error: $error");
+      if (error == null) return;
+      projectLogger.e("Player error: $error");
+      // On Windows/mpv a failed first load often stalls silently without a
+      // proper error event. When an error does arrive before the media has
+      // loaded, route it through the same retry path.
+      if (_videoDurationSeconds == null) {
+        _onLoadFailed();
+      }
     });
+  }
+
+  /// Opens the video and automatically retries if the media fails to load
+  /// (stalls, errors, or times out). Retries are automatic so the user is not
+  /// left with a stuck player.
+  Future<void> _beginLoad(String url, {Duration? start}) async {
+    if (_disposed) return;
+    _pendingUrl = url;
+    _pendingStart = start;
+    _loadFailurePending = false;
+    isLoading.value = true;
+    _loadWatchdog?.cancel();
+    try {
+      await player.open(url, start: start);
+      _startLoadWatchdog();
+    } catch (e) {
+      projectLogger.e("Open error (attempt ${_loadAttempts + 1}): $e");
+      _onLoadFailed();
+    }
+  }
+
+  void _startLoadWatchdog() {
+    _loadWatchdog?.cancel();
+    _loadWatchdog = Timer(_loadTimeoutForAttempt, () {
+      // A loaded media reports a duration or has a non-zero position.
+      if (player.duration.inSeconds > 0 || player.position.inSeconds > 0) {
+        _onMediaLoaded();
+        return;
+      }
+      projectLogger.w(
+        "Video load stalled, retrying (attempt ${_loadAttempts + 1}/$_maxLoadAttempts)",
+      );
+      _onLoadFailed();
+    });
+  }
+
+  void _onMediaLoaded() {
+    _loadWatchdog?.cancel();
+    _retryTimer?.cancel();
+    _loadFailurePending = false;
+    _loadAttempts = 0;
+    isLoading.value = false;
+  }
+
+  void _onLoadFailed() {
+    if (_disposed) return;
+    _loadWatchdog?.cancel();
+    if (_loadFailurePending) return;
+    _loadAttempts++;
+    if (_loadAttempts >= _maxLoadAttempts) {
+      isLoading.value = false;
+      errorMessage.value = 'فشل تحميل الفيديو، يرجى التحقق من اتصال الإنترنت وإعادة المحاولة.';
+      projectLogger.e("Video failed to load after $_maxLoadAttempts attempts");
+      return;
+    }
+    _loadFailurePending = true;
+    final url = _pendingUrl ?? videoUrl;
+    final start = _pendingStart;
+    _retryTimer?.cancel();
+    _retryTimer = Timer(
+      Duration(seconds: _loadAttempts),
+      () => _beginLoad(url, start: start),
+    );
+  }
+
+  /// Manually retry loading the video after a failure.
+  Future<void> retry() async {
+    errorMessage.value = '';
+    _loadAttempts = 0;
+    _retryTimer?.cancel();
+    await _beginLoad(_pendingUrl ?? videoUrl, start: _pendingStart);
   }
 
   Future<void> _loadUser() async {
@@ -209,18 +303,11 @@ class VideoPlaybackController extends GetxController {
           ? qualities[currentQualityIndex.value].url
           : videoUrl;
 
-      await player.open(playUrl);
-
-      if (!logInitialized) {
-        isLoading.value = false;
-      }
+      await _beginLoad(playUrl);
     } catch (e) {
       errorMessage.value = "Failed to load video";
       projectLogger.e("Video init error: $e");
-    } finally {
-      if (logInitialized) {
-        isLoading.value = false;
-      }
+      isLoading.value = false;
     }
   }
 
@@ -265,8 +352,11 @@ class VideoPlaybackController extends GetxController {
     final position = player.position;
     final wasPlaying = player.isPlaying;
 
+    _loadAttempts = 0;
+    _loadFailurePending = false;
+
     try {
-      await player.open(
+      await _beginLoad(
         qualities[index].url,
         start: position > Duration.zero ? position : null,
       );
@@ -393,8 +483,6 @@ class VideoPlaybackController extends GetxController {
       projectLogger.i("Initial log created $_logId");
     } catch (e) {
       projectLogger.e("Initial log error: $e");
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -514,6 +602,8 @@ class VideoPlaybackController extends GetxController {
     _ticking = false;
     _durationTimer?.cancel();
     _logTimer?.cancel();
+    _loadWatchdog?.cancel();
+    _retryTimer?.cancel();
     _playingSub?.cancel();
     _durationSub?.cancel();
     _completedSub?.cancel();

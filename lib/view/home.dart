@@ -3,7 +3,6 @@ import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_not
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/controller/enrolled_topics_controller.dart';
@@ -17,6 +16,7 @@ import 'package:shobaki_academy/view/enrolled_topics/enrolled_topics.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/settings.dart';
 import 'package:shobaki_academy/view/topics/topics_page.dart';
+import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 
 class _SidebarItem {
   final String label;

@@ -1,11 +1,10 @@
-import 'dart:convert';
-import 'package:shobaki_academy/model/widgets/quill_description.dart';
 import 'package:shobaki_academy/model/widgets/zoomable_image.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/controller/exam_controller.dart';
 import 'package:shobaki_academy/controller/exam_model_controller.dart';
 import 'package:shobaki_academy/extentions.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/text_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -128,30 +127,7 @@ class ExamModel extends StatelessWidget {
   }
 
   Widget getImageOrText(String input, context) {
-    // Check if the string is a valid URL
-    final content = input;
-    String plainContent = content;
-    try {
-      if (content.startsWith('[') && content.endsWith(']')) {
-        // Extract text from Quill Delta format
-        // Parse JSON properly instead of regex replacement
-        final dynamic jsonData = jsonDecode(content);
-        if (jsonData is List && jsonData.isNotEmpty) {
-          final extractedTexts = <String>[];
-          for (final op in jsonData) {
-            if (op is Map &&
-                op.containsKey('insert') &&
-                op['insert'] is String) {
-              extractedTexts.add(op['insert'] as String);
-            }
-          }
-          plainContent = extractedTexts.join('').trim();
-        }
-      }
-    } catch (e) {
-      // If parsing fails, use original content
-      plainContent = content;
-    }
+    final plainContent = plainTextFromContent(input);
 
     // Better URL validation
     bool isImageUrl = false;
@@ -175,12 +151,12 @@ class ExamModel extends StatelessWidget {
       return ZoomableImage(imageUrl: plainContent, fit: BoxFit.contain);
     } else {
       // If it's not a valid URL, return a Text widget
-      return QuillDescription.fromContent(
-        input,
-        enableScroll: true,
-        padding: EdgeInsets.all(10),
-        scrollController: ScrollController(),
-        textStyle: Theme.of(context).textTheme.headlineMedium,
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(10),
+        child: Text(
+          plainContent,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
       );
     }
   }

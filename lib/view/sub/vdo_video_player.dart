@@ -34,6 +34,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   StreamSubscription<bool>? _loadingSub;
   late Worker _qualityWorker;
 
+  VideoController? _videoController;
+
+  VideoController get _mediaKitVideoController => _videoController ??=
+      VideoController((ctrl.player as MediaKitPlayerAdapter).nativePlayer);
+
   VideoPlayerController? get _nativeCtrl =>
       Platform.isMacOS
           ? (ctrl.player as MacOSPlayerAdapter).nativeController
@@ -151,37 +156,55 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   ),
                   centerTitle: true,
                 ),
-          body: ctrl.errorMessage.value.isNotEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      ctrl.errorMessage.value,
-                      textAlign: TextAlign.center,
+          body: Container(
+            color: Colors.black,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: Platform.isMacOS
+                      ? _buildMacOSPlayer()
+                      : _buildMediaKitPlayer(),
+                ),
+                if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
+                if (ctrl.isLoading.value)
+                  ColoredBox(
+                    color: Colors.black54,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                if (ctrl.errorMessage.value.isNotEmpty)
+                  ColoredBox(
+                    color: Colors.black87,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              ctrl.errorMessage.value,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: () => ctrl.retry(),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('إعادة المحاولة'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                )
-              : ctrl.isLoading.value
-              ? const Center(child: CircularProgressIndicator())
-              : Container(
-                  color: Colors.black,
-                  child: Stack(
-                    children: [
-                      Platform.isMacOS
-                          ? _buildMacOSPlayer()
-                          : _buildMediaKitPlayer(),
-                      if (ctrl.qualitiesLoaded.value)
-                        _buildQualityChip(),
-                    ],
-                  ),
-                ),
+              ],
+            ),
+          ),
         ),
       );
     });
   }
 
   Widget _buildMediaKitPlayer() {
-    final mediaKit = ctrl.player as MediaKitPlayerAdapter;
     return MaterialDesktopVideoControlsTheme(
       normal: MaterialDesktopVideoControlsThemeData(
         bottomButtonBar: [
@@ -315,7 +338,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           visibleOnMount: false,
         ),
         child: Video(
-          controller: VideoController(mediaKit.nativePlayer),
+          controller: _mediaKitVideoController,
           controls: AdaptiveVideoControls,
           onEnterFullscreen: () async {
             ctrl.isFullScreen.value = true;

@@ -6,11 +6,11 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/controller/subscription_controller.dart';
 import 'package:shobaki_academy/model/card_model.dart';
-import 'package:shobaki_academy/model/widgets/quill_description.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/utils/image_utils.dart';
+import 'package:shobaki_academy/utils/text_utils.dart';
 import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
@@ -455,13 +455,11 @@ class TopicContentPage extends StatelessWidget {
             textDirection: TextDirection.rtl,
             child: Align(
               alignment: Alignment.centerRight,
-              child: QuillDescription.fromContent(
-                description,
-                scrollController: ScrollController(),
-                enableScroll: false,
-                padding: EdgeInsets.zero,
-                textStyle: Theme.of(context).textTheme.bodyMedium,
+              child: Text(
+                plainTextFromContent(description),
+                style: Theme.of(context).textTheme.bodyMedium,
                 maxLines: 15,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
