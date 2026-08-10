@@ -39,6 +39,9 @@ class MacOSPlayerAdapter implements IPlayerAdapter {
   bool get isInitialized => _isInitialized;
 
   @override
+  bool get isBuffering => _controller?.value.isBuffering ?? false;
+
+  @override
   Stream<bool> get onPlayingChanged => _playingCtrl.stream;
 
   @override

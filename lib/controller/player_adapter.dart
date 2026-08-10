@@ -7,6 +7,7 @@ abstract class IPlayerAdapter {
   bool get isCompleted;
   String? get error;
   bool get isInitialized;
+  bool get isBuffering;
 
   Stream<bool> get onPlayingChanged;
   Stream<Duration> get onDurationChanged;

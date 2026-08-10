@@ -89,9 +89,23 @@ class VideoPlaybackController extends GetxController {
     Duration(seconds: 4),
     Duration(seconds: 6),
   ];
-  Duration get _loadTimeoutForAttempt =>
-      _loadTimeouts[_loadAttempts.clamp(0, _loadTimeouts.length - 1)];
+  // Slower networks & software rendering (e.g. Android emulators) need a much
+  // more generous budget before a load is treated as stalled.
+  static const List<Duration> _loadTimeoutsMobile = [
+    Duration(seconds: 10),
+    Duration(seconds: 15),
+    Duration(seconds: 25),
+  ];
+  static const int _maxLoadWaitSeconds = 60;
+  Duration get _loadTimeoutForAttempt {
+    final list = (Platform.isAndroid || Platform.isIOS)
+        ? _loadTimeoutsMobile
+        : _loadTimeouts;
+    return list[_loadAttempts.clamp(0, list.length - 1)];
+  }
+
   int _loadAttempts = 0;
+  int _loadWaitElapsed = 0;
   Timer? _loadWatchdog;
   Timer? _retryTimer;
   bool _loadFailurePending = false;
@@ -150,9 +164,14 @@ class VideoPlaybackController extends GetxController {
     _pendingUrl = url;
     _pendingStart = start;
     _loadFailurePending = false;
+    _loadWaitElapsed = 0;
     isLoading.value = true;
     _loadWatchdog?.cancel();
     try {
+      // Reset the player before opening a new source. On Android re-opening
+      // over an actively-buffering stream detaches/re-attaches the video
+      // surface and can end up with audio playing but a black video output.
+      await player.stop();
       await player.open(url, start: start);
       _startLoadWatchdog();
     } catch (e) {
@@ -169,6 +188,18 @@ class VideoPlaybackController extends GetxController {
         _onMediaLoaded();
         return;
       }
+      // The load may simply be slow (e.g. HLS on Android/emulators or a slow
+      // network). Re-opening an actively-buffering stream is what causes the
+      // "audio only / black video" issue on Android, so only fail & retry when
+      // the stream is neither loaded nor making progress.
+      if (player.isBuffering && _loadWaitElapsed < _maxLoadWaitSeconds) {
+        _loadWaitElapsed += _loadTimeoutForAttempt.inSeconds;
+        projectLogger.w(
+          "Video still buffering, extending load wait (${_loadWaitElapsed}s)",
+        );
+        _startLoadWatchdog();
+        return;
+      }
       projectLogger.w(
         "Video load stalled, retrying (attempt ${_loadAttempts + 1}/$_maxLoadAttempts)",
       );
@@ -181,6 +212,7 @@ class VideoPlaybackController extends GetxController {
     _retryTimer?.cancel();
     _loadFailurePending = false;
     _loadAttempts = 0;
+    _loadWaitElapsed = 0;
     isLoading.value = false;
   }
 

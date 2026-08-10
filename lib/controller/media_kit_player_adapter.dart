@@ -26,6 +26,9 @@ class MediaKitPlayerAdapter implements IPlayerAdapter {
   bool get isInitialized => true;
 
   @override
+  bool get isBuffering => _player.state.buffering;
+
+  @override
   Stream<bool> get onPlayingChanged => _player.stream.playing;
 
   @override

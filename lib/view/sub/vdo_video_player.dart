@@ -36,8 +36,18 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   VideoController? _videoController;
 
+  // On Android, attaching the surface immediately (instead of waiting for the
+  // video parameters) avoids the known "audio plays but video stays black"
+  // issue with HLS streams. The flag is Android-only and ignored elsewhere.
   VideoController get _mediaKitVideoController => _videoController ??=
-      VideoController((ctrl.player as MediaKitPlayerAdapter).nativePlayer);
+      VideoController(
+        (ctrl.player as MediaKitPlayerAdapter).nativePlayer,
+        configuration: Platform.isAndroid
+            ? const VideoControllerConfiguration(
+                androidAttachSurfaceAfterVideoParameters: false,
+              )
+            : const VideoControllerConfiguration(),
+      );
 
   VideoPlayerController? get _nativeCtrl =>
       Platform.isMacOS
