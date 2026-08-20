@@ -443,7 +443,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "[ -n \"$CODE_SIGN_IDENTITY\" ] && find \"$BUILT_PRODUCTS_DIR\" -depth -path \"*mdk.framework/*\" -name \"lib*.dylib\" -exec codesign -f -vvvv -s\"${EXPANDED_CODE_SIGN_IDENTITY}\" ${OTHER_CODE_SIGN_FLAGS:-} --preserve-metadata=identifier,entitlements,flags {} \\;\n";
+			shellScript = "if [ -n \"$CODE_SIGN_IDENTITY\" ]; then\n    find \"$BUILT_PRODUCTS_DIR\" -depth -path \"*mdk.framework/*\" -name \"lib*.dylib\" -exec codesign -f -vvvv -s\"${EXPANDED_CODE_SIGN_IDENTITY}\" ${OTHER_CODE_SIGN_FLAGS:-} --preserve-metadata=identifier,entitlements,flags {} \\;\n    codesign -f -vvvv -s\"${EXPANDED_CODE_SIGN_IDENTITY}\" ${OTHER_CODE_SIGN_FLAGS:-} --preserve-metadata=identifier,entitlements,flags \"$BUILT_PRODUCTS_DIR/$FRAMEWORKS_FOLDER_PATH/mdk.framework\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
