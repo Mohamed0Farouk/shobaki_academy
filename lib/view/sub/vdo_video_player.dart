@@ -6,10 +6,11 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
-import 'package:shobaki_academy/controller/macos_player_adapter.dart';
-import 'package:shobaki_academy/view/sub/macos_video_controls.dart';
+import 'package:shobaki_academy/controller/video_player_adapter.dart';
+import 'package:shobaki_academy/view/sub/video_player_controls.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
+import 'package:window_manager/window_manager.dart';
 
 class VideoPlayerView extends StatefulWidget {
   final String videoUrl;
@@ -25,6 +26,18 @@ class VideoPlayerView extends StatefulWidget {
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
 }
 
+class _FullscreenWindowListener with WindowListener {
+  _FullscreenWindowListener(this.onChanged);
+
+  final void Function(bool) onChanged;
+
+  @override
+  void onWindowEnterFullScreen() => onChanged(true);
+
+  @override
+  void onWindowLeaveFullScreen() => onChanged(false);
+}
+
 class _VideoPlayerViewState extends State<VideoPlayerView> {
   final WatermarkController watermarkController =
       Get.find<WatermarkController>();
@@ -35,23 +48,32 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   late Worker _qualityWorker;
 
   VideoController? _videoController;
+  _FullscreenWindowListener? _fsListener;
 
   // On Android, attaching the surface immediately (instead of waiting for the
   // video parameters) avoids the known "audio plays but video stays black"
   // issue with HLS streams. The flag is Android-only and ignored elsewhere.
-  VideoController get _mediaKitVideoController => _videoController ??=
-      VideoController(
-        (ctrl.player as MediaKitPlayerAdapter).nativePlayer,
+  // When the controller is reset on retry, a brand-new Player is used, so the
+  // VideoController must be rebuilt against it instead of reusing the stale one.
+  VideoController get _mediaKitVideoController {
+    final nativePlayer = (ctrl.player as MediaKitPlayerAdapter).nativePlayer;
+    if (_videoController == null ||
+        !identical(_videoController!.player, nativePlayer)) {
+      _videoController = VideoController(
+        nativePlayer,
         configuration: Platform.isAndroid
             ? const VideoControllerConfiguration(
                 androidAttachSurfaceAfterVideoParameters: false,
               )
             : const VideoControllerConfiguration(),
       );
+    }
+    return _videoController!;
+  }
 
   VideoPlayerController? get _nativeCtrl =>
-      Platform.isMacOS
-          ? (ctrl.player as MacOSPlayerAdapter).nativeController
+      (Platform.isMacOS || Platform.isWindows)
+          ? (ctrl.player as VideoPlayerAdapter).nativeController
           : null;
 
   void _initChewie({bool autoPlay = true}) {
@@ -64,7 +86,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       autoPlay: autoPlay,
       allowFullScreen: true,
       showControls: true,
-      customControls: MacOSVideoControls(
+      customControls: VideoControls(
         controller: ctrl,
         onFullscreenToggle: _toggleFullScreen,
       ),
@@ -83,15 +105,30 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     ));
 
     _qualityWorker = ever(ctrl.currentQualityIndex, (_) {
-      if (Platform.isMacOS) _initChewie(autoPlay: ctrl.lastPlayIntent.value);
+      if (Platform.isMacOS || Platform.isWindows) {
+        _initChewie(autoPlay: ctrl.lastPlayIntent.value);
+      }
     });
+
+    if (Platform.isWindows || Platform.isMacOS) {
+      _fsListener = _FullscreenWindowListener((fullscreen) {
+        if (ctrl.isFullScreen.value != fullscreen) {
+          ctrl.isFullScreen.value = fullscreen;
+        }
+      });
+      windowManager.addListener(_fsListener!);
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.updateWaterMarkState(true);
     });
 
     _loadingSub = ctrl.isLoading.listen((loading) {
-      if (!loading && _chewieController.value == null) {
+      // _initChewie is identity-guarded (only rebuilds when the underlying
+      // VideoPlayerController changed) and a no-op on media_kit platforms.
+      // Calling it on every load completion also rebuilds Chewie after a
+      // retry-reset on Windows, where a brand-new adapter is created.
+      if (!loading) {
         _initChewie();
       }
     });
@@ -102,6 +139,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   @override
   void dispose() {
+    if (_fsListener != null) {
+      windowManager.removeListener(_fsListener!);
+      _fsListener = null;
+    }
+    if (Platform.isWindows || Platform.isMacOS && ctrl.isFullScreen.value) {
+      unawaited(_exitWindowFullScreen());
+    }
     _qualityWorker.dispose();
     _loadingSub?.cancel();
     _chewieController.value?.dispose();
@@ -113,12 +157,31 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     super.dispose();
   }
 
+  Future<void> _exitWindowFullScreen() async {
+    try {
+      await windowManager.setFullScreen(false);
+    } catch (_) {
+      // Non-fatal: the window stays fullscreen until the user toggles it off.
+    }
+  }
+
   void _handleLeave() {
     ctrl.stopTracking();
   }
 
   void _toggleFullScreen() {
-    ctrl.isFullScreen.value = !ctrl.isFullScreen.value;
+    final target = !ctrl.isFullScreen.value;
+    ctrl.isFullScreen.value = target;
+    // Drive the real OS window on desktop. window_manager is only initialized
+    // on Windows/macOS (see main.dart).
+    if (Platform.isWindows || Platform.isMacOS) {
+      try {
+        windowManager.setFullScreen(target);
+      } catch (_) {
+        // Revert the in-app state if the native call failed.
+        ctrl.isFullScreen.value = !target;
+      }
+    }
   }
 
   @override
@@ -172,8 +235,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
               fit: StackFit.expand,
               children: [
                 Positioned.fill(
-                  child: Platform.isMacOS
-                      ? _buildMacOSPlayer()
+                  child: (Platform.isMacOS || Platform.isWindows)
+                      ? _buildChewiePlayer()
                       : _buildMediaKitPlayer(),
                 ),
                 if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
@@ -348,6 +411,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           visibleOnMount: false,
         ),
         child: Video(
+          key: ValueKey(ctrl.playerGeneration.value),
           controller: _mediaKitVideoController,
           controls: AdaptiveVideoControls,
           onEnterFullscreen: () async {
@@ -361,7 +425,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     );
   }
 
-  Widget _buildMacOSPlayer() {
+  Widget _buildChewiePlayer() {
     final chewie = _chewieController.value;
     if (chewie == null) {
       return const Center(child: CircularProgressIndicator());

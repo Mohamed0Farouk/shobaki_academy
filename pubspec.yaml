@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 20.0.0+20
+version: 21.0.0+21
 
 environment:
   sdk: ^3.9.2
@@ -55,6 +55,7 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  fvp: ^0.37.3
   video_player: ^2.11.1
   chewie: ^1.13.1
   smooth_page_indicator: ^1.2.0+3
@@ -74,6 +75,8 @@ dependencies:
   window_manager: ^0.5.1
   sentry_flutter: ^9.21.0
   phosphoricons_flutter: ^1.0.0
+  ffi: ^2.1.0
+  android_id: ^0.5.2
 
 dev_dependencies:
   flutter_test:
@@ -134,7 +137,7 @@ msix_config:
   publisher_display_name: Al Shobaki Academy
   publisher: CN=B03CE755-77E9-48E7-AD8D-EDC30C5DDB0D
   identity_name: AlShobakiAcademy.AlshobakiAcademy
-  msix_version: 2.0.0.0
+  msix_version: 5.0.0.0
   logo_path: assets\app_icon_1024.png
   capabilities: internetClient
   languages: en-us

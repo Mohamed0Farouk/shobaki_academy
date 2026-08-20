@@ -10,7 +10,7 @@ import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
-import 'package:shobaki_academy/controller/macos_player_adapter.dart';
+import 'package:shobaki_academy/controller/video_player_adapter.dart';
 
 class VideoQuality {
   final String label;
@@ -44,7 +44,7 @@ class VideoPlaybackController extends GetxController {
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
 
-  late final IPlayerAdapter player;
+  late IPlayerAdapter player;
 
   late Map<String, dynamic> user;
 
@@ -55,6 +55,7 @@ class VideoPlaybackController extends GetxController {
   final RxBool lastPlayIntent = false.obs;
 
   final RxBool isFullScreen = false.obs;
+  final RxInt playerGeneration = 0.obs;
   final RxBool isPlaying = false.obs;
   final RxDouble playbackSpeed = 1.0.obs;
 
@@ -82,6 +83,7 @@ class VideoPlaybackController extends GetxController {
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<String?>? _errorSub;
   StreamSubscription<bool>? _completedSub;
+  StreamSubscription<Duration>? _positionSub;
 
   static const int _maxLoadAttempts = 3;
   static const List<Duration> _loadTimeouts = [
@@ -115,16 +117,27 @@ class VideoPlaybackController extends GetxController {
   @override
   Future<void> onInit() async {
     super.onInit();
-    if (Platform.isMacOS) {
-      player = MacOSPlayerAdapter();
-    } else {
-      player = MediaKitPlayerAdapter();
-    }
+    player = _createPlayer();
     _initStreams();
     await _loadUser();
     await _initializePlayer();
     await _createInitialLog();
     _startTracking();
+  }
+
+  IPlayerAdapter _createPlayer() {
+    if (Platform.isMacOS) {
+      return VideoPlayerAdapter();
+    }
+    if (Platform.isWindows) {
+      // FVP backend: a network stream that fails to open can leave
+      // initialize() pending forever, so fail fast and let the retry logic
+      // (watchdog / _onLoadFailed) take over.
+      return VideoPlayerAdapter(
+        initializeTimeout: const Duration(seconds: 15),
+      );
+    }
+    return MediaKitPlayerAdapter();
   }
 
   void _initStreams() {
@@ -136,6 +149,7 @@ class VideoPlaybackController extends GetxController {
     });
     _playingSub = player.onPlayingChanged.listen((playing) {
       if (playing) {
+        _onMediaLoaded();
         _onPlay();
       } else {
         _onPause();
@@ -143,6 +157,11 @@ class VideoPlaybackController extends GetxController {
     });
     _completedSub = player.onCompleted.listen((completed) {
       if (completed) _onPause();
+    });
+    _positionSub = player.onPositionChanged.listen((position) {
+      if (position > Duration.zero) {
+        _onMediaLoaded();
+      }
     });
     _errorSub = player.onError.listen((error) {
       if (error == null) return;
@@ -165,6 +184,7 @@ class VideoPlaybackController extends GetxController {
     _pendingStart = start;
     _loadFailurePending = false;
     _loadWaitElapsed = 0;
+    errorMessage.value = '';
     isLoading.value = true;
     _loadWatchdog?.cancel();
     try {
@@ -242,7 +262,30 @@ class VideoPlaybackController extends GetxController {
     errorMessage.value = '';
     _loadAttempts = 0;
     _retryTimer?.cancel();
+    if (!Platform.isMacOS) {
+      // On Windows/Android/iOS a failed load can leave the underlying player
+      // in a wedged state where audio plays but video output stays black.
+      // Re-opening on top of that state does not fix it, so tear the whole
+      // player down and build a fresh one with a brand-new video surface.
+      _resetPlayer();
+    }
     await _beginLoad(_pendingUrl ?? videoUrl, start: _pendingStart);
+  }
+
+  void _resetPlayer() {
+    _playingSub?.cancel();
+    _durationSub?.cancel();
+    _completedSub?.cancel();
+    _errorSub?.cancel();
+    _positionSub?.cancel();
+    try {
+      player.dispose();
+    } catch (e) {
+      projectLogger.w("Player dispose on reset failed: $e");
+    }
+    player = _createPlayer();
+    _initStreams();
+    playerGeneration.value++;
   }
 
   Future<void> _loadUser() async {
@@ -640,6 +683,7 @@ class VideoPlaybackController extends GetxController {
     _durationSub?.cancel();
     _completedSub?.cancel();
     _errorSub?.cancel();
+    _positionSub?.cancel();
     try {
       player.stop();
     } catch (_) {}

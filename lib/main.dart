@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:fvp/fvp.dart' as fvp;
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:get/get.dart';
 //import 'package:sentry_flutter/sentry_flutter.dart';
@@ -23,8 +24,14 @@ import 'package:window_manager/window_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (!Platform.isMacOS) {
+  if (Platform.isAndroid || Platform.isIOS || Platform.isLinux) {
     MediaKit.ensureInitialized();
+  }
+  if (Platform.isWindows) {
+    // FVP is the video_player backend on Windows (libmdk/FFmpeg). Register
+    // explicitly so we can tune options later; it is already auto-registered
+    // via dartPluginClass, so this call is also safe on other platforms.
+    fvp.registerWith(options: {'platforms': ['windows']});
   }
 
   await dotenv.load(fileName: '.env');

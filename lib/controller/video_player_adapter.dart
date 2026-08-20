@@ -2,7 +2,17 @@ import 'dart:async';
 import 'package:video_player/video_player.dart';
 import 'player_adapter.dart';
 
-class MacOSPlayerAdapter implements IPlayerAdapter {
+/// [video_player] based adapter.
+///
+/// Used on macOS (AVFoundation) and Windows (FVP/libmdk backend). On Windows an
+/// [initializeTimeout] is passed so a network stream that never reports a
+/// duration/initialized state fails fast and flows into the existing retry
+/// logic instead of hanging the loading spinner forever.
+class VideoPlayerAdapter implements IPlayerAdapter {
+  VideoPlayerAdapter({this.initializeTimeout});
+
+  final Duration? initializeTimeout;
+
   VideoPlayerController? _controller;
   final StreamController<bool> _playingCtrl =
       StreamController<bool>.broadcast();
@@ -73,7 +83,11 @@ class MacOSPlayerAdapter implements IPlayerAdapter {
     await _controller?.dispose();
     _controller = VideoPlayerController.networkUrl(Uri.parse(url));
     _controller!.addListener(_onControllerUpdate);
-    await _controller!.initialize();
+    var init = _controller!.initialize();
+    if (initializeTimeout != null) {
+      init = init.timeout(initializeTimeout!);
+    }
+    await init;
     _isInitialized = true;
     if (start != null && start > Duration.zero) {
       await _controller!.seekTo(start);

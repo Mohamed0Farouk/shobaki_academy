@@ -292,21 +292,44 @@ class AuthController extends GetxController {
           );
           userData['device_fingerprint'] = currentFingerprint;
         } else if (dbFingerprint != currentFingerprint) {
-          Get.close(1);
-          userData['email'] = 'guest@example.com'; // downgrade to guest locally
-          (userData as Map<String, dynamic>).addAll({'password': password});
-          db.sharedPref?.getBool('isGuestMode') == false
-              ? db.sharedPref?.setBool('isGuestMode', true)
-              : null;
-          await saveUserLocally(userData, loggedIn: false, reviewer: false);
-          showSnackbar(
-            'خطأ في تسجيل الدخول',
-            'لا يمكن تسجيل الدخول من هذا الجهاز. يرجى استخدام الجهاز الذي تم إنشاء الحساب عليه',
-            backgroundColor: Colors.red,
-            snackPosition: SnackPosition.BOTTOM,
-          );
-          await api.signOut();
-          return false;
+          if (!DeviceFingerprint.isCurrentVersion(dbFingerprint)) {
+            // Legacy (pre-v2) fingerprint: re-lock account to this device.
+            await api.updateData(
+              'students',
+              {'device_fingerprint': currentFingerprint},
+              {'id': userData['id']},
+            );
+            userData['device_fingerprint'] = currentFingerprint;
+            try {
+              await api.insertData('logs', {
+                'user_id': userData['id'],
+                'type': 'device_fingerprint_migrated',
+                'data': {
+                  'old_device_fingerprint': dbFingerprint,
+                  'new_device_fingerprint': currentFingerprint,
+                  'platform': Platform.operatingSystem,
+                  'name': userData['name'],
+                },
+              });
+            } catch (_) {}
+          } else {
+            Get.close(1);
+            userData['email'] =
+                'guest@example.com'; // downgrade to guest locally
+            (userData as Map<String, dynamic>).addAll({'password': password});
+            db.sharedPref?.getBool('isGuestMode') == false
+                ? db.sharedPref?.setBool('isGuestMode', true)
+                : null;
+            await saveUserLocally(userData, loggedIn: false, reviewer: false);
+            showSnackbar(
+              'خطأ في تسجيل الدخول',
+              'لا يمكن تسجيل الدخول من هذا الجهاز. يرجى استخدام الجهاز الذي تم إنشاء الحساب عليه',
+              backgroundColor: Colors.red,
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            await api.signOut();
+            return false;
+          }
         }
       }
 
