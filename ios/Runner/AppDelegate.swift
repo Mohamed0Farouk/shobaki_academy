@@ -28,6 +28,12 @@ import UIKit
         } else {
           result("")
         }
+      case "getDetectedApps":
+        if #available(iOS 11.0, *), UIScreen.main.isCaptured {
+          result(["iOS Screen Recording"])
+        } else {
+          result([])
+        }
       default:
         result(FlutterMethodNotImplemented)
       }
