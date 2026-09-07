@@ -76,14 +76,9 @@ class DeviceGuardController extends GetxController {
           await _forceLogout(reason: 'device_changed');
         }
       } catch (e) {
-        showSnackbar(
-          'تم تسجيل خروجك',
-          'تم تسجيل خروجك لوجود مشكلة في الاتصال.',
-          backgroundColor: Colors.redAccent,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 5),
-        );
-        await _forceLogout(reason: 'server_connection_error , ${e.toString()}');
+        // Transient network/backend error: do NOT log the user out.
+        // Just log and skip this check; the next 15s poll will retry.
+        print('[DeviceGuard] Polling check failed (skipping, not logging out): $e');
       }
 
       _isChecking = false;

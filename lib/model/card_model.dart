@@ -45,6 +45,7 @@ class CardModel extends StatelessWidget {
   final int? examDuration;
   final int? grade;
   final VoidCallback? onTap;
+  final TextDirection? textDirection;
 
   const CardModel({
     super.key,
@@ -63,6 +64,7 @@ class CardModel extends StatelessWidget {
     this.questionsNumber,
     this.grade,
     this.onTap,
+    this.textDirection,
   });
 
   @override
@@ -76,6 +78,7 @@ class CardModel extends StatelessWidget {
           note: note,
           navPage: nav,
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.enrolledTopic:
         return _SimpleCard(
@@ -84,6 +87,7 @@ class CardModel extends StatelessWidget {
           navlabel: 'تصفح المحتوى',
           navPage: TopicPage(topicId: id),
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.lecture:
         return _SimpleCard(
@@ -92,6 +96,7 @@ class CardModel extends StatelessWidget {
           navlabel: navLabel,
           navPage: nav,
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.video:
         return _SimpleCard(
@@ -101,6 +106,7 @@ class CardModel extends StatelessWidget {
           navlabel: 'بدء المشاهدة',
           navPage: VideoPlayerView(videoUrl: url!),
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.book:
         return _SimpleCard(
@@ -109,6 +115,7 @@ class CardModel extends StatelessWidget {
           navlabel: 'بدء القراءة',
           navPage: PdfModel(),
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.homework:
         return _SimpleCard(
@@ -119,6 +126,7 @@ class CardModel extends StatelessWidget {
           questionsNumber: questionsNumber,
           grade: grade,
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.exam:
         return _SimpleCard(
@@ -130,6 +138,7 @@ class CardModel extends StatelessWidget {
           examDuration: examDuration,
           grade: grade,
           onTap: onTap,
+          textDirection: textDirection,
         );
       case CardTypes.wrongQuestions:
         return _SimpleCard(
@@ -138,6 +147,7 @@ class CardModel extends StatelessWidget {
           navlabel: 'عرض الاخطاء',
           navPage: nav != null ? nav! : ResultsPage(),
           onTap: onTap,
+          textDirection: textDirection,
         );
     }
   }
@@ -154,6 +164,7 @@ class _SimpleCard extends StatefulWidget {
   final int? examDuration;
   final int? grade;
   final VoidCallback? onTap;
+  final TextDirection? textDirection;
 
   const _SimpleCard({
     required this.title,
@@ -165,6 +176,7 @@ class _SimpleCard extends StatefulWidget {
     this.examDuration,
     this.grade,
     this.onTap,
+    this.textDirection,
   });
 
   @override
@@ -213,7 +225,7 @@ class _SimpleCardState extends State<_SimpleCard>
     final isLocked = widget.navlabel == null;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: widget.textDirection ?? TextDirection.rtl,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => _hoverController.forward(),
@@ -318,6 +330,7 @@ class _SimpleCardState extends State<_SimpleCard>
             widget.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.start,
             style: TextStyle(
               fontSize: isTiny ? 13 : 15,
               fontWeight: FontWeight.bold,
@@ -402,6 +415,8 @@ class _SimpleCardState extends State<_SimpleCard>
   }
 
   Widget _buildActionRow(BuildContext context, Color primary) {
+    final isLtr = (widget.textDirection ?? TextDirection.rtl) ==
+        TextDirection.ltr;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       child: Row(
@@ -409,13 +424,20 @@ class _SimpleCardState extends State<_SimpleCard>
         children: [
           Text(
             widget.navlabel!,
+            textAlign: TextAlign.start,
             style: TextStyle(
               fontSize: 12,
               color: primary,
               fontWeight: FontWeight.w600,
             ),
           ),
-          Icon(Icons.arrow_back_ios_new_rounded, color: primary, size: 11),
+          Icon(
+            isLtr
+                ? Icons.arrow_forward_ios_rounded
+                : Icons.arrow_back_ios_new_rounded,
+            color: primary,
+            size: 11,
+          ),
         ],
       ),
     );

@@ -250,17 +250,20 @@ class TopicContentPage extends StatelessWidget {
                                   (width - spacing * (crossAxisCount - 1)) /
                                   crossAxisCount;
 
-                              return Wrap(
-                                spacing: spacing,
-                                runSpacing: spacing,
-                                children: childrenWidgets
-                                    .map(
-                                      (child) => SizedBox(
-                                        width: itemWidth,
-                                        child: child,
-                                      ),
-                                    )
-                                    .toList(),
+                              return Directionality(
+                                textDirection: TextDirection.ltr,
+                                child: Wrap(
+                                  spacing: spacing,
+                                  runSpacing: spacing,
+                                  children: childrenWidgets
+                                      .map(
+                                        (child) => SizedBox(
+                                          width: itemWidth,
+                                          child: child,
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
                               );
                             },
                           );
@@ -332,17 +335,20 @@ class TopicContentPage extends StatelessWidget {
                                 (width - spacing * (crossAxisCount - 1)) /
                                 crossAxisCount;
 
-                            return Wrap(
-                              spacing: spacing,
-                              runSpacing: spacing,
-                              children: childrenWidgets
-                                  .map(
-                                    (child) => SizedBox(
-                                      width: itemWidth,
-                                      child: child,
-                                    ),
-                                  )
-                                  .toList(),
+                            return Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Wrap(
+                                spacing: spacing,
+                                runSpacing: spacing,
+                                children: childrenWidgets
+                                    .map(
+                                      (child) => SizedBox(
+                                        width: itemWidth,
+                                        child: child,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
                             );
                           },
                         );
@@ -888,6 +894,7 @@ class TopicContentPage extends StatelessWidget {
         description: lecture['description'] ?? '',
         id: lecture['id'] ?? '',
         type: CardTypes.lecture,
+        textDirection: TextDirection.ltr,
         navLabel: isAccessible ? 'بدء المشاهدة' : null,
         nav: null,
         onTap: isAccessible

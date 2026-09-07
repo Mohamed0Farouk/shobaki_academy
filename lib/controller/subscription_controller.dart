@@ -4,13 +4,61 @@ import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/view/home.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pinput/pinput.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+/// Outcome of validating a book subscription code.
+enum BookCodeValidationStatus { invalidCode, bookNotAllowed, ok }
 
 class SubscriptionController extends GetxController {
   final RxString inputText = ''.obs;
   final ApiClient api;
 
   SubscriptionController({required this.api});
+
+  /// Whether a code's `allowed_books` permits subscribing to [bookId].
+  /// A missing, null or empty list means the code is unrestricted.
+  static bool isBookAllowed(Object? allowedBooks, int bookId) {
+    if (allowedBooks == null ||
+        allowedBooks is! List ||
+        allowedBooks.isEmpty) {
+      return true;
+    }
+    return allowedBooks.any((id) => id.toString() == bookId.toString());
+  }
+
+  /// Builds the `students_subscriptions` row for a per-book subscription.
+  static Map<String, dynamic> buildBookSubscriptionRow(
+    String userId,
+    int bookId,
+  ) {
+    return {
+      'student_id': userId,
+      'topic_id': null,
+      'book_id': bookId,
+      'subscription_type': 'books',
+    };
+  }
+
+  /// Validates a book subscription code without any UI side effects.
+  Future<BookCodeValidationStatus> validateBookCode(
+    String code,
+    String userId,
+    int bookId,
+  ) async {
+    final codeResult = await api.fetchWithConditions(
+      'student_codes',
+      filters: {'student_id': userId, 'code': code},
+    );
+    if (codeResult.isEmpty) {
+      return BookCodeValidationStatus.invalidCode;
+    }
+    if (!isBookAllowed(codeResult[0]['allowed_books'], bookId)) {
+      return BookCodeValidationStatus.bookNotAllowed;
+    }
+    return BookCodeValidationStatus.ok;
+  }
 
   void updateInputText(String value) {
     inputText.value = value;
@@ -116,15 +164,15 @@ class SubscriptionController extends GetxController {
   }
 
   /// Handle book subscription with code validation
-  Future<void> handleBookSubscription(String code, String userId) async {
+  Future<void> handleBookSubscription(
+    String code,
+    String userId,
+    int bookId,
+  ) async {
     try {
-      // Validate code exists and belongs to user or is global
-      final codeResult = await api.fetchWithConditions(
-        'student_codes',
-        filters: {'student_id': userId, 'code': code},
-      );
+      final status = await validateBookCode(code, userId, bookId);
 
-      if (codeResult.isEmpty) {
+      if (status == BookCodeValidationStatus.invalidCode) {
         Get.back(); // Close loading dialog
         showSnackbar(
           'توجد مشكلة',
@@ -136,12 +184,23 @@ class SubscriptionController extends GetxController {
         return;
       }
 
-      // Insert book subscription (no topic_id, just subscription_type: "books")
-      await api.insertData('students_subscriptions', {
-        'student_id': userId,
-        'topic_id': null,
-        'subscription_type': 'books',
-      });
+      if (status == BookCodeValidationStatus.bookNotAllowed) {
+        Get.back(); // Close loading dialog
+        showSnackbar(
+          'توجد مشكلة',
+          'هذا الكود لا يدعم الاشتراك في هذه الملزمة',
+          backgroundColor: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+        );
+        return;
+      }
+
+      // Insert book subscription (per-book access via book_id)
+      await api.insertData(
+        'students_subscriptions',
+        buildBookSubscriptionRow(userId, bookId),
+      );
 
       // Close loading dialog first
       Get.back();
@@ -152,7 +211,7 @@ class SubscriptionController extends GetxController {
       // Show success snackbar
       showSnackbar(
         'اشعار',
-        'تم الاشتراك في الملازم بنجاح قم باعادة تحميل الصفحة عن طريق السحب من اعلى لاسفل',
+        'تم الاشتراك في الملزمة بنجاح قم باعادة تحميل الصفحة عن طريق السحب من اعلى لاسفل',
         backgroundColor: Colors.greenAccent,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
@@ -197,6 +256,63 @@ class SubscriptionController extends GetxController {
   }
 }
 
+/// Builds a themed, LTR pinput restricted to English letters and numbers.
+Widget buildCodePinput(BuildContext context, SubscriptionController controller) {
+  final primary = Theme.of(context).colorScheme.primary;
+
+  final defaultPinTheme = PinTheme(
+    width: 44,
+    height: 54,
+    textStyle: TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      color: primary,
+    ),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.black38, width: 1.5),
+    ),
+  );
+
+  final focusedPinTheme = defaultPinTheme.copyWith(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: primary, width: 2),
+      boxShadow: [
+        BoxShadow(
+          color: primary.withValues(alpha: 0.15),
+          blurRadius: 6,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+  );
+
+  final submittedPinTheme = defaultPinTheme.copyWith(
+    decoration: BoxDecoration(
+      color: primary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: primary, width: 1.5),
+    ),
+  );
+
+  return Directionality(
+    textDirection: TextDirection.ltr,
+    child: Pinput(
+      length: 6,
+      keyboardType: TextInputType.text,
+      defaultPinTheme: defaultPinTheme,
+      focusedPinTheme: focusedPinTheme,
+      submittedPinTheme: submittedPinTheme,
+      showCursor: true,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+      ],
+      onChanged: controller.updateInputText,
+    ),
+  );
+}
+
 // Function to show the subscription dialog
 void showSubscriptionDialog({
   required List<dynamic> topicCodes,
@@ -215,16 +331,7 @@ void showSubscriptionDialog({
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Directionality(
-            textDirection: TextDirection.rtl,
-            child: TextField(
-              onChanged: controller.updateInputText,
-              decoration: InputDecoration(
-                hintText: 'ادخل الكود',
-                hintStyle: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ),
+          buildCodePinput(context, controller),
           const SizedBox(height: 10),
           Wrap(
             alignment: WrapAlignment.center,
@@ -233,7 +340,7 @@ void showSubscriptionDialog({
               InkWell(
                 onTap: () => launchUrl(
                   Uri.parse(
-                    'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
+                    'https://wa.me/+971502762100?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
                   ),
                 ),
                 child: Row(
@@ -291,35 +398,24 @@ void showSubscriptionDialog({
 void showBookSubscriptionDialog({
   required ApiClient api,
   required String userId,
+  required int bookId,
   required context,
 }) {
   final controller = Get.put(SubscriptionController(api: api), tag: 'books');
 
   Get.dialog(
     AlertDialog(
-      title: const Text('لتحميل الملازم', textAlign: TextAlign.center),
+      title: const Text('لتحميل الملزمة', textAlign: TextAlign.center),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'ادخل كود الاشتراك للوصول إلى جميع الملازم',
+            'ادخل كود الاشتراك للوصول إلى هذه الملزمة',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          Directionality(
-            textDirection: TextDirection.rtl,
-            child: TextField(
-              onChanged: controller.updateInputText,
-              decoration: InputDecoration(
-                hintText: 'ادخل الكود',
-                hintStyle: Theme.of(context).textTheme.bodyMedium,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
+          buildCodePinput(context, controller),
           const SizedBox(height: 10),
           Wrap(
             alignment: WrapAlignment.center,
@@ -328,7 +424,7 @@ void showBookSubscriptionDialog({
               InkWell(
                 onTap: () => launchUrl(
                   Uri.parse(
-                    'https://wa.me/+971508124370?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
+                    'https://wa.me/+971502762100?text=${Uri.encodeFull('مرحباً، أود الحصول على كود الاشتراك')}',
                   ),
                 ),
                 child: Row(
@@ -368,6 +464,7 @@ void showBookSubscriptionDialog({
                     controller.handleBookSubscription(
                       controller.inputText.value,
                       userId,
+                      bookId,
                     );
                   }
                 : null,
@@ -391,7 +488,7 @@ void showGuestAnnotationDialog({required BuildContext context}) {
           Icon(Icons.lock_outline, size: 48, color: Colors.orange[700]),
           const SizedBox(height: 16),
           const Text(
-            'عذراً، لا يمكنك الوصول إلى الملازم كمستخدم ضيف. الرجاء تسجيل الدخول بحسابك الخاص.',
+            'عذراً، لا يمكنك الوصول إلى الملزمة كمستخدم ضيف. الرجاء تسجيل الدخول بحسابك الخاص.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, height: 1.5),
           ),

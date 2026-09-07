@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
+import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/theme.dart';
 import 'package:shobaki_academy/utils/responsive_utils.dart';
@@ -21,6 +22,13 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic>? _user;
   bool _loading = true;
   late final AuthController? _auth;
+  final TextEditingController _newPasswordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -206,6 +214,16 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _sectionHeader(theme, 'الحساب'),
           ListTile(
+            leading: Icon(Icons.lock, color: primary, size: 22),
+            title: Text(
+              'تغيير كلمة المرور',
+              style: theme.textTheme.bodyMedium,
+            ),
+            trailing: const Icon(Icons.chevron_left, color: Colors.black38),
+            onTap: () => _showChangePasswordDialog(context),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          ListTile(
             leading: Icon(Icons.logout, color: Colors.redAccent, size: 22),
             title: Text('تسجيل الخروج', style: theme.textTheme.bodyMedium),
             trailing: const Icon(Icons.chevron_left, color: Colors.black38),
@@ -215,16 +233,16 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             leading: Icon(
               Icons.delete_forever,
-              color: Colors.red.shade300,
+              color: Colors.redAccent,
               size: 22,
             ),
             title: Text(
               'حذف الحساب',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.red.shade300,
+                color: Colors.redAccent,
               ),
             ),
-            trailing: const Icon(Icons.chevron_left, color: Colors.black38),
+            trailing: const Icon(Icons.chevron_left, color: Colors.redAccent),
             onTap: () => _showDeleteDialog(context),
           ),
         ],
@@ -264,6 +282,108 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    _newPasswordController.clear();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تغيير كلمة المرور', textAlign: TextAlign.center),
+        content: TextField(
+          controller: _newPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'كلمة المرور الجديدة',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _saveNewPassword();
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveNewPassword() async {
+    final newPassword = _newPasswordController.text.trim();
+    if (newPassword.isEmpty) {
+      showSnackbar(
+        'خطأ',
+        'يرجى إدخال كلمة المرور الجديدة',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    if (_user?['id'] == null) return;
+
+    loadingDilog(context);
+    try {
+      final api = ApiClient();
+      await api.updateData(
+        'students',
+        {'password': newPassword},
+        {'id': _user!['id']},
+      );
+
+      // Re-fetch the record to confirm the DB actually stored the new
+      // password. If it did not (e.g. a silent no-op update), abort without
+      // touching the locally stored user so the app never gets logged out on
+      // next start due to a DB/local mismatch.
+      final fresh = await api.fetchWithConditions(
+        'students',
+        filters: {'id': _user!['id'], 'password': newPassword},
+        select: '*',
+      );
+      if (fresh.isEmpty) {
+        Get.close(1);
+        showSnackbar(
+          'خطأ',
+          'فشل تحديث كلمة المرور',
+          backgroundColor: Colors.red,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+
+      // Keep the local user in sync with the DB (single source of truth).
+      final freshUser = Map<String, dynamic>.from(fresh[0] as Map);
+      _user!.clear();
+      _user!.addAll(freshUser);
+      final auth = _auth!;
+      await auth.saveUserLocally(
+        _user!,
+        loggedIn: true,
+        reviewer: auth.inReview.value,
+      );
+
+      Get.close(1);
+      setState(() {});
+      showSnackbar(
+        'تم التحديث',
+        'تم تحديث كلمة المرور بنجاح',
+        backgroundColor: Colors.green,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } catch (e) {
+      Get.close(1);
+      showSnackbar(
+        'خطأ',
+        'فشل تحديث كلمة المرور',
+        backgroundColor: Colors.red,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   Widget _buildContactSection(ThemeData theme) {

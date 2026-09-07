@@ -13,10 +13,6 @@ class AppRouter {
     GetPage(name: '/login', page: () => const LoginPage()),
     GetPage(name: '/signup', page: () => const SignUpPage()),
     GetPage(name: '/otp', page: () => OtpPage()),
-    GetPage(
-      name: '/otp_forgot_password',
-      page: () => OtpPage(isForgotPassword: true),
-    ),
     GetPage(name: '/forgot_password', page: () => ForgotPasswordPage()),
   ];
 }

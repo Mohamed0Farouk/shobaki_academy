@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
@@ -254,6 +255,8 @@ class SecurityController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    final securityEnabled = dotenv.env['SECURITY_ENABLED'] != 'false';
+    if (!securityEnabled) return;
     if (Platform.isWindows || Platform.isMacOS || Platform.isIOS) {
       _startMonitoring();
     }

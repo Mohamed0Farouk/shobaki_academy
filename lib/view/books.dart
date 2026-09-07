@@ -322,7 +322,9 @@ class _BookListTileState extends State<_BookListTile> {
   @override
   void initState() {
     super.initState();
-    _hasSubscriptionFuture = widget.controller.checkBookSubscription();
+    _hasSubscriptionFuture = widget.controller.checkBookSubscription(
+      bookId: widget.book.id,
+    );
   }
 
   void _onTileTap() async {
@@ -349,7 +351,9 @@ class _BookListTileState extends State<_BookListTile> {
     if (widget.isGuest) {
       showGuestAnnotationDialog(context: context);
     } else {
-      final hasSubscription = await widget.controller.checkBookSubscription();
+      final hasSubscription = await widget.controller.checkBookSubscription(
+        bookId: widget.book.id,
+      );
       if (hasSubscription) {
         Get.to(
           () => PdfModel(
@@ -361,6 +365,7 @@ class _BookListTileState extends State<_BookListTile> {
         showBookSubscriptionDialog(
           api: ApiClient(),
           userId: widget.controller.userId.value,
+          bookId: widget.book.id,
           context: context,
         );
       }
@@ -633,7 +638,9 @@ class _BookCardState extends State<_BookCard>
       curve: Curves.easeOutCubic,
     ));
 
-    _hasSubscriptionFuture = widget.controller.checkBookSubscription();
+    _hasSubscriptionFuture = widget.controller.checkBookSubscription(
+      bookId: widget.book.id,
+    );
   }
 
   @override
@@ -674,7 +681,9 @@ class _BookCardState extends State<_BookCard>
     if (widget.isGuest) {
       showGuestAnnotationDialog(context: context);
     } else {
-      final hasSubscription = await widget.controller.checkBookSubscription();
+      final hasSubscription = await widget.controller.checkBookSubscription(
+        bookId: widget.book.id,
+      );
       if (hasSubscription) {
         Get.to(
           () => PdfModel(
@@ -686,6 +695,7 @@ class _BookCardState extends State<_BookCard>
         showBookSubscriptionDialog(
           api: ApiClient(),
           userId: widget.controller.userId.value,
+          bookId: widget.book.id,
           context: context,
         );
       }

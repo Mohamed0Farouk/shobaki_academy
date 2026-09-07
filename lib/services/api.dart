@@ -17,7 +17,11 @@ class ApiClient {
       if (response.isEmpty) {
         throw Exception('خطأ في تسجيل الدخول: يرجى التحقق من بيانات الدخول');
       }
-      return response[0];
+      final account = response[0] as Map;
+      if (account['deleted'] == true) {
+        throw Exception('هذا الحساب محذوف ولا يمكن تسجيل الدخول به');
+      }
+      return account;
     } catch (e) {
       rethrow;
     }
@@ -224,7 +228,13 @@ class ApiClient {
 
   Future<void> deleteAccount({required id}) async {
     try {
-      await _client.from('students').delete().eq('id', id);
+      // Soft delete: mark the student account as deleted instead of removing it
+      await _client
+          .from('students')
+          .update({'deleted': true})
+          .eq('id', id);
+
+      // Remove user's active subscriptions
       await _client
           .from('students_subscriptions')
           .delete()

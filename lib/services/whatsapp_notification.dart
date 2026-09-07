@@ -23,6 +23,28 @@ class WhatsAppNotification {
     } catch (_) {}
   }
 
+  /// Send the student's password to their phone number.
+  /// Returns false if the message could not be sent.
+  static Future<bool> sendPasswordToStudent(
+    String phone,
+    String password,
+  ) async {
+    final apiUrl = dotenv.get('ALSHOBAKI_API', fallback: '');
+    if (apiUrl.isEmpty || phone.isEmpty || password.isEmpty) return false;
+    try {
+      await _dio.post(
+        '${apiUrl}api/send-message',
+        data: {
+          'phone_number': phone,
+          'message': 'كلمة المرور الخاصة بحسابك في أكاديمية الشوبكي هي: $password',
+        },
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Check if the user data represents a guest account.
   static bool _isGuest(Map<String, dynamic> user) {
     return user['email']?.toString() == 'guest@example.com';
@@ -215,7 +237,7 @@ class WhatsAppNotification {
         for (final sub in subscriptions) {
           final type = sub['subscription_type']?.toString();
           if (type == 'books') {
-            lines.add('   • اشتراك الملازم (كتب)');
+            lines.add('   • اشتراك الملزمة');
           } else {
             final topicTitle = sub['topic']?['title']?.toString();
             if (topicTitle != null && topicTitle.isNotEmpty) {

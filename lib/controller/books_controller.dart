@@ -43,8 +43,10 @@ class Book {
 }
 
 class BooksController extends GetxController {
-  final ApiClient _api = ApiClient();
+  final ApiClient _api;
   final LocalDB _localDb = Get.find<LocalDB>();
+
+  BooksController({ApiClient? api}) : _api = api ?? ApiClient();
 
   final RxList books = <Book>[].obs;
   final RxBool isLoading = false.obs;
@@ -98,11 +100,23 @@ class BooksController extends GetxController {
     }
   }
 
-  /// Check if user has books subscription
-  Future<bool> checkBookSubscription() async {
+  /// Check if user has books subscription (optionally for a specific book)
+  Future<bool> checkBookSubscription({int? bookId}) async {
     try {
       if (isGuest.value || isReviewer.value || userId.value.isEmpty) {
         return false;
+      }
+
+      if (bookId != null) {
+        final subscriptions = await _api.fetchWithConditions(
+          'students_subscriptions',
+          filters: {
+            'student_id': userId.value,
+            'book_id': bookId,
+            'subscription_type': 'books',
+          },
+        );
+        return subscriptions.isNotEmpty;
       }
 
       final subscriptions = await _api.fetchWithConditions(
@@ -150,7 +164,7 @@ class BooksController extends GetxController {
         return a.createdAt!.compareTo(b.createdAt!);
       });
     } catch (e) {
-      errorMessage.value = 'فشل تحميل الملازم: $e';
+      errorMessage.value = 'فشل تحميل الملزمة: $e';
       Get.log('Error fetching books: $e', isError: true);
     } finally {
       isLoading.value = false;
@@ -331,13 +345,14 @@ class BooksController extends GetxController {
     if (isGuest) {
       showGuestAnnotationDialog(context: context);
     } else {
-      final hasSubscription = await checkBookSubscription();
+      final hasSubscription = await checkBookSubscription(bookId: book.id);
       if (hasSubscription) {
         Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
       } else {
         showBookSubscriptionDialog(
           api: ApiClient(),
           userId: userId.value,
+          bookId: book.id,
           context: context,
         );
       }

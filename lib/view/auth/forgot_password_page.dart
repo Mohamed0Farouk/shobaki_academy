@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/services/whatsapp_notification.dart';
 
 class ForgotPasswordPage extends StatelessWidget {
   ForgotPasswordPage({super.key});
@@ -78,11 +79,40 @@ class ForgotPasswordPage extends StatelessWidget {
                                             },
                                           )
                                           .then((response) async {
+                                            if (!context.mounted) return;
                                             if (response.isNotEmpty) {
-                                              Get.offAllNamed(
-                                                '/otp_forgot_password',
-                                                arguments: response[0],
+                                              final phone = add971Prefix(
+                                                phoneNumberController.text.trim(),
                                               );
+                                              loadingDilog(context);
+                                              final sent = await WhatsAppNotification
+                                                  .sendPasswordToStudent(
+                                                    phone,
+                                                    response[0]['password']
+                                                            ?.toString() ??
+                                                        '',
+                                                  );
+                                              Get.close(1);
+                                              if (sent) {
+                                                showSnackbar(
+                                                  'تم الإرسال',
+                                                  'تم إرسال كلمة المرور إلى رقمك',
+                                                  snackPosition:
+                                                      SnackPosition.BOTTOM,
+                                                  backgroundColor:
+                                                      Colors.green,
+                                                );
+                                              } else {
+                                                showSnackbar(
+                                                  'خطأ',
+                                                  'فشل إرسال كلمة المرور',
+                                                  snackPosition:
+                                                      SnackPosition.BOTTOM,
+                                                  backgroundColor: theme
+                                                      .colorScheme
+                                                      .error,
+                                                );
+                                              }
                                             } else {
                                               showSnackbar(
                                                 'خطأ',
