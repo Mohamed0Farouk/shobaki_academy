@@ -39,6 +39,7 @@ class FakeApiClient implements ApiClient {
   @override
   Future<Map> insertData(String table, Map<String, dynamic> data) async {
     inserted.add(data);
+    tables.putIfAbsent(table, () => []).add(Map<String, dynamic>.from(data));
     return data;
   }
 
@@ -171,7 +172,9 @@ void main() {
 
   group('BooksController.checkBookSubscription', () {
     setUp(() {
-      Get.put(LocalDB(), permanent: true);
+      if (!Get.isRegistered<LocalDB>()) {
+        Get.put(LocalDB(), permanent: true);
+      }
     });
 
     BooksController buildController(FakeApiClient api) {
@@ -225,6 +228,149 @@ void main() {
 
       final noUser = buildController(api)..userId.value = '';
       expect(await noUser.checkBookSubscription(bookId: 3), isFalse);
+    });
+  });
+
+  group('Book.fromJson (groups)', () {
+    test('parses is_parent and children', () {
+      final book = Book.fromJson({
+        'id': 5,
+        'title': 'Group',
+        'url': '',
+        'thumbnail': null,
+        'free': false,
+        'hidden': false,
+        'created_at': '2024-01-01T00:00:00.000Z',
+        'is_parent': true,
+        'children': [1, '2', 3],
+      });
+
+      expect(book.isParent, isTrue);
+      expect(book.children, [1, 2, 3]);
+      expect(book.url, isEmpty);
+    });
+
+    test('defaults is_parent=false and children=[] when absent', () {
+      final book = Book.fromJson({
+        'id': 5,
+        'title': 'Book',
+        'url': 'u',
+        'free': false,
+        'created_at': '2024-01-01T00:00:00.000Z',
+      });
+
+      expect(book.isParent, isFalse);
+      expect(book.children, isEmpty);
+    });
+  });
+
+  group('BooksController group access', () {
+    setUp(() {
+      if (!Get.isRegistered<LocalDB>()) {
+        Get.put(LocalDB(), permanent: true);
+      }
+    });
+
+    BooksController buildController(FakeApiClient api) {
+      final controller = BooksController(api: api);
+      controller.userId.value = 'u1';
+      controller.isGuest.value = false;
+      controller.isReviewer.value = false;
+      return controller;
+    }
+
+    test('a child is unlocked when its group is subscribed', () async {
+      final api = FakeApiClient()
+        ..tables['students_subscriptions'] = [
+          {'student_id': 'u1', 'subscription_type': 'books', 'book_id': 10},
+        ]
+        ..tables['books'] = [
+          {
+            'id': 10,
+            'is_parent': true,
+            'children': [3, 4],
+            'hidden': false,
+          },
+          {'id': 3, 'is_parent': false, 'hidden': false},
+          {'id': 4, 'is_parent': false, 'hidden': false},
+        ];
+      final controller = buildController(api);
+
+      expect(await controller.checkBookSubscription(bookId: 3), isTrue);
+      expect(await controller.checkBookSubscription(bookId: 4), isTrue);
+    });
+
+    test('a child stays locked when its group is not subscribed', () async {
+      final api = FakeApiClient()
+        ..tables['students_subscriptions'] = [
+          {'student_id': 'u1', 'subscription_type': 'books', 'book_id': 5},
+        ]
+        ..tables['books'] = [
+          {
+            'id': 10,
+            'is_parent': true,
+            'children': [3, 4],
+            'hidden': false,
+          },
+        ];
+      final controller = buildController(api);
+
+      expect(await controller.checkBookSubscription(bookId: 3), isFalse);
+      expect(await controller.checkBookSubscription(bookId: 4), isFalse);
+    });
+
+    test('a child is unlocked via its own single-code subscription', () async {
+      final api = FakeApiClient()
+        ..tables['students_subscriptions'] = [
+          {'student_id': 'u1', 'subscription_type': 'books', 'book_id': 3},
+        ];
+      final controller = buildController(api);
+
+      expect(await controller.checkBookSubscription(bookId: 3), isTrue);
+      expect(await controller.checkBookSubscription(bookId: 4), isFalse);
+    });
+
+    test('global books check is true for a group subscription', () async {
+      final api = FakeApiClient()
+        ..tables['students_subscriptions'] = [
+          {'student_id': 'u1', 'subscription_type': 'books', 'book_id': 10},
+        ]
+        ..tables['books'] = [
+          {'id': 10, 'is_parent': true, 'children': [3], 'hidden': false},
+        ];
+      final controller = buildController(api);
+
+      expect(await controller.checkBookSubscription(), isTrue);
+    });
+  });
+
+  group('SubscriptionController.addBookSubscriptionIfMissing', () {
+    test('inserts once then skips duplicate rows', () async {
+      final api = FakeApiClient();
+      final controller = SubscriptionController(api: api);
+
+      expect(await controller.addBookSubscriptionIfMissing('u1', 7), isTrue);
+      expect(await controller.addBookSubscriptionIfMissing('u1', 7), isFalse);
+
+      expect(
+        api.inserted.where(
+          (r) => r['book_id'] == 7 && r['student_id'] == 'u1',
+        ),
+        hasLength(1),
+      );
+    });
+
+    test('different books keep separate rows', () async {
+      final api = FakeApiClient();
+      final controller = SubscriptionController(api: api);
+
+      await controller.addBookSubscriptionIfMissing('u1', 3);
+      await controller.addBookSubscriptionIfMissing('u1', 10);
+
+      expect(
+        api.inserted.where((r) => r['student_id'] == 'u1'),
+        hasLength(2),
+      );
     });
   });
 }

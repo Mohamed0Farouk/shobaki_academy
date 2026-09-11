@@ -6,6 +6,7 @@ import 'package:shobaki_academy/model/pdf_model.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/view/books.dart';
 import 'dart:convert';
 
 class Book {
@@ -16,6 +17,8 @@ class Book {
   final bool free;
   final bool hidden;
   final DateTime createdAt;
+  final bool isParent;
+  final List<int> children;
 
   Book({
     required this.id,
@@ -25,19 +28,31 @@ class Book {
     required this.free,
     this.hidden = false,
     required this.createdAt,
+    this.isParent = false,
+    this.children = const [],
   });
 
   factory Book.fromJson(Map<String, dynamic> json) {
+    final rawChildren = json['children'];
+    List<int> childrenIds = const [];
+    if (rawChildren is List) {
+      childrenIds = rawChildren
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((id) => id != 0)
+          .toList();
+    }
     return Book(
       id: json['id'] as int,
       title: json['title'] as String,
-      url: json['url'] as String,
+      url: json['url'] as String? ?? '',
       thumbnail: json['thumbnail'] as String?,
       free: json['free'] as bool? ?? false,
       hidden: json['hidden'] as bool? ?? false,
       createdAt: DateTime.parse(
         json['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
+      isParent: json['is_parent'] as bool? ?? false,
+      children: childrenIds,
     );
   }
 }
@@ -62,6 +77,12 @@ class BooksController extends GetxController {
   final RxBool sheetOpen = false.obs;
   final RxList<Book> searchResults = <Book>[].obs;
   Map? userData;
+
+  /// Bumped after every refresh/subscription so UI widgets re-initialize.
+  final RxInt subsRevision = 0.obs;
+
+  /// Cache: parent book id -> children book ids (from `books.children`).
+  final Map<int, List<int>> _groupsById = {};
 
   @override
   void onInit() {
@@ -100,23 +121,18 @@ class BooksController extends GetxController {
     }
   }
 
-  /// Check if user has books subscription (optionally for a specific book)
+  /// Check if user has books subscription.
+  ///
+  /// When [bookId] is a member of a subscribed group, this returns true too,
+  /// so opening a group's child requires only the group subscription.
   Future<bool> checkBookSubscription({int? bookId}) async {
     try {
       if (isGuest.value || isReviewer.value || userId.value.isEmpty) {
         return false;
       }
 
-      if (bookId != null) {
-        final subscriptions = await _api.fetchWithConditions(
-          'students_subscriptions',
-          filters: {
-            'student_id': userId.value,
-            'book_id': bookId,
-            'subscription_type': 'books',
-          },
-        );
-        return subscriptions.isNotEmpty;
+      if (_groupsById.isEmpty) {
+        await _refreshGroupCache();
       }
 
       final subscriptions = await _api.fetchWithConditions(
@@ -124,34 +140,107 @@ class BooksController extends GetxController {
         filters: {'student_id': userId.value, 'subscription_type': 'books'},
       );
 
-      // Show FAB only if no books subscription exists
-      Get.log('Books subscription check - showFAB: ${showFAB.value}');
-      return subscriptions.isNotEmpty;
+      if (subscriptions.isEmpty) {
+        return false;
+      }
+
+      if (bookId == null) {
+        return true;
+      }
+
+      final subscribedBookIds = subscriptions.map((s) {
+        final map = Map<String, dynamic>.from(s as Map);
+        return int.tryParse(map['book_id']?.toString() ?? '-1') ?? -1;
+      }).toSet();
+
+      if (subscribedBookIds.contains(bookId)) return true;
+
+      for (final groupId in subscribedBookIds) {
+        final children = _groupsById[groupId];
+        if (children != null && children.contains(bookId)) {
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
       Get.log('Error checking book subscription: $e', isError: true);
       return false;
     }
   }
 
+  /// Loads the id -> children map for all parent (group) books.
+  Future<void> _refreshGroupCache() async {
+    try {
+      final groups = await _api.fetchWithConditions(
+        'books',
+        filters: {'is_parent': true, 'hidden': false},
+      );
+      _groupsById
+        ..clear()
+        ..addEntries(groups.map((g) {
+          final map = Map<String, dynamic>.from(g as Map);
+          final id = int.tryParse(map['id']?.toString() ?? '0') ?? 0;
+          final rawChildren = map['children'];
+          List<int> children = const [];
+          if (rawChildren is List) {
+            children = rawChildren
+                .map((e) => int.tryParse(e.toString()) ?? 0)
+                .where((x) => x != 0)
+                .toList();
+          }
+          return MapEntry(id, children);
+        }));
+    } catch (e) {
+      Get.log('Error refreshing group cache: $e', isError: true);
+    }
+  }
+
+  /// Fetches the child books of a group (by id, only non-hidden).
+  Future<List<Book>> fetchGroupChildren(int groupId) async {
+    final ids = _groupsById[groupId] ?? const [];
+    final result = <Book>[];
+    for (final id in ids) {
+      try {
+        final res = await _api.fetchWithConditions(
+          'books',
+          filters: {'id': id, 'hidden': false},
+        );
+        if (res.isNotEmpty) {
+          result.add(Book.fromJson(Map<String, dynamic>.from(res[0] as Map)));
+        }
+      } catch (_) {
+        // ignore a failed child fetch
+      }
+    }
+    return result;
+  }
+
   Future<void> fetchBooks() async {
     try {
       isLoading.value = true;
       errorMessage.value = '';
+      await _refreshGroupCache();
       if (userData != null && userData!['stage'] != null) {
         final response = await _api.fetchWithConditions(
           'books',
-          filters: {'stage': userData!['stage'], 'hidden': false},
+          filters: {
+            'stage': userData!['stage'],
+            'is_parent': true,
+            'hidden': false,
+          },
         );
         books.value = (response)
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
+            .where((book) => book.isParent)
             .toList();
       } else {
         final response = await _api.fetchWithConditions(
           'books',
-          filters: {'hidden': false},
+          filters: {'is_parent': true, 'hidden': false},
         );
         books.value = (response)
             .map((item) => Book.fromJson(item as Map<String, dynamic>))
+            .where((book) => book.isParent)
             .toList();
       }
 
@@ -179,6 +268,9 @@ class BooksController extends GetxController {
 
       // Check subscription status
       await checkBookSubscription();
+
+      // Notify UI to rebuild widgets (re-initialize subscription futures)
+      subsRevision.value++;
 
       Get.log('Books and subscription refreshed successfully');
     } catch (e) {
@@ -294,6 +386,14 @@ class BooksController extends GetxController {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     itemBuilder: (_, i) {
                       final book = items[i];
+                      if (book.isParent) {
+                        return BookGroupTile(
+                          group: book,
+                          isGuest: isGuest.value,
+                          isReviewer: isReviewer.value,
+                          controller: this,
+                        );
+                      }
                       return ListTile(
                         title: Text(book.title),
                         subtitle: isReviewer.value
@@ -332,6 +432,16 @@ class BooksController extends GetxController {
   }
 
   void _onTileTap(book, context, isGuest, isReviewer) async {
+    if (book.url.toString().isEmpty) {
+      Get.snackbar(
+        'معلومات',
+        'لا يوجد ملف لهذه الملزمة بعد',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
     if (isReviewer) {
       Get.to(() => PdfModel(pdfUrl: book.url, filename: '${book.title}.pdf'));
       return;

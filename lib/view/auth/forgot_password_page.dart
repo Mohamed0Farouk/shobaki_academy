@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/services/api.dart';
 import 'package:shobaki_academy/services/statics.dart';
@@ -52,12 +53,30 @@ class ForgotPasswordPage extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-                      TextField(
-                        controller: phoneNumberController,
-                        decoration: const InputDecoration(
-                          hintText: 'رقم الهاتف المحمول',
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: TextField(
+                          controller: phoneNumberController,
+                          decoration: InputDecoration(
+                            hintTextDirection: TextDirection.rtl,
+                            hintText: 'رقم الهاتف المحمول',
+                            counterText: '',
+                            prefixIcon: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '+971 ',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                          keyboardType: TextInputType.phone,
+                          maxLength: 9,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
-                        keyboardType: TextInputType.phone,
                       ),
                       const SizedBox(height: 24),
                       ValueListenableBuilder(

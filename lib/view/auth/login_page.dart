@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
@@ -170,10 +171,16 @@ class _LoginPageState extends State<LoginPage> {
                                               (v == null || v.isEmpty)
                                               ? 'الرجاء ادخال رقم الهاتف'
                                               : null,
+                                          maxLength: 9,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
                                           decoration: InputDecoration(
                                             hintTextDirection:
                                                 TextDirection.rtl,
                                             hintText: 'رقم الهاتف',
+                                            counterText: '',
                                             suffixIcon: Padding(
                                               padding: const EdgeInsets.all(
                                                 8.0,

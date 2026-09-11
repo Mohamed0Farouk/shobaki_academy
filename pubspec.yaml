@@ -139,7 +139,7 @@ msix_config:
   publisher_display_name: Al Shobaki Academy
   publisher: CN=B03CE755-77E9-48E7-AD8D-EDC30C5DDB0D
   identity_name: AlShobakiAcademy.AlshobakiAcademy
-  msix_version: 6.0.0.0
+  msix_version: 7.0.0.0
   logo_path: assets\app_icon_1024.png
   capabilities: internetClient
   languages: en-us

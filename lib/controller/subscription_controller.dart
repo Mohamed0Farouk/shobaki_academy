@@ -64,6 +64,25 @@ class SubscriptionController extends GetxController {
     inputText.value = value;
   }
 
+  /// Inserts a topic subscription row only when the student isn't already
+  /// subscribed to [topicId] (prevents duplicate rows).
+  Future<void> subscribeToTopic(
+    ApiClient api,
+    String userId,
+    String topicId,
+  ) async {
+    final existing = await api.fetchWithConditions(
+      'students_subscriptions',
+      filters: {'student_id': userId, 'topic_id': topicId},
+    );
+    if (existing.isEmpty) {
+      await api.insertData('students_subscriptions', {
+        "student_id": userId,
+        "topic_id": topicId,
+      });
+    }
+  }
+
   Future<void> handleSubscription(
     List<dynamic> topicCodes,
     String topicName,
@@ -99,10 +118,7 @@ class SubscriptionController extends GetxController {
                   {'id': value[0]['id']},
                 );
 
-                await api.insertData('students_subscriptions', {
-                  "student_id": userId,
-                  "topic_id": topicId,
-                });
+                await subscribeToTopic(api, userId, topicId);
 
                 _showSuccessSnackbar('اشعار', 'تم الاشتراك في $topicName');
 
@@ -117,10 +133,7 @@ class SubscriptionController extends GetxController {
                 );
                 return;
               } else if (!value[0]['limited']) {
-                await api.insertData('students_subscriptions', {
-                  "student_id": userId,
-                  "topic_id": topicId,
-                });
+                await subscribeToTopic(api, userId, topicId);
 
                 _showSuccessSnackbar('اشعار', 'تم الاشتراك في $topicName');
 
@@ -143,10 +156,7 @@ class SubscriptionController extends GetxController {
       try {
         topicCodes.remove(inputText.value);
 
-        await api.insertData('students_subscriptions', {
-          "student_id": userId,
-          "topic_id": topicId,
-        });
+        await subscribeToTopic(api, userId, topicId);
 
         await api.updateData('topics', {'codes': topicCodes}, {'id': topicId});
 
@@ -161,6 +171,28 @@ class SubscriptionController extends GetxController {
         );
       }
     }
+  }
+
+  /// Inserts a book subscription row only if the student doesn't already have
+  /// a row for the same [bookId] (prevents duplicates on double redemption).
+  /// Returns true when a row was actually inserted.
+  Future<bool> addBookSubscriptionIfMissing(String userId, int bookId) async {
+    final existing = await api.fetchWithConditions(
+      'students_subscriptions',
+      filters: {
+        'student_id': userId,
+        'book_id': bookId,
+        'subscription_type': 'books',
+      },
+    );
+    if (existing.isNotEmpty) {
+      return false;
+    }
+    await api.insertData(
+      'students_subscriptions',
+      buildBookSubscriptionRow(userId, bookId),
+    );
+    return true;
   }
 
   /// Handle book subscription with code validation
@@ -196,11 +228,9 @@ class SubscriptionController extends GetxController {
         return;
       }
 
-      // Insert book subscription (per-book access via book_id)
-      await api.insertData(
-        'students_subscriptions',
-        buildBookSubscriptionRow(userId, bookId),
-      );
+      // Insert book subscription (per-book access via book_id), avoiding
+      // duplicate rows when the same code is redeemed again.
+      await addBookSubscriptionIfMissing(userId, bookId);
 
       // Close loading dialog first
       Get.back();
@@ -211,17 +241,15 @@ class SubscriptionController extends GetxController {
       // Show success snackbar
       showSnackbar(
         'اشعار',
-        'تم الاشتراك في الملزمة بنجاح قم باعادة تحميل الصفحة عن طريق السحب من اعلى لاسفل',
+        'تم الاشتراك في الملزمة بنجاح',
         backgroundColor: Colors.greenAccent,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 2),
       );
 
-      // Refresh books controller after small delay to ensure snackbar shows
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Auto-refresh the books page so the UI updates without a manual reload
       if (Get.isRegistered<BooksController>()) {
-        final booksController = Get.find<BooksController>();
-        await booksController.checkBookSubscription();
+        await Get.find<BooksController>().refreshBooksAndSubscription();
       }
     } catch (e) {
       Get.back(); // Close loading dialog
