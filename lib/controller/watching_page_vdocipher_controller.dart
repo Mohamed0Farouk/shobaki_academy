@@ -10,6 +10,7 @@ import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
+import 'package:shobaki_academy/controller/session_tracker.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
 
 class VideoQuality {
@@ -28,7 +29,8 @@ class VideoQuality {
   });
 }
 
-class VideoPlaybackController extends GetxController {
+class VideoPlaybackController extends GetxController
+    with WidgetsBindingObserver {
   final String videoUrl;
   final int maxSessionDurationSeconds;
   final api = ApiClient();
@@ -66,18 +68,16 @@ class VideoPlaybackController extends GetxController {
 
   bool _isPlaying = false;
 
-  int _accumulatedSeconds = 0;
-  DateTime? _sessionStart;
+  late final SessionTracker _session = SessionTracker(
+    maxSessionDurationSeconds: maxSessionDurationSeconds,
+    maxPauseSeconds: defaultMaxPauseSeconds,
+  );
 
   bool logInitialized = false;
   int _lastLoggedDuration = 0;
   bool _thresholdReached = false;
   String? _logId;
   int? _videoDurationSeconds;
-
-  DateTime? _watchSessionStart;
-  DateTime? _pauseStart;
-  bool _sessionExpired = false;
 
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _durationSub;
@@ -117,6 +117,7 @@ class VideoPlaybackController extends GetxController {
   @override
   Future<void> onInit() async {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     player = _createPlayer();
     _initStreams();
     await _loadUser();
@@ -493,31 +494,20 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _onPlay() {
-    if (_sessionExpired) return;
-    if (!_isPlaying) {
-      _isPlaying = true;
-      isPlaying.value = true;
-      _watchSessionStart ??= DateTime.now();
-      _sessionStart ??= DateTime.now();
-      _pauseStart = null;
+    _session.onPlay();
+    if (_isPlaying != _session.isPlaying) {
+      _isPlaying = _session.isPlaying;
+      isPlaying.value = _session.isPlaying;
     }
   }
 
   void _onPause() {
-    if (_sessionExpired) return;
-    if (_isPlaying) {
-      _isPlaying = false;
-      isPlaying.value = false;
-      _pauseStart ??= DateTime.now();
-      if (_sessionStart != null) {
-        final sessionSeconds = DateTime.now()
-            .difference(_sessionStart!)
-            .inSeconds;
-        _accumulatedSeconds += sessionSeconds;
-        _sessionStart = null;
-        viewDurationSeconds.value = _accumulatedSeconds;
-      }
+    _session.onPause();
+    if (_isPlaying != _session.isPlaying) {
+      _isPlaying = _session.isPlaying;
+      isPlaying.value = _session.isPlaying;
     }
+    viewDurationSeconds.value = _session.viewDurationSeconds;
   }
 
   Future<void> _createInitialLog() async {
@@ -573,31 +563,14 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _tickDuration() {
-    if (!_ticking || _sessionExpired) return;
+    if (!_ticking || _session.expired) return;
 
-    final now = DateTime.now();
-
-    if (_pauseStart != null && !_isPlaying) {
-      final pauseSeconds = now.difference(_pauseStart!).inSeconds;
-      if (pauseSeconds >= defaultMaxPauseSeconds) {
-        _onSessionExpired(reason: 'تم تجاوز مدة الإيقاف المؤقت (30 دقيقة)');
-        return;
-      }
+    if (_session.tick()) {
+      _onSessionExpired(reason: _session.expiryReason!);
+      return;
     }
 
-    if (_watchSessionStart != null) {
-      final sessionSeconds = now.difference(_watchSessionStart!).inSeconds;
-      if (sessionSeconds >= maxSessionDurationSeconds) {
-        _onSessionExpired(reason: 'انتهت مدة الجلسة (3 ساعات)');
-        return;
-      }
-    }
-
-    final activeSessionSeconds = (_sessionStart != null && _isPlaying)
-        ? now.difference(_sessionStart!).inSeconds
-        : 0;
-    final total = _accumulatedSeconds + activeSessionSeconds;
-    viewDurationSeconds.value = total;
+    viewDurationSeconds.value = _session.viewDurationSeconds;
     _checkThreshold();
   }
 
@@ -643,8 +616,9 @@ class VideoPlaybackController extends GetxController {
   }
 
   void _onSessionExpired({String reason = 'انتهت مدة الجلسة'}) {
-    if (_sessionExpired) return;
-    _sessionExpired = true;
+    if (!_session.expired) {
+      _session.expire(reason);
+    }
     _ticking = false;
     _durationTimer?.cancel();
     _logTimer?.cancel();
@@ -672,6 +646,37 @@ class VideoPlaybackController extends GetxController {
 
   bool _ticking = true;
   bool _disposed = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _session.onBackground();
+        if (_isPlaying != _session.isPlaying) {
+          _isPlaying = _session.isPlaying;
+          isPlaying.value = _session.isPlaying;
+        }
+        viewDurationSeconds.value = _session.viewDurationSeconds;
+        break;
+      case AppLifecycleState.resumed:
+        if (_session.tick()) {
+          _onSessionExpired(reason: _session.expiryReason!);
+          return;
+        }
+        viewDurationSeconds.value = _session.viewDurationSeconds;
+        _checkThreshold();
+        if (player.isPlaying && !_session.isPlaying) {
+          _session.onPlay();
+          _isPlaying = true;
+          isPlaying.value = true;
+        }
+        break;
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
 
   void stopTracking() {
     _ticking = false;
@@ -702,15 +707,10 @@ class VideoPlaybackController extends GetxController {
 
   @override
   void onClose() {
-    if (_sessionStart != null) {
-      final sessionSeconds = DateTime.now()
-          .difference(_sessionStart!)
-          .inSeconds;
-      _accumulatedSeconds += sessionSeconds;
-      _sessionStart = null;
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _session.onClose();
 
-    final finalDuration = _accumulatedSeconds;
+    final finalDuration = _session.accumulatedSeconds;
 
     if (logInitialized &&
         _logId != null &&
