@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
   );
   late final NotchBottomBarController _notchBottomBarController;
   int _currentIndex = 0;
-  bool _sidebarCollapsed = true;
+  bool _sidebarCollapsed = false;
 
   /// ⭐ Prevents LateInitializationError
   List<Widget> _pages = [];

@@ -86,6 +86,9 @@ class BooksPage extends StatelessWidget {
             );
           }
 
+// Observe revision so tiles re-initialize after auto-refresh
+          final rev = controller.subsRevision.value;
+
           Widget content = isGridView.value
               ? GridView.builder(
                   padding: const EdgeInsets.all(12),
@@ -98,16 +101,24 @@ class BooksPage extends StatelessWidget {
                   itemCount: controller.books.length,
                     itemBuilder: (context, index) {
                       final book = controller.books[index];
+                      final child = book.isParent
+                          ? _GroupCard(
+                              group: book,
+                              isGuest: controller.isGuest.value,
+                              isReviewer: controller.isReviewer.value,
+                              controller: controller,
+                            )
+                          : _BookCard(
+                              book: book,
+                              isGuest: controller.isGuest.value,
+                              isReviewer: controller.isReviewer.value,
+                              controller: controller,
+                            );
                       return BounceInUp(
                         from: 100,
                         duration: const Duration(milliseconds: 500),
                         delay: Duration(milliseconds: index * 80),
-                        child: _BookCard(
-                          book: book,
-                          isGuest: controller.isGuest.value,
-                          isReviewer: controller.isReviewer.value,
-                          controller: controller,
-                        ),
+                        child: child,
                       );
                     },
                 )
@@ -118,6 +129,19 @@ class BooksPage extends StatelessWidget {
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final book = controller.books[index];
+                    final Widget child = book.isParent
+                        ? BookGroupTile(
+                            group: book,
+                            isGuest: controller.isGuest.value,
+                            isReviewer: controller.isReviewer.value,
+                            controller: controller,
+                          )
+                        : _BookListTile(
+                            book: book,
+                            isGuest: controller.isGuest.value,
+                            isReviewer: controller.isReviewer.value,
+                            controller: controller,
+                          );
                     if (index == controller.books.length - 1) {
                       // Add extra space at the end for better UX on mobile
                       return Column(
@@ -126,12 +150,7 @@ class BooksPage extends StatelessWidget {
                             from: 100,
                             duration: const Duration(milliseconds: 600),
                             delay: Duration(milliseconds: index * 80),
-                            child: _BookListTile(
-                              book: book,
-                              isGuest: controller.isGuest.value,
-                              isReviewer: controller.isReviewer.value,
-                              controller: controller,
-                            ),
+                            child: child,
                           ),
                           const SizedBox(height: 80),
                         ],
@@ -141,15 +160,15 @@ class BooksPage extends StatelessWidget {
                       from: 100,
                       duration: const Duration(milliseconds: 600),
                       delay: Duration(milliseconds: index * 80),
-                      child: _BookListTile(
-                        book: book,
-                        isGuest: controller.isGuest.value,
-                        isReviewer: controller.isReviewer.value,
-                        controller: controller,
-                      ),
+                      child: child,
                     );
                   },
                 );
+
+          content = KeyedSubtree(
+            key: ValueKey('$crossAxisCount-$rev'),
+            child: content,
+          );
 
           if (isDesktop) {
             return Column(
@@ -328,6 +347,16 @@ class _BookListTileState extends State<_BookListTile> {
   }
 
   void _onTileTap() async {
+    if (widget.book.url.isEmpty) {
+      Get.snackbar(
+        'معلومات',
+        'لا يوجد ملف لهذه الملزمة بعد',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
     if (widget.isReviewer) {
       Get.to(
         () => PdfModel(
@@ -658,6 +687,16 @@ class _BookCardState extends State<_BookCard>
   }
 
   void _onCardTap() async {
+    if (widget.book.url.isEmpty) {
+      Get.snackbar(
+        'معلومات',
+        'لا يوجد ملف لهذه الملزمة بعد',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
     if (widget.isReviewer) {
       Get.to(
         () => PdfModel(
@@ -844,6 +883,524 @@ class _BookCardState extends State<_BookCard>
       color: Colors.grey[300],
       child: Center(
         child: Icon(Icons.description, size: 48, color: Colors.grey[600]),
+      ),
+    );
+  }
+}
+
+/// Inline-dropdown row for a parent book (group).
+///
+/// Collapsed: icon + title + group badge + child count + lock status.
+/// Expanded: subscribe CTA (when locked) + child books (each still checks its
+/// own subscription). Unlock rule: groupSub || childSub || groupFree ||
+/// childFree — handled by the child tiles + this tile's group status.
+class BookGroupTile extends StatefulWidget {
+  final Book group;
+  final bool isGuest;
+  final bool isReviewer;
+  final BooksController controller;
+  final bool initialExpanded;
+  final int depth;
+
+  const BookGroupTile({
+    super.key,
+    required this.group,
+    required this.isGuest,
+    required this.isReviewer,
+    required this.controller,
+    this.initialExpanded = false,
+    this.depth = 0,
+  });
+
+  @override
+  State<BookGroupTile> createState() => _BookGroupTileState();
+}
+
+class _BookGroupTileState extends State<BookGroupTile> {
+  late bool _expanded;
+  late Future<bool> _groupSubscriptionFuture;
+  Future<List<Book>>? _childrenFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initialExpanded;
+    _groupSubscriptionFuture = widget.controller.checkBookSubscription(
+      bookId: widget.group.id,
+    );
+    if (_expanded) {
+      _childrenFuture = widget.controller.fetchGroupChildren(widget.group.id);
+    }
+  }
+
+  void _toggle() {
+    setState(() {
+      _expanded = !_expanded;
+      if (_expanded && _childrenFuture == null) {
+        _childrenFuture = widget.controller.fetchGroupChildren(
+          widget.group.id,
+        );
+      }
+    });
+  }
+
+  void _subscribeToGroup() {
+    showBookSubscriptionDialog(
+      api: ApiClient(),
+      userId: widget.controller.userId.value,
+      bookId: widget.group.id,
+      context: context,
+    );
+  }
+
+  Widget _buildLockBadge(BuildContext context, bool unlocked) {
+    return unlocked
+        ? const _StatusBadge(
+            icon: Icons.lock_open_rounded,
+            label: 'مفتوح',
+            color: Color(0xFF10B981),
+          )
+        : const _StatusBadge(
+            icon: Icons.lock_rounded,
+            label: 'مقفل',
+            color: Color(0xFFF59E0B),
+          );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 16 : 12,
+        vertical: 8,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: primary.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _toggle,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: EdgeInsets.all(isDesktop ? 20 : 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: isDesktop ? 56 : 48,
+                        height: isDesktop ? 56 : 48,
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: primary.withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.collections_bookmark_rounded,
+                          color: primary,
+                          size: isDesktop ? 28 : 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.group.title,
+                              style: theme.textTheme.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textDirection: TextDirection.rtl,
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                const _StatusBadge(
+                                  icon: Icons.folder_special_rounded,
+                                  label: 'مجموعة',
+                                  color: Color(0xFF6366F1),
+                                ),
+                                _StatusBadge(
+                                  icon: Icons.menu_book_rounded,
+                                  label:
+                                      '${widget.group.children.length} ملازم',
+                                  color: const Color(0xFF0EA5E9),
+                                ),
+                                if (!widget.isReviewer)
+                                  FutureBuilder<bool>(
+                                    future: _groupSubscriptionFuture,
+                                    builder: (context, snapshot) {
+                                      final unlocked =
+                                          widget.group.free ||
+                                          (snapshot.data ?? false);
+                                      return _buildLockBadge(
+                                        context,
+                                        unlocked,
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOutCubic,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (!widget.isGuest && !widget.isReviewer)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                            child: FutureBuilder<bool>(
+                              future: _groupSubscriptionFuture,
+                              builder: (context, snapshot) {
+                                final unlocked =
+                                    widget.group.free ||
+                                    (snapshot.data ?? false);
+                                if (unlocked) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFF10B981,
+                                      ).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      'المجموعة مفتوحة',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: const Color(0xFF10B981),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _subscribeToGroup,
+                                    icon: const Icon(
+                                      Icons.lock_open_rounded,
+                                      size: 18,
+                                    ),
+                                    label: Text(
+                                      'ادخل الكود لفتح المجموعة',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primary,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        FutureBuilder<List<Book>>(
+                          future: _childrenFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState !=
+                                ConnectionState.done) {
+                              return const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                            final children =
+                                snapshot.data ?? const <Book>[];
+                            if (children.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Center(
+                                  child: Text(
+                                    'لا توجد كتب في هذه المجموعة',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ),
+                              );
+                            }
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const Divider(height: 1),
+                                for (final child in children)
+                                  child.isParent &&
+                                          widget.depth < 3
+                                      ? BookGroupTile(
+                                          group: child,
+                                          isGuest: widget.isGuest,
+                                          isReviewer: widget.isReviewer,
+                                          controller: widget.controller,
+                                          depth: widget.depth + 1,
+                                        )
+                                      : _BookListTile(
+                                          book: child,
+                                          isGuest: widget.isGuest,
+                                          isReviewer: widget.isReviewer,
+                                          controller: widget.controller,
+                                        ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Grid-mode card for a parent book (group). Tapping it slides up a sheet
+/// that lists the children with the same inline dropdown behaviour.
+class _GroupCard extends StatelessWidget {
+  final Book group;
+  final bool isGuest;
+  final bool isReviewer;
+  final BooksController controller;
+
+  const _GroupCard({
+    required this.group,
+    required this.isGuest,
+    required this.isReviewer,
+    required this.controller,
+  });
+
+  void _openSheet(BuildContext context) {
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          height: Get.height * 0.65,
+          padding: const EdgeInsets.only(top: 8),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: SingleChildScrollView(
+            child: BookGroupTile(
+              group: group,
+              isGuest: isGuest,
+              isReviewer: isReviewer,
+              controller: controller,
+              initialExpanded: true,
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _openSheet(context),
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[200],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: AppConstants.bookAspectRatio,
+                    child: ImageUtils.networkWithFallback(
+                      group.thumbnail,
+                      fit: BoxFit.fill,
+                      context: context,
+                      placeholder: Container(
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: Icon(
+                            Icons.collections_bookmark_rounded,
+                            size: 48,
+                            color: primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.8),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        group.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'مجموعة',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${group.children.length} ملازم',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isReviewer)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: FutureBuilder<bool>(
+                    future: controller.checkBookSubscription(
+                      bookId: group.id,
+                    ),
+                    builder: (context, snapshot) {
+                      final unlocked =
+                          group.free || (snapshot.data ?? false);
+                      return Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: unlocked
+                              ? Colors.green[400]
+                              : Colors.red[400],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          unlocked
+                              ? Icons.lock_open_rounded
+                              : Icons.lock,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
