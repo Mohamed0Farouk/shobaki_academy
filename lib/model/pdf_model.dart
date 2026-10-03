@@ -81,7 +81,7 @@ class _PdfModelState extends State<PdfModel> {
               foregroundColor: Colors.white,
               actions: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Obx(() {
                     return controller.isDownloading.value
                         ? const Padding(
@@ -97,8 +97,18 @@ class _PdfModelState extends State<PdfModel> {
                               ),
                             ),
                           )
-                        : IconButton(
-                            icon: const Icon(Icons.download),
+                        : TextButton.icon(
+                            style: TextButton.styleFrom(
+                              // The AppBar background is the primary color, so
+                              // the default TextButton tint would wash out.
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(Icons.download, size: 20),
+                            label: const Text('تحميل'),
                             onPressed: () {
                               if (Platform.isWindows ||
                                   Platform.isLinux ||
@@ -112,7 +122,6 @@ class _PdfModelState extends State<PdfModel> {
                                 );
                               }
                             },
-                            tooltip: 'تحميل PDF',
                           );
                   }),
                 ),

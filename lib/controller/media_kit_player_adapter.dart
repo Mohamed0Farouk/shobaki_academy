@@ -28,6 +28,14 @@ class MediaKitPlayerAdapter implements IPlayerAdapter {
   @override
   bool get isBuffering => _player.state.buffering;
 
+  /// `PlayerState.buffer` is the absolute buffer position, not the amount
+  /// ahead, so it has to be differenced against the playhead.
+  @override
+  Duration get bufferedAhead {
+    final ahead = _player.state.buffer - _player.state.position;
+    return ahead > Duration.zero ? ahead : Duration.zero;
+  }
+
   @override
   Stream<bool> get onPlayingChanged => _player.stream.playing;
 
@@ -43,6 +51,9 @@ class MediaKitPlayerAdapter implements IPlayerAdapter {
 
   @override
   Stream<Duration> get onPositionChanged => _player.stream.position;
+
+  @override
+  Stream<bool> get onBufferingChanged => _player.stream.buffering;
 
   @override
   Future<void> open(String url, {Duration? start}) async {

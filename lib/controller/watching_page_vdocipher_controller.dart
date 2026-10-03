@@ -10,24 +10,12 @@ import 'package:shobaki_academy/services/statics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
+import 'package:shobaki_academy/controller/auto_quality_governor.dart';
 import 'package:shobaki_academy/controller/session_tracker.dart';
+import 'package:shobaki_academy/controller/stall_detector.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
-
-class VideoQuality {
-  final String label;
-  final String url;
-  final int? bandwidth;
-  final int? width;
-  final int? height;
-
-  VideoQuality({
-    required this.label,
-    required this.url,
-    this.bandwidth,
-    this.width,
-    this.height,
-  });
-}
+import 'package:shobaki_academy/controller/video_quality.dart';
+import 'package:shobaki_academy/services/player_messages.dart';
 
 class VideoPlaybackController extends GetxController
     with WidgetsBindingObserver {
@@ -52,9 +40,24 @@ class VideoPlaybackController extends GetxController
 
   // Quality options
   final List<VideoQuality> qualities = [];
-  final RxInt currentQualityIndex = 0.obs;
+
+  /// Index of the rendition currently loaded. In auto mode this points at a
+  /// concrete variant, never at [kAutoQualityIndex].
+  final RxInt currentQualityIndex = kAutoQualityIndex.obs;
+
+  /// Whether the app is managing the rendition. When false the student's
+  /// choice in [showQualityDialog] is pinned until they pick "تلقائي" again.
+  final RxBool autoQuality = true.obs;
   final RxBool qualitiesLoaded = false.obs;
   final RxBool lastPlayIntent = false.obs;
+
+  /// True while playback is frozen on the same frame. Drives the stall overlay
+  /// and gates the recovery ladder.
+  final RxBool isStalled = false.obs;
+
+  late final StallDetector _stall = StallDetector();
+
+  final RxInt stallCount = 0.obs;
 
   final RxBool isFullScreen = false.obs;
   final RxInt playerGeneration = 0.obs;
@@ -84,6 +87,32 @@ class VideoPlaybackController extends GetxController
   StreamSubscription<String?>? _errorSub;
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<bool>? _bufferingSub;
+
+  /// True while a recovery action (seek / downgrade / reload) is in flight, to
+  /// keep the 1 Hz sampler from stacking further actions on top of it.
+  bool _recovering = false;
+
+  /// Auto mode only downgrades once per stall. Without this the escalation
+  /// ladder and the "2 stalls in 5 minutes" rule would both fire for one stall
+  /// and drop two rungs at once.
+  bool _downgradedForStall = false;
+
+  /// True once the ladder has given up and the retry UI is showing. Sampling
+  /// stops so the stall overlay cannot flicker back in underneath the error.
+  bool _stallRecoveryExhausted = false;
+
+  /// Decides when a degraded rendition has proved stable enough to climb back
+  /// up. Separate from [StallDetector]: that one only watches for trouble,
+  /// this one watches for the absence of it.
+  final AutoQualityGovernor _governor = AutoQualityGovernor();
+
+  /// Last reason a climb was refused, used to keep the log readable.
+  UpgradeSkipReason? _lastUpgradeSkip;
+
+  /// One-time "quality is automatic" notice. Deliberately only for real HLS
+  /// sources; a non-HLS video has no ladder being managed.
+  bool _introToastShown = false;
 
   static const int _maxLoadAttempts = 3;
   static const List<Duration> _loadTimeouts = [
@@ -134,9 +163,7 @@ class VideoPlaybackController extends GetxController
       // FVP backend: a network stream that fails to open can leave
       // initialize() pending forever, so fail fast and let the retry logic
       // (watchdog / _onLoadFailed) take over.
-      return VideoPlayerAdapter(
-        initializeTimeout: const Duration(seconds: 15),
-      );
+      return VideoPlayerAdapter(initializeTimeout: const Duration(seconds: 15));
     }
     return MediaKitPlayerAdapter();
   }
@@ -174,7 +201,17 @@ class VideoPlaybackController extends GetxController
         _onLoadFailed();
       }
     });
+    // Buffering was previously only readable as a polled bool, which made a
+    // mid-lecture stall indistinguishable from normal playback. The flag is
+    // logged here because it is what separates a network underrun from a
+    // decoder that has wedged with a full buffer.
+    _bufferingSub = player.onBufferingChanged.listen((buffering) {
+      if (_disposed || !_videoDurationLoaded) return;
+      projectLogger.d("Player buffering: $buffering");
+    });
   }
+
+  bool get _videoDurationLoaded => _videoDurationSeconds != null;
 
   /// Opens the video and automatically retries if the media fails to load
   /// (stalls, errors, or times out). Retries are automatic so the user is not
@@ -229,12 +266,17 @@ class VideoPlaybackController extends GetxController
   }
 
   void _onMediaLoaded() {
+    final wasLoading = isLoading.value;
     _loadWatchdog?.cancel();
     _retryTimer?.cancel();
     _loadFailurePending = false;
     _loadAttempts = 0;
     _loadWaitElapsed = 0;
     isLoading.value = false;
+    // Announced once the loading overlay has actually cleared, so the notice
+    // cannot cover a spinner the student is still waiting on. Guarded by
+    // `_introToastShown`, so it appears once per video.
+    if (wasLoading) _maybeShowAutoQualityToast();
   }
 
   void _onLoadFailed() {
@@ -244,7 +286,8 @@ class VideoPlaybackController extends GetxController
     _loadAttempts++;
     if (_loadAttempts >= _maxLoadAttempts) {
       isLoading.value = false;
-      errorMessage.value = 'فشل تحميل الفيديو، يرجى التحقق من اتصال الإنترنت وإعادة المحاولة.';
+      errorMessage.value =
+          'فشل تحميل الفيديو، يرجى التحقق من اتصال الإنترنت وإعادة المحاولة.';
       projectLogger.e("Video failed to load after $_maxLoadAttempts attempts");
       return;
     }
@@ -261,6 +304,7 @@ class VideoPlaybackController extends GetxController
   /// Manually retry loading the video after a failure.
   Future<void> retry() async {
     errorMessage.value = '';
+    _stallRecoveryExhausted = false;
     _loadAttempts = 0;
     _retryTimer?.cancel();
     if (!Platform.isMacOS) {
@@ -279,6 +323,7 @@ class VideoPlaybackController extends GetxController
     _completedSub?.cancel();
     _errorSub?.cancel();
     _positionSub?.cancel();
+    _bufferingSub?.cancel();
     try {
       player.dispose();
     } catch (e) {
@@ -287,6 +332,13 @@ class VideoPlaybackController extends GetxController
     player = _createPlayer();
     _initStreams();
     playerGeneration.value++;
+    _stall.reset();
+    isStalled.value = false;
+    _downgradedForStall = false;
+    _stallRecoveryExhausted = false;
+    _recovering = false;
+    // Buffer is gone; stability has to be earned again before quality climbs.
+    _governor.noteBufferCleared();
   }
 
   Future<void> _loadUser() async {
@@ -299,69 +351,30 @@ class VideoPlaybackController extends GetxController
 
   Future<void> _fetchQualities() async {
     try {
-      if (!videoUrl.endsWith('.m3u8')) return;
+      // Previously an `endsWith('.m3u8')` check, which never matched a signed
+      // CDN URL such as `master.m3u8?token=...`. The whole quality menu was
+      // silently dead for those videos and playback fell through to whatever
+      // rendition the backend picked.
+      if (!isHlsManifestUrl(videoUrl)) return;
 
       final response = await http.get(Uri.parse(videoUrl));
       if (response.statusCode != 200) return;
 
-      final body = response.body;
-      if (!body.startsWith('#EXTM3U')) return;
+      final variants = parseHlsMasterPlaylist(
+        response.body,
+        Uri.parse(videoUrl),
+      );
+      if (variants.isEmpty) return;
 
-      final lines = body.split('\n');
-      String? currentBandwidth;
-      String? currentResolution;
-      final baseUrl = Uri.parse(videoUrl);
-
-      for (final line in lines) {
-        final trimmed = line.trim();
-        if (trimmed.isEmpty) continue;
-
-        if (trimmed.startsWith('#EXT-X-STREAM-INF:')) {
-          final params = trimmed.substring('#EXT-X-STREAM-INF:'.length);
-
-          final bandMatch = RegExp(r'BANDWIDTH=(\d+)').firstMatch(params);
-          currentBandwidth = bandMatch?.group(1);
-
-          final resMatch = RegExp(r'RESOLUTION=(\d+)x(\d+)').firstMatch(params);
-          if (resMatch != null) {
-            currentResolution = '${resMatch.group(1)}x${resMatch.group(2)}';
-          }
-        } else if (!trimmed.startsWith('#') && trimmed.isNotEmpty) {
-          final variantUrl = baseUrl.resolve(trimmed).toString();
-
-          String label = 'Auto';
-          int? width;
-          int? height;
-
-          if (currentResolution != null) {
-            final parts = currentResolution.split('x');
-            width = int.tryParse(parts[0]);
-            height = int.tryParse(parts[1]);
-            label = '${height}p';
-          }
-
-          qualities.add(
-            VideoQuality(
-              label: label,
-              url: variantUrl,
-              bandwidth: currentBandwidth != null
-                  ? int.parse(currentBandwidth)
-                  : null,
-              width: width,
-              height: height,
-            ),
-          );
-
-          currentBandwidth = null;
-          currentResolution = null;
-        }
-      }
-
-      if (qualities.isNotEmpty) {
-        qualities.sort((a, b) => (b.height ?? 0).compareTo(a.height ?? 0));
-        qualities.insert(0, VideoQuality(label: 'Auto', url: videoUrl));
-        qualitiesLoaded.value = true;
-      }
+      qualities.addAll(variants);
+      // Index 0 is the "تلقائي" entry. Its URL is the master playlist, which is
+      // never loaded: both backends lock to one rendition at open time and do
+      // not switch during playback, so handing them the master buys nothing.
+      qualities.insert(
+        0,
+        VideoQuality(label: PlayerMessages.autoQualityLabel, url: videoUrl),
+      );
+      qualitiesLoaded.value = true;
     } catch (e) {
       projectLogger.e("Quality fetch error: $e");
     }
@@ -372,14 +385,15 @@ class VideoPlaybackController extends GetxController
       await _fetchQualities();
 
       if (qualities.length > 1) {
-        currentQualityIndex.value = 1;
+        autoQuality.value = true;
+        currentQualityIndex.value = selectAutoQualityIndex(qualities);
+        // The opening choice gets the same dwell as any later switch, so the
+        // first possible climb lands after two minutes of clean playback rather
+        // than at the very moment the student is settling in.
+        _governor.noteQualityChanged();
       }
 
-      final playUrl = qualities.isNotEmpty
-          ? qualities[currentQualityIndex.value].url
-          : videoUrl;
-
-      await _beginLoad(playUrl);
+      await _beginLoad(currentPlayUrl);
     } catch (e) {
       errorMessage.value = "Failed to load video";
       projectLogger.e("Video init error: $e");
@@ -387,40 +401,119 @@ class VideoPlaybackController extends GetxController
     }
   }
 
+  /// URL of the rendition to load. Falls back to the source URL when there is
+  /// no usable master playlist.
+  String get currentPlayUrl => resolvePlayUrl(
+    sourceUrl: videoUrl,
+    qualities: qualities,
+    index: currentQualityIndex.value,
+  );
+
+  /// Label for the quality chip. Empty when there is nothing to choose.
+  String get qualityChipLabel => buildQualityChipLabel(
+    qualities: qualities,
+    index: currentQualityIndex.value,
+    autoQuality: autoQuality.value,
+  );
+
   void showQualityDialog(BuildContext context) {
+    if (qualities.length <= 1) return;
     showDialog(
       context: context,
       builder: (ctx) {
+        final theme = Theme.of(ctx);
         return AlertDialog(
-          title: const Text('Select Quality'),
+          title: const Text(PlayerMessages.qualityMenuTitle),
           content: SizedBox(
             width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: qualities.length,
-              itemBuilder: (ctx, i) {
-                return ListTile(
-                  title: Text(qualities[i].label),
-                  trailing: i == currentQualityIndex.value
-                      ? const Icon(Icons.check)
-                      : null,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    switchQuality(i);
-                  },
-                );
-              },
-            ),
+            // Observes the two selection values: the ladder can step while the
+            // menu is open, and a checkmark frozen at the moment the dialog
+            // appeared would tell the student about a rendition it no longer
+            // holds.
+            child: Obx(() {
+              final selected = selectedQualityIndex(
+                autoQuality: autoQuality.value,
+                currentIndex: currentQualityIndex.value,
+                qualityCount: qualities.length,
+              );
+              final effectiveLabel = autoQuality.value
+                  ? qualities[currentQualityIndex.value].label
+                  : null;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: qualities.length,
+                      itemBuilder: (ctx, i) {
+                        final isAuto = i == kAutoQualityIndex;
+                        return ListTile(
+                          title: Text(qualities[i].label),
+                          subtitle: isAuto
+                              ? Text(
+                                  PlayerMessages.autoQualityOptionSubtitle(
+                                    effectiveLabel,
+                                  ),
+                                )
+                              : null,
+                          trailing: i == selected
+                              ? const Icon(Icons.check)
+                              : null,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            if (isAuto) {
+                              // Already automatic: re-picking it must do
+                              // nothing. Re-deriving the conservative start
+                              // would silently drop a rendition the ladder had
+                              // already earned.
+                              if (autoQuality.value) return;
+                              // The rendition does not change, only the policy
+                              // governing it, so this is a mode flip.
+                              switchQuality(
+                                currentQualityIndex.value,
+                                auto: true,
+                              );
+                              return;
+                            }
+                            switchQuality(i, auto: false);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    PlayerMessages.pinQualityHint,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                    // Matches the rows above it. Centering it put the hint on a
+                    // different axis from the right-aligned titles and
+                    // subtitle, so it read as a stray caption rather than as
+                    // part of the same column.
+                    textAlign: TextAlign.start,
+                  ),
+                ],
+              );
+            }),
           ),
         );
       },
     );
   }
 
-  Future<void> switchQuality(int index) async {
-    if (index < 0 ||
-        index >= qualities.length ||
-        index == currentQualityIndex.value) {
+  Future<void> switchQuality(int index, {bool auto = false}) async {
+    if (qualities.length <= 1) return;
+    if (index < 1 || index >= qualities.length) return;
+    // Same rendition, only the governing policy changed: flipping a flag is
+    // not worth tearing the stream down. Re-opening would cause a rebuffer the
+    // student can see, for a change that does not affect what is decoded right
+    // now.
+    if (index == currentQualityIndex.value) {
+      if (autoQuality.value == auto) return;
+      _applyModeChange(auto);
       return;
     }
 
@@ -432,6 +525,10 @@ class VideoPlaybackController extends GetxController
     _loadFailurePending = false;
 
     try {
+      // Recorded before the reload, not after it: if the load fails the
+      // switch is still an event, and without this a broken rendition would
+      // be retried every tick.
+      _governor.noteQualityChanged();
       await _beginLoad(
         qualities[index].url,
         start: position > Duration.zero ? position : null,
@@ -443,9 +540,33 @@ class VideoPlaybackController extends GetxController
 
       lastPlayIntent.value = wasPlaying;
       currentQualityIndex.value = index;
+      autoQuality.value = auto;
+      _stall.reset();
+      isStalled.value = false;
+      _downgradedForStall = false;
+      _stallRecoveryExhausted = false;
     } catch (e) {
       projectLogger.e("Quality switch error: $e");
     }
+  }
+
+  /// Flips auto mode while the rendition itself stays where it is.
+  ///
+  /// Only the policy changes here, deliberately so. A stable pinned rendition
+  /// is not evidence that the next rung up is safe, and nothing should visibly
+  /// reload in the second after a tap that did not ask for a quality change -
+  /// so the governor's dwell clock starts over and the ladder keeps its hands
+  /// off for the usual interval. Stall state is left alone: it describes the
+  /// link, not the selection, and clearing it here would hide an active freeze
+  /// behind a mode change. Recovery exhaustion is likewise untouched, since
+  /// only [retry] owns that and it has to clear `errorMessage` with it.
+  void _applyModeChange(bool auto) {
+    autoQuality.value = auto;
+    _governor.noteQualityChanged();
+    projectLogger.d(
+      "Quality mode -> ${auto ? 'auto' : 'pinned'} at "
+      "${qualities[currentQualityIndex.value].label}",
+    );
   }
 
   void setPlaybackSpeed(double speed) {
@@ -563,6 +684,13 @@ class VideoPlaybackController extends GetxController
   }
 
   void _tickDuration() {
+    // Sampled before the session check: a freeze must still be detected and
+    // recovered even if the session bookkeeping has already stopped.
+    _sampleStall();
+    // Deliberately second. If the stall sampler above just triggered a
+    // downgrade, `isLoading` is now set and this returns without acting, so a
+    // down-and-up pair can never be decided inside a single tick.
+    _sampleUpgrade();
     if (!_ticking || _session.expired) return;
 
     if (_session.tick()) {
@@ -572,6 +700,197 @@ class VideoPlaybackController extends GetxController
 
     viewDurationSeconds.value = _session.viewDurationSeconds;
     _checkThreshold();
+  }
+
+  /// Feeds one observation to the stall detector and applies whatever recovery
+  /// step it asks for. Runs once per second.
+  void _sampleStall() {
+    if (_disposed || isLoading.value || _recovering) return;
+    if (_stallRecoveryExhausted) return;
+    // No master playlist means no ladder to climb; a non-HLS source is played
+    // exactly as before.
+    if (qualities.length <= 1) return;
+    if (!_ticking || _session.expired) return;
+
+    _stall.sample(
+      position: player.position,
+      isBuffering: player.isBuffering,
+      isPlaying: player.isPlaying && _session.isPlaying,
+    );
+
+    if (isStalled.value != _stall.isStalled) {
+      isStalled.value = _stall.isStalled;
+      if (_stall.isStalled) {
+        projectLogger.w(
+          "Stall detected at ${player.position.inSeconds}s "
+          "(buffering: ${player.isBuffering}, ahead: "
+          "${player.bufferedAhead.inSeconds}s)",
+        );
+      }
+    }
+    stallCount.value = _stall.stallCount;
+    if (!_stall.isStalled) {
+      _downgradedForStall = false;
+      return;
+    }
+
+    // A link that stalls repeatedly but never long enough to trip a single
+    // ladder step is still a link the student cannot watch on. Degrade early.
+    if (_stall.shouldProactivelyDowngrade && !_downgradedForStall) {
+      _actOnStall(StallRecoveryAction.downgradeQuality);
+      return;
+    }
+
+    _actOnStall(_stall.action);
+  }
+
+  void _actOnStall(StallRecoveryAction action) {
+    switch (action) {
+      case StallRecoveryAction.none:
+      case StallRecoveryAction.wait:
+        return;
+      case StallRecoveryAction.seek:
+        _stall.markActionTaken(action);
+        _recoverBySeek();
+        return;
+      case StallRecoveryAction.downgradeQuality:
+        _stall.markActionTaken(action);
+        _autoDowngrade();
+        return;
+      case StallRecoveryAction.reload:
+        _stall.markActionTaken(action);
+        _recoverByReload();
+        return;
+      case StallRecoveryAction.failed:
+        _stall.markActionTaken(action);
+        _onStallFailed();
+        return;
+    }
+  }
+
+  /// Steps auto quality back up a rung when the link has earned it.
+  ///
+  /// Runs once per second, immediately after [_sampleStall]. The inverse of
+  /// [_autoDowngrade]: rather than needing trouble it needs the sustained
+  /// absence of it, and it asks for proof in both directions - a clean stall
+  /// window plus enough read-ahead to sustain the faster rendition.
+  void _sampleUpgrade() {
+    if (_disposed || isLoading.value || _recovering) return;
+    if (_stallRecoveryExhausted) return;
+    // No ladder means nothing to climb.
+    if (qualities.length <= 1) return;
+    if (!_ticking || _session.expired) return;
+
+    _governor.sample(isStalled: _stall.isStalled);
+    if (_stall.isStalled) return;
+
+    final plan = _governor.planAutoUpgrade(
+      qualities: qualities,
+      currentIndex: currentQualityIndex.value,
+      autoQuality: autoQuality.value,
+      bufferedAhead: player.bufferedAhead,
+    );
+    if (!plan.shouldUpgrade) {
+      _logUpgradeSkip(plan.skipReason!);
+      return;
+    }
+
+    _lastUpgradeSkip = null;
+    final label = qualities[plan.targetIndex!].label;
+    projectLogger.i("Auto quality upgrade to $label");
+    unawaited(switchQuality(plan.targetIndex!, auto: true));
+  }
+
+  /// Logs a refused climb only when the reason changes. Each reason holds for
+  /// dozens of consecutive seconds, and one line per second would bury the log
+  /// entry that a real upgrade eventually lands in.
+  void _logUpgradeSkip(UpgradeSkipReason reason) {
+    if (reason == _lastUpgradeSkip) return;
+    _lastUpgradeSkip = reason;
+    projectLogger.d("Auto upgrade skipped: ${reason.name}");
+  }
+
+  Future<void> _recoverBySeek() async {
+    final resumeAt = _stall.stallPosition;
+    if (resumeAt <= Duration.zero) return;
+    projectLogger.i("Stall recovery: seeking to ${resumeAt.inSeconds}s");
+    try {
+      await player.seek(resumeAt);
+    } catch (e) {
+      projectLogger.e("Stall seek failed: $e");
+    }
+  }
+
+  Future<void> _recoverByReload() async {
+    if (_recovering) return;
+    _recovering = true;
+    final resumeAt = _stall.stallPosition;
+    projectLogger.i("Stall recovery: reopening at ${resumeAt.inSeconds}s");
+    try {
+      // A wedged decoder survives a seek but not a fresh instance, so tear the
+      // player down entirely - this is the same path as the manual retry.
+      _resetPlayer();
+      await _beginLoad(
+        currentPlayUrl,
+        start: resumeAt > Duration.zero ? resumeAt : null,
+      );
+    } catch (e) {
+      projectLogger.e("Stall reload failed: $e");
+    } finally {
+      _recovering = false;
+    }
+  }
+
+  void _onStallFailed() {
+    if (_disposed) return;
+    _stallRecoveryExhausted = true;
+    isStalled.value = false;
+    errorMessage.value = PlayerMessages.connectionLost;
+    projectLogger.e("Stall recovery exhausted; surfacing retry UI");
+  }
+
+  /// Steps auto mode down one rendition, keeping the current position.
+  Future<void> _autoDowngrade() async {
+    if (_disposed) return;
+
+    final plan = planAutoDowngrade(
+      qualities: qualities,
+      currentIndex: currentQualityIndex.value,
+      autoQuality: autoQuality.value,
+      alreadyDowngradedForStall: _downgradedForStall,
+    );
+    if (!plan.shouldDowngrade) {
+      if (plan.skipReason != null) {
+        projectLogger.d("Auto downgrade skipped: ${plan.skipReason!.name}");
+      }
+      return;
+    }
+
+    final label = qualities[plan.targetIndex!].label;
+    _downgradedForStall = true;
+    // The rung we are leaving is the one that could not keep up; remember it
+    // so a later climb does not immediately return to it.
+    _governor.noteRungFailed(currentQualityIndex.value);
+    projectLogger.i("Auto quality downgrade to $label");
+    await switchQuality(plan.targetIndex!, auto: true);
+  }
+
+  void _maybeShowAutoQualityToast() {
+    if (_introToastShown) return;
+    _introToastShown = true;
+    // Requires a real rendition list as well as auto mode: for a non-HLS source
+    // nothing is being managed, so telling the student quality is automatic
+    // would be describing a feature that does not exist for that video.
+    if (!shouldAnnounceAutoQuality(
+      qualities: qualities,
+      autoQuality: autoQuality.value,
+    )) {
+      return;
+    }
+    showSnackbar(
+      PlayerMessages.autoQualityTitle,
+      PlayerMessages.autoQualityBody,
+    );
   }
 
   void _checkThreshold() {
@@ -689,6 +1008,7 @@ class VideoPlaybackController extends GetxController
     _completedSub?.cancel();
     _errorSub?.cancel();
     _positionSub?.cancel();
+    _bufferingSub?.cancel();
     try {
       player.stop();
     } catch (_) {}
