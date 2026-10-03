@@ -7,6 +7,7 @@ import 'package:chewie/chewie.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
+import 'package:shobaki_academy/services/player_messages.dart';
 import 'package:shobaki_academy/view/sub/video_player_controls.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
@@ -240,6 +241,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                       : _buildMediaKitPlayer(),
                 ),
                 if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
+                if (ctrl.isStalled.value) _buildStalledOverlay(),
                 if (ctrl.isLoading.value)
                   ColoredBox(
                     color: Colors.black54,
@@ -438,13 +440,14 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       top: 8,
       right: 8,
       child: Obx(() {
-        final label = ctrl.qualities[ctrl.currentQualityIndex.value].label;
+        final label = ctrl.qualityChipLabel;
+        if (label.isEmpty) return const SizedBox.shrink();
         return Material(
           color: Colors.black54,
           borderRadius: BorderRadius.circular(4),
           child: InkWell(
             borderRadius: BorderRadius.circular(4),
-            onTap: () => _showQualityDialog(),
+            onTap: () => ctrl.showQualityDialog(context),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 8,
@@ -476,33 +479,41 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     );
   }
 
-  Future<void> _showQualityDialog() async {
-    final selected = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Select Quality'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: ctrl.qualities.length,
-            itemBuilder: (ctx, i) => ListTile(
-              title: Text(ctrl.qualities[i].label),
-              trailing: i == ctrl.currentQualityIndex.value
-                  ? const Icon(Icons.check)
-                  : null,
-              onTap: () => Navigator.pop(ctx, i),
-            ),
+  /// Light-touch notice shown while the recovery ladder works on a freeze.
+  ///
+  /// Deliberately not a blocking overlay: the student can still see the frame
+  /// they are on, which makes the eventual resume feel continuous instead of
+  /// like the video restarted.
+  Widget _buildStalledOverlay() {
+    return ColoredBox(
+      color: Colors.black26,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                PlayerMessages.stalledLabel,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ],
           ),
         ),
       ),
     );
-
-    if (selected == null || selected == ctrl.currentQualityIndex.value) {
-      return;
-    }
-
-    if (!mounted) return;
-    await ctrl.switchQuality(selected);
   }
 }

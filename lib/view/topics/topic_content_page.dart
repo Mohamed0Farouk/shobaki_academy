@@ -491,11 +491,24 @@ class TopicContentPage extends StatelessWidget {
                 _infoChip(context, Icons.price_check, 'السعر: $price AED'),
             ],
           ),
-          const SizedBox(height: 16),
-          Center(child: _actionButton(context, topic, subs, user, api)),
+          // No content means there is nothing to unlock, so the subscribe CTA
+          // would only invite a payment that leads nowhere.
+          if (_hasContent(topic)) ...[
+            const SizedBox(height: 16),
+            Center(child: _actionButton(context, topic, subs, user, api)),
+          ],
         ],
       ),
     );
+  }
+
+  /// Matches the counts reported by the chips above: a topic carries content
+  /// when it has lectures (leaf) or sub-topics (parent).
+  bool _hasContent(Map topic) {
+    final lectures = topic['lectures'];
+    final children = topic['children'];
+    return (lectures is List && lectures.isNotEmpty) ||
+        (children is List && children.isNotEmpty);
   }
 
   Widget _headerPlaceholder(BuildContext context) {

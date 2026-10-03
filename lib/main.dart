@@ -12,6 +12,7 @@ import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/security_controller.dart';
 import 'package:shobaki_academy/controller/version_controller.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
+import 'package:shobaki_academy/controller/windows_player_options.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/router.dart';
@@ -29,9 +30,10 @@ void main() async {
   }
   if (Platform.isWindows) {
     // FVP is the video_player backend on Windows (libmdk/FFmpeg). Register
-    // explicitly so we can tune options later; it is already auto-registered
-    // via dartPluginClass, so this call is also safe on other platforms.
-    fvp.registerWith(options: {'platforms': ['windows']});
+    // explicitly so the MDK read-ahead and network-reconnect options below are
+    // applied; it is already auto-registered via dartPluginClass, so this call
+    // is also safe on other platforms.
+    fvp.registerWith(options: buildWindowsFvpOptions());
   }
 
   await dotenv.load(fileName: '.env');

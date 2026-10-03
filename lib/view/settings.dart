@@ -99,6 +99,9 @@ class _SettingsPageState extends State<SettingsPage> {
       const SizedBox(height: 24),
       _buildAboutSection(theme),
       const SizedBox(height: 30),
+      if (_user?['email'] != 'guest@example.com')
+        _buildDeleteAccountEntry(theme),
+      const SizedBox(height: 24),
     ];
 
     if (isPhone) {
@@ -229,23 +232,29 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: const Icon(Icons.chevron_left, color: Colors.black38),
             onTap: _logout,
           ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          ListTile(
-            leading: Icon(
-              Icons.delete_forever,
-              color: Colors.redAccent,
-              size: 22,
-            ),
-            title: Text(
-              'حذف الحساب',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.redAccent,
-              ),
-            ),
-            trailing: const Icon(Icons.chevron_left, color: Colors.redAccent),
-            onTap: () => _showDeleteDialog(context),
-          ),
         ],
+      ),
+    );
+  }
+
+  /// Icon-only delete-account entry.
+  ///
+  /// Deliberately kept out of the account card and parked after the last
+  /// section instead. It has no visible label, uses a muted icon rather than
+  /// the red used elsewhere, and sits at the trailing edge below everything
+  /// interactive - so someone working through the account options reaches it
+  /// only by scrolling past the end and deliberately tapping a bare icon. The
+  /// tooltip is the sole affordance, and it needs a long press.
+  Widget _buildDeleteAccountEntry(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: IconButton(
+          onPressed: () => _showDeleteDialog(context),
+          tooltip: 'حذف الحساب',
+          icon: Icon(Icons.delete_forever, size: 20, color: theme.hintColor),
+        ),
       ),
     );
   }
