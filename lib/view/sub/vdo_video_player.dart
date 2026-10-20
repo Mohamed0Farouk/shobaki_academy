@@ -5,9 +5,11 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
+import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
 import 'package:shobaki_academy/services/player_messages.dart';
+import 'package:shobaki_academy/view/sub/bunny_webview_player.dart';
 import 'package:shobaki_academy/view/sub/video_player_controls.dart';
 import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
@@ -72,10 +74,16 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     return _videoController!;
   }
 
-  VideoPlayerController? get _nativeCtrl =>
-      (Platform.isMacOS || Platform.isWindows)
-          ? (ctrl.player as VideoPlayerAdapter).nativeController
-          : null;
+  /// The native controller Chewie wraps, or null when the active backend has
+  /// no [VideoPlayerController] behind it - the Bunny webview on Windows.
+  /// Every Chewie setup path treats null as "nothing to build yet", which is
+  /// exactly right for a player that draws its own controls.
+  VideoPlayerController? get _nativeCtrl {
+    if (!ctrl.playerReady.value) return null;
+    final player = ctrl.player;
+    if (player is VideoPlayerAdapter) return player.nativeController;
+    return null;
+  }
 
   void _initChewie({bool autoPlay = true}) {
     final videoCtrl = _nativeCtrl;
@@ -222,11 +230,19 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                       Get.back();
                     },
                   ),
-                  title: Text(
-                    "صفحة المشاهدة",
-                    style: Theme.of(
-                      context,
-                    ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+                  title: GestureDetector(
+                    // Windows escape hatch: long-press swaps the in-app Bunny
+                    // webview for the classic native player, or back, without
+                    // leaving the lecture. Deliberately not a visible button.
+                    onLongPress:
+                        Platform.isWindows ? _confirmBackendSwitch : null,
+                    child: Text(
+                      "صفحة المشاهدة",
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(color: Colors.white),
+                    ),
                   ),
                   centerTitle: true,
                 ),
@@ -236,9 +252,16 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
               fit: StackFit.expand,
               children: [
                 Positioned.fill(
-                  child: (Platform.isMacOS || Platform.isWindows)
-                      ? _buildChewiePlayer()
-                      : _buildMediaKitPlayer(),
+                  // Backend selection does async work (prefs, WebView2 probe)
+                  // before `player` exists; reading it now throws, so hold the
+                  // loading state until the choice is made.
+                  child: !ctrl.playerReady.value
+                      ? const Center(child: CircularProgressIndicator())
+                      : (Platform.isMacOS || Platform.isWindows)
+                            ? (ctrl.player is BunnyWebviewPlayerAdapter
+                                  ? _buildBunnyWebviewPlayer()
+                                  : _buildChewiePlayer())
+                            : _buildMediaKitPlayer(),
                 ),
                 if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
                 if (ctrl.isStalled.value) _buildStalledOverlay(),
@@ -433,6 +456,52 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       return const Center(child: CircularProgressIndicator());
     }
     return Chewie(controller: chewie);
+  }
+
+  Widget _buildBunnyWebviewPlayer() {
+    final player = ctrl.player;
+    if (player is! BunnyWebviewPlayerAdapter) {
+      return const SizedBox.shrink();
+    }
+    // Keyed on the generation so this Obx rebuilds after a backend switch or
+    // player reset: `ctrl.player` itself is a plain field, so nothing
+    // observable would otherwise change under the webview.
+    return BunnyWebviewPlayer(
+      key: ValueKey(ctrl.playerGeneration.value),
+      adapter: player,
+      ctrl: ctrl,
+    );
+  }
+
+  Future<void> _confirmBackendSwitch() async {
+    final usingWebview = ctrl.player is BunnyWebviewPlayerAdapter;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          usingWebview
+              ? 'التبديل إلى المشغّل التقليدي؟'
+              : 'التبديل إلى المشغّل المدمج؟',
+        ),
+        content: Text(
+          usingWebview
+              ? 'سيُستخدم مشغّل الفيديو المحلي بدلاً من المشغّل المدمج، وسيُحفظ هذا الاختيار.'
+              : 'سيُعرض الفيديو داخل التطبيق مع طبقة الحماية، وسيُحفظ هذا الاختيار.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('تبديل'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ctrl.switchPlayerBackend();
   }
 
   Widget _buildQualityChip() {

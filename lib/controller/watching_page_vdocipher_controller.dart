@@ -11,11 +11,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
 import 'package:shobaki_academy/controller/auto_quality_governor.dart';
+import 'package:shobaki_academy/controller/bunny_embed.dart';
+import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/session_tracker.dart';
 import 'package:shobaki_academy/controller/stall_detector.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_quality.dart';
 import 'package:shobaki_academy/services/player_messages.dart';
+import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 class VideoPlaybackController extends GetxController
     with WidgetsBindingObserver {
@@ -35,6 +38,16 @@ class VideoPlaybackController extends GetxController
   RxString errorMessage = ''.obs;
 
   late IPlayerAdapter player;
+
+  /// True once [player] has been assigned.
+  ///
+  /// Backend selection does async work before it can choose a player (reading
+  /// the persisted toggle, probing for the WebView2 runtime), and GetX does
+  /// not await [onInit], so the page can build while `player` is still
+  /// unassigned. Reading a `late` field before assignment throws, which
+  /// surfaced as a one-frame error box on launch; the view shows its loading
+  /// state until this flips instead.
+  final RxBool playerReady = false.obs;
 
   late Map<String, dynamic> user;
 
@@ -78,7 +91,6 @@ class VideoPlaybackController extends GetxController
 
   bool logInitialized = false;
   int _lastLoggedDuration = 0;
-  bool _thresholdReached = false;
   String? _logId;
   int? _videoDurationSeconds;
 
@@ -114,6 +126,22 @@ class VideoPlaybackController extends GetxController
   /// sources; a non-HLS video has no ladder being managed.
   bool _introToastShown = false;
 
+  /// SharedPreferences key holding the Windows backend override written by
+  /// the page-title long-press. Absent means "use the default".
+  static const String kPlayerBackendPreferenceKey = 'player_backend';
+
+  static const String kPlayerBackendWebView = 'webview';
+  static const String kPlayerBackendFvp = 'fvp';
+
+  /// Last backend explicitly chosen by the student. Empty until they use the
+  /// toggle once, which the [shouldUseBunnyWebview] default turns into the
+  /// webview path.
+  String _playerBackendPreference = '';
+
+  /// Whether WebView2's runtime is installed. Probed once on Windows;
+  /// false on every other platform, which keeps the native adapters in place.
+  bool _webviewRuntimeAvailable = false;
+
   static const int _maxLoadAttempts = 3;
   static const List<Duration> _loadTimeouts = [
     Duration(seconds: 3),
@@ -147,7 +175,10 @@ class VideoPlaybackController extends GetxController
   Future<void> onInit() async {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
+    await _loadPlayerBackendPreference();
+    await _probeWebViewRuntime();
     player = _createPlayer();
+    playerReady.value = true;
     _initStreams();
     await _loadUser();
     await _initializePlayer();
@@ -155,17 +186,135 @@ class VideoPlaybackController extends GetxController
     _startTracking();
   }
 
+  /// Whether this video should open in the in-app Bunny webview rather than
+  /// the native player.
+  ///
+  /// All three conditions have to hold: the student has not pinned the
+  /// classic backend, WebView2 is actually installed (older Windows 10
+  /// machines ship without it), and the URL is one the embed player can play.
+  bool get shouldUseBunnyWebview {
+    if (!Platform.isWindows) return false;
+    if (_playerBackendPreference == kPlayerBackendFvp) return false;
+    if (!_webviewRuntimeAvailable) return false;
+    return tryBuildBunnyEmbedUrl(videoUrl) != null;
+  }
+
+  Future<void> _loadPlayerBackendPreference() async {
+    try {
+      _playerBackendPreference =
+          Get.find<LocalDB>().sharedPref?.getString(
+                kPlayerBackendPreferenceKey,
+              ) ??
+              '';
+    } catch (e) {
+      projectLogger.w('Player backend preference read failed: $e');
+    }
+  }
+
+  Future<void> _probeWebViewRuntime() async {
+    if (!Platform.isWindows) return;
+    try {
+      final version = await WebviewController.getWebViewVersion();
+      _webviewRuntimeAvailable = version != null;
+      if (version == null) {
+        projectLogger.w(
+          'WebView2 runtime is not installed; keeping the fvp player',
+        );
+      }
+    } catch (e) {
+      // No plugin registration (widget tests, a non-Windows host): treat the
+      // runtime as missing so the native path stays in charge.
+      _webviewRuntimeAvailable = false;
+      projectLogger.w('WebView2 runtime probe failed: $e');
+    }
+  }
+
   IPlayerAdapter _createPlayer() {
     if (Platform.isMacOS) {
       return VideoPlayerAdapter();
     }
     if (Platform.isWindows) {
+      if (shouldUseBunnyWebview) {
+        return BunnyWebviewPlayerAdapter();
+      }
       // FVP backend: a network stream that fails to open can leave
       // initialize() pending forever, so fail fast and let the retry logic
       // (watchdog / _onLoadFailed) take over.
       return VideoPlayerAdapter(initializeTimeout: const Duration(seconds: 15));
     }
     return MediaKitPlayerAdapter();
+  }
+
+  /// Swaps the Windows backend while the page stays open, persisting the
+  /// choice for the next launch.
+  ///
+  /// Reachable from a long-press on the page title: it is a way out of a
+  /// broken player, not a control a student should be nudged into mid-lecture.
+  Future<void> switchPlayerBackend() async {
+    if (!Platform.isWindows) return;
+
+    final usingWebview = player is BunnyWebviewPlayerAdapter;
+    final target = usingWebview ? kPlayerBackendFvp : kPlayerBackendWebView;
+
+    if (target == kPlayerBackendWebView) {
+      if (!_webviewRuntimeAvailable) {
+        showSnackbar(
+          'المشغّل المدمج غير متاح',
+          'لم يتم تثبيت مكوّن WebView2 على هذا الجهاز.',
+        );
+        return;
+      }
+      if (tryBuildBunnyEmbedUrl(videoUrl) == null) {
+        showSnackbar(
+          'المشغّل المدمج غير متاح',
+          'هذا الفيديو غير مدعوم داخل المشغّل المدمج.',
+        );
+        return;
+      }
+    }
+
+    final position = player.position;
+    final wasPlaying = player.isPlaying;
+    _playerBackendPreference = target;
+    await Get.find<LocalDB>().sharedPref?.setString(
+      kPlayerBackendPreferenceKey,
+      target,
+    );
+
+    // Each backend builds its own rendition list (the embed runs its own ABR
+    // ladder and has no in-app menu), so the old one has to go before the new
+    // player is created.
+    qualities.clear();
+    qualitiesLoaded.value = false;
+    autoQuality.value = true;
+    currentQualityIndex.value = kAutoQualityIndex;
+
+    _resetPlayer();
+    // Fresh backend, fresh attempt budget: a backend that had already burned
+    // two retries must not hand its successor a nearly-expired one.
+    _loadAttempts = 0;
+    await _beginLoad(
+      currentPlayUrl,
+      start: position > Duration.zero ? position : null,
+    );
+    if (target == kPlayerBackendFvp) {
+      // The native ladder is usable again; fetch it without holding up the
+      // reload, exactly as the first launch does.
+      unawaited(_fetchQualities());
+    }
+    if (wasPlaying) await player.play();
+    lastPlayIntent.value = wasPlaying;
+    _stall.reset();
+    isStalled.value = false;
+    _downgradedForStall = false;
+    _stallRecoveryExhausted = false;
+
+    showSnackbar(
+      'تم تغيير المشغّل',
+      target == kPlayerBackendWebView
+          ? 'يُعرض الفيديو الآن داخل التطبيق مع طبقة الحماية.'
+          : 'يُستخدم المشغّل التقليدي للتشغيل.',
+    );
   }
 
   void _initStreams() {
@@ -351,6 +500,11 @@ class VideoPlaybackController extends GetxController
 
   Future<void> _fetchQualities() async {
     try {
+      // The embed player owns its own adaptive bitrate ladder and the app
+      // cannot ask it to switch renditions, so a fetched master playlist
+      // would build a menu with nothing behind it.
+      if (player is BunnyWebviewPlayerAdapter) return;
+
       // Previously an `endsWith('.m3u8')` check, which never matched a signed
       // CDN URL such as `master.m3u8?token=...`. The whole quality menu was
       // silently dead for those videos and playback fell through to whatever
@@ -505,6 +659,9 @@ class VideoPlaybackController extends GetxController
   }
 
   Future<void> switchQuality(int index, {bool auto = false}) async {
+    // The embed player has no in-app rendition list to act on; its own ABR
+    // ladder does the work.
+    if (player is BunnyWebviewPlayerAdapter) return;
     if (qualities.length <= 1) return;
     if (index < 1 || index >= qualities.length) return;
     // Same rendition, only the governing policy changed: flipping a flag is
@@ -699,7 +856,6 @@ class VideoPlaybackController extends GetxController
     }
 
     viewDurationSeconds.value = _session.viewDurationSeconds;
-    _checkThreshold();
   }
 
   /// Feeds one observation to the stall detector and applies whatever recovery
@@ -707,6 +863,8 @@ class VideoPlaybackController extends GetxController
   void _sampleStall() {
     if (_disposed || isLoading.value || _recovering) return;
     if (_stallRecoveryExhausted) return;
+    // The embed player adapts on its own; there is no ladder to step down.
+    if (player is BunnyWebviewPlayerAdapter) return;
     // No master playlist means no ladder to climb; a non-HLS source is played
     // exactly as before.
     if (qualities.length <= 1) return;
@@ -893,17 +1051,13 @@ class VideoPlaybackController extends GetxController
     );
   }
 
-  void _checkThreshold() {
-    if (_videoDurationSeconds == null || _thresholdReached) return;
-    final threshold = (_videoDurationSeconds! * 0.25).toInt();
-    if (viewDurationSeconds.value >= threshold) {
-      _thresholdReached = true;
-      projectLogger.i(
-        "25% threshold reached (${viewDurationSeconds.value}s / ${_videoDurationSeconds}s)",
-      );
-    }
-  }
-
+  /// Writes the running watch time back to the log row for this session.
+  ///
+  /// `viewed` is always false: the dashboard does not consume it, and the old
+  /// threshold latch that used to drive it marked records from the *first*
+  /// duration the player reported - which is occasionally wrong, and once set
+  /// it never came back down. The number that matters here is
+  /// `view_duration_seconds`, which [SessionTracker] owns.
   Future<void> _tickLogging() async {
     if (!_ticking) return;
     try {
@@ -916,12 +1070,12 @@ class VideoPlaybackController extends GetxController
         "type": "video_view",
         "video_url": videoUrl,
         "view_duration_seconds": sec,
-        "viewed": _thresholdReached,
+        "viewed": false,
         "video_total_duration_seconds": _videoDurationSeconds,
         "data": {
           "video_url": videoUrl,
           "view_duration_seconds": sec,
-          "viewed": _thresholdReached,
+          "viewed": false,
           "video_total_duration_seconds": _videoDurationSeconds,
         },
       };
@@ -985,7 +1139,6 @@ class VideoPlaybackController extends GetxController
           return;
         }
         viewDurationSeconds.value = _session.viewDurationSeconds;
-        _checkThreshold();
         if (player.isPlaying && !_session.isPlaying) {
           _session.onPlay();
           _isPlaying = true;
@@ -1041,12 +1194,12 @@ class VideoPlaybackController extends GetxController
           "type": "video_view",
           "video_url": videoUrl,
           "view_duration_seconds": finalDuration,
-          "viewed": _thresholdReached,
+          "viewed": false,
           "video_total_duration_seconds": _videoDurationSeconds,
           "data": {
             "video_url": videoUrl,
             "view_duration_seconds": finalDuration,
-            "viewed": _thresholdReached,
+            "viewed": false,
             "video_total_duration_seconds": _videoDurationSeconds,
           },
         };
