@@ -15,6 +15,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   sentry_flutter
   syncfusion_pdfviewer_windows
   url_launcher_windows
+  webview_flutter_windows
   window_manager
 )
 
