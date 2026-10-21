@@ -118,6 +118,38 @@ class WhatsAppNotification {
   }
 
   // ─────────────────────────────────────────────
+  //  MISSING VIDEO LIBRARY ID
+  // ─────────────────────────────────────────────
+
+  /// Report for a lecture whose topic has no usable `library_id`: the in-app
+  /// embed player cannot be built for it, so the video is blocked for the
+  /// student until the row is fixed.
+  ///
+  /// Guests are reported too, unlike the security alerts: an unmigrated row
+  /// is an admin-side data problem and shows up no matter who hit it.
+  static String buildMissingLibraryIdMessage({
+    required Map<String, dynamic> student,
+    required String videoUrl,
+  }) {
+    final name = student['name']?.toString() ?? 'غير معروف';
+    final phone = student['phone_number']?.toString() ?? 'غير معروف';
+    final timestamp = _formatTimestamp(DateTime.now());
+
+    return '📺 فيديو غير قابل للتشغيل — library_id مفقود\n'
+        '\n'
+        '👤 بيانات الطالب:\n'
+        '   الاسم: $name\n'
+        '   رقم الهاتف: $phone\n'
+        '\n'
+        '🔗 رابط الفيديو:\n'
+        '   $videoUrl\n'
+        '\n'
+        '🕐 الوقت: $timestamp\n'
+        '📝 السبب: عمود library_id في جدول topics فارغ أو غير صالح، '
+        'وتم عرض رسالة "سيكون متاحاً قريباً" للطالب دون تشغيل الفيديو';
+  }
+
+  // ─────────────────────────────────────────────
   //  SIGN-OUT NOTIFICATIONS (3 reasons)
   // ─────────────────────────────────────────────
 

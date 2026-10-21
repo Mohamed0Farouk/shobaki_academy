@@ -60,29 +60,57 @@ void main() {
     });
   });
 
+  group('parseBunnyLibraryId', () {
+    test('parses the string column the DB actually stores', () {
+      expect(parseBunnyLibraryId('699286'), 699286);
+      expect(parseBunnyLibraryId(' 699286 '), 699286);
+    });
+
+    test('also accepts an already numeric value', () {
+      expect(parseBunnyLibraryId(699286), 699286);
+    });
+
+    test('collapses unusable values to null', () {
+      // Every one of these means "this topic has no embed library yet"; the
+      // caller decides how to tell the student apart from playing under the
+      // wrong library.
+      expect(parseBunnyLibraryId(null), isNull);
+      expect(parseBunnyLibraryId(''), isNull);
+      expect(parseBunnyLibraryId('   '), isNull);
+      expect(parseBunnyLibraryId('0'), isNull);
+      expect(parseBunnyLibraryId('-5'), isNull);
+      expect(parseBunnyLibraryId('not-a-number'), isNull);
+    });
+  });
+
   group('tryBuildBunnyEmbedUrl', () {
+    const int kLibraryId = 699286;
+
     test('maps the DB playlist URL to the embed player', () {
-      final embed = tryBuildBunnyEmbedUrl(kPlaylistUrl);
+      final embed = tryBuildBunnyEmbedUrl(kPlaylistUrl, libraryId: kLibraryId);
       expect(embed, isNotNull);
 
       final uri = Uri.parse(embed!);
       expect(uri.host, 'player.mediadelivery.net');
-      expect(uri.pathSegments, ['embed', '$kBunnyLibraryId', kVideoId]);
+      expect(uri.pathSegments, ['embed', '$kLibraryId', kVideoId]);
     });
 
-    test('pins the library id', () {
-      // Hardcoded on purpose: the DB only stores the CDN host and video id,
-      // so this constant is the only thing that ties a playlist to its
-      // library.
-      expect(kBunnyLibraryId, 699286);
-      expect(tryBuildBunnyEmbedUrl(kPlaylistUrl), contains('/699286/'));
+    test('uses the topic library id, never a hardcoded one', () {
+      expect(
+        tryBuildBunnyEmbedUrl(kPlaylistUrl, libraryId: 123456),
+        contains('/123456/'),
+      );
+      expect(tryBuildBunnyEmbedUrl(kPlaylistUrl, libraryId: 123456),
+          isNot(contains('/699286/')));
     });
 
     test('disables autoplay, looping and muting', () {
       // Autoplay would start a lecture the moment the page opens, which
       // breaks the "view starts when the student starts it" model the session
       // tracker is built on.
-      final uri = Uri.parse(tryBuildBunnyEmbedUrl(kPlaylistUrl)!);
+      final uri = Uri.parse(
+        tryBuildBunnyEmbedUrl(kPlaylistUrl, libraryId: kLibraryId)!,
+      );
       expect(uri.queryParameters['autoplay'], 'false');
       expect(uri.queryParameters['loop'], 'false');
       expect(uri.queryParameters['muted'], 'false');
@@ -92,7 +120,8 @@ void main() {
 
     test('keeps the signed query out of the embed URL', () {
       final uri = Uri.parse(
-        tryBuildBunnyEmbedUrl('$kPlaylistUrl?token=abc')!,
+        tryBuildBunnyEmbedUrl('$kPlaylistUrl?token=abc',
+            libraryId: kLibraryId)!,
       );
       expect(uri.queryParameters.keys, unorderedEquals([
         'autoplay',
@@ -105,14 +134,20 @@ void main() {
 
     test('returns null for a non-Bunny URL so the caller falls back', () {
       expect(
-        tryBuildBunnyEmbedUrl('https://cdn.example.com/$kVideoId/playlist.m3u8'),
+        tryBuildBunnyEmbedUrl('https://cdn.example.com/$kVideoId/playlist.m3u8',
+            libraryId: kLibraryId),
         isNull,
       );
-      expect(tryBuildBunnyEmbedUrl('https://example.com/video.mp4'), isNull);
+      expect(
+        tryBuildBunnyEmbedUrl('https://example.com/video.mp4',
+            libraryId: kLibraryId),
+        isNull,
+      );
     });
 
     test('round-trips through isBunnyEmbedUrl', () {
-      final embed = tryBuildBunnyEmbedUrl(kPlaylistUrl)!;
+      final embed =
+          tryBuildBunnyEmbedUrl(kPlaylistUrl, libraryId: kLibraryId)!;
       expect(isBunnyEmbedUrl(embed), isTrue);
       expect(isBunnyEmbedUrl(kPlaylistUrl), isFalse);
       expect(isBunnyEmbedUrl('https://player.mediadelivery.net/other'), isTrue);

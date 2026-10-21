@@ -927,7 +927,10 @@ class TopicContentPage extends StatelessWidget {
                   _showViewLimitDialog(context);
                 } else {
                   Get.to(
-                    () => VideoPlayerView(videoUrl: videoUrl),
+                    () => VideoPlayerView(
+                      videoUrl: videoUrl,
+                      bunnyLibraryId: topicData!['library_id'],
+                    ),
                     transition: Transition.downToUp,
                     duration: const Duration(milliseconds: 600),
                   );

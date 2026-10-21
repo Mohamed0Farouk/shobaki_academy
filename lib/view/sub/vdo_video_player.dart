@@ -19,9 +19,14 @@ class VideoPlayerView extends StatefulWidget {
   final String videoUrl;
   final int maxSessionDurationSeconds;
 
+  /// Raw `topics.library_id` of the owning topic; only the Windows embed
+  /// player needs it.
+  final Object? bunnyLibraryId;
+
   const VideoPlayerView({
     super.key,
     required this.videoUrl,
+    this.bunnyLibraryId,
     this.maxSessionDurationSeconds = VideoPlaybackController.defaultMaxSessionSeconds,
   });
 
@@ -111,6 +116,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     ctrl = Get.put(VideoPlaybackController(
       widget.videoUrl,
       maxSessionDurationSeconds: widget.maxSessionDurationSeconds,
+      bunnyLibraryId: widget.bunnyLibraryId,
     ));
 
     _qualityWorker = ever(ctrl.currentQualityIndex, (_) {

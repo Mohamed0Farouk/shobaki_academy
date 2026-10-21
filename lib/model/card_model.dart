@@ -44,6 +44,9 @@ class CardModel extends StatelessWidget {
   final int? questionsNumber;
   final int? examDuration;
   final int? grade;
+
+  /// Raw `topics.library_id` forwarded to [VideoPlayerView] for video cards.
+  final Object? bunnyLibraryId;
   final VoidCallback? onTap;
   final TextDirection? textDirection;
 
@@ -63,6 +66,7 @@ class CardModel extends StatelessWidget {
     this.examDuration,
     this.questionsNumber,
     this.grade,
+    this.bunnyLibraryId,
     this.onTap,
     this.textDirection,
   });
@@ -104,7 +108,7 @@ class CardModel extends StatelessWidget {
           thumbnail: thumbnail,
           note: note,
           navlabel: 'بدء المشاهدة',
-          navPage: VideoPlayerView(videoUrl: url!),
+          navPage: VideoPlayerView(videoUrl: url!, bunnyLibraryId: bunnyLibraryId),
           onTap: onTap,
           textDirection: textDirection,
         );
