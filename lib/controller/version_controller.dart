@@ -5,12 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shobaki_academy/services/api.dart';
+import 'package:shobaki_academy/services/app_version.dart';
+import 'package:shobaki_academy/services/statics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VersionController extends GetxController {
   RxBool updateRequired = false.obs;
   RxString currentVersion = ''.obs;
   RxString dbVersion = ''.obs;
+
+  /// Multi-line "what's new" text for this platform, from
+  /// `application_manfist.platforms_versions`. Empty when the dashboard has
+  /// none, in which case the section is hidden.
+  RxString whatsNew = ''.obs;
+
   final ApiClient _apiClient = ApiClient();
   Timer? _bottomSheetMonitorTimer;
   bool _isMonitoring = false;
@@ -45,50 +53,28 @@ class VersionController extends GetxController {
   Future<void> _checkVersionUpdate() async {
     try {
       final manifestData = await _apiClient.fetchData('application_manfist');
+      if (manifestData.isEmpty) return;
 
-      if (manifestData.isNotEmpty) {
-        final version = manifestData[0]['version']?.toString() ?? '';
-        dbVersion.value = version;
-        print(
-          'Current Version: ${currentVersion.value}, DB Version: ${dbVersion.value}',
-        );
+      final entry = parsePlatformVersionEntry(
+        manifestData[0]['platforms_versions'],
+        platform: Platform.operatingSystem,
+      );
+      // No entry for this platform means nothing is being forced here.
+      if (entry == null) return;
 
-        if (_isVersionGreater(version, currentVersion.value)) {
-          updateRequired.value = true;
-          _showUpdateBottomSheet();
-        }
+      dbVersion.value = entry.version;
+      projectLogger.i(
+        'Current Version: ${currentVersion.value}, '
+        'required for ${Platform.operatingSystem}: ${entry.version}',
+      );
+
+      if (!isVersionAtLeast(currentVersion.value, entry.version)) {
+        whatsNew.value = entry.whatsNew ?? '';
+        updateRequired.value = true;
+        _showUpdateBottomSheet();
       }
     } catch (e) {
-      // Handle error silently or log it
-      print('Error checking version: $e');
-    }
-  }
-
-  bool _isVersionGreater(String dbVer, String appVer) {
-    try {
-      final dbParts = dbVer.split('.').map(int.parse).toList();
-      final appParts = appVer.split('.').map(int.parse).toList();
-      print('Comparing versions - DB: $dbParts, App: $appParts');
-
-      // Pad the shorter list with zeros
-      while (dbParts.length < appParts.length) {
-        dbParts.add(0);
-      }
-      while (appParts.length < dbParts.length) {
-        appParts.add(0);
-      }
-
-      // Compare version parts
-      for (int i = 0; i < dbParts.length; i++) {
-        if (dbParts[i] > appParts[i]) {
-          return true;
-        } else if (dbParts[i] < appParts[i]) {
-          return false;
-        }
-      }
-      return false;
-    } catch (e) {
-      return false;
+      projectLogger.w('Error checking version: $e');
     }
   }
 
@@ -132,63 +118,98 @@ class VersionController extends GetxController {
     }
   }
 
-  void _showUpdateBottomSheet() {
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.system_update,
-              size: 100,
-              color: Theme.of(Get.context!).primaryColor,
+  /// The forced-update sheet. Built once and reused by both the initial show
+  /// and the 500 ms re-show monitor, which used to carry an identical copy of
+  /// this widget tree.
+  Widget _buildUpdateSheet() {
+    final primaryColor = Theme.of(Get.context!).primaryColor;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.system_update, size: 100, color: primaryColor),
+          const SizedBox(height: 20),
+          Text(
+            'تحديث متاح',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            const SizedBox(height: 20),
-            Text(
-              'تحديث متاح',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'يرجى تحديث التطبيق إلى الإصدار الأحدث',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+          ),
+          if (whatsNew.value.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            // Explicitly right-aligned: the label must sit on the right even
+            // though the surrounding sheet has no RTL Directionality.
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'ما الجديد',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'يرجى تحديث التطبيق إلى الإصدار الأحدث',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _launchAppStore,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(Get.context!).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+            const SizedBox(height: 8),
+            // Constrained + scrollable: the changelog is authored in the
+            // dashboard and can be arbitrarily long; without this it would
+            // push the update button off the sheet.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: SingleChildScrollView(
                 child: Text(
-                  'تحديث الآن',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  whatsNew.value,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                 ),
               ),
             ),
           ],
-        ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _launchAppStore,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'تحديث الآن',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  void _showUpdateBottomSheet() {
+    Get.bottomSheet(
+      _buildUpdateSheet(),
       isDismissible: false, // User cannot dismiss this bottom sheet
       enableDrag: false, // Disable dragging the bottom sheet
       backgroundColor: Colors.transparent,
@@ -209,61 +230,7 @@ class VersionController extends GetxController {
         if (updateRequired.value && !_isBottomSheetOpen()) {
           // Reshow the bottom sheet
           Get.bottomSheet(
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.system_update,
-                    size: 100,
-                    color: Theme.of(Get.context!).primaryColor,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'تحديث متاح',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'يرجى تحديث التطبيق إلى الإصدار الأحدث',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _launchAppStore,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(Get.context!).primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'تحديث الآن',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildUpdateSheet(),
             isDismissible: false,
             enableDrag: false,
             backgroundColor: Colors.transparent,

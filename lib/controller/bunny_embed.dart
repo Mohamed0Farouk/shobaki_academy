@@ -4,12 +4,9 @@
 /// (`https://vz-<zone>.b-cdn.net/<video-id>/playlist.m3u8`) and cannot be
 /// changed, while the embeddable player lives on a different host and needs a
 /// library id that the playlist URL does not carry. Both pieces are derived
-/// here: the video id from the playlist path, the library id from a
-/// hardcoded constant.
+/// here: the video id from the playlist path, the library id from the
+/// `library_id` column on the owning topic.
 library;
-
-/// Bunny Stream library id for this academy's videos.
-const int kBunnyLibraryId = 699286;
 
 /// Query parameters for the embed player, matching the same options the
 /// website iframes use.
@@ -40,6 +37,21 @@ String? extractBunnyVideoId(String rawUrl) {
   return videoId.isEmpty ? null : videoId;
 }
 
+/// Normalises the `topics.library_id` column into the number the embed URL
+/// needs.
+///
+/// The column is a string, but it can legitimately hold an empty value, a
+/// zero, or (while a row is being migrated) something that is not a number at
+/// all. Anything unusable collapses to `null` so callers can treat it as
+/// "this video has no embed library yet".
+int? parseBunnyLibraryId(Object? raw) {
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  if (text.isEmpty) return null;
+  final parsed = int.tryParse(text);
+  return (parsed == null || parsed <= 0) ? null : parsed;
+}
+
 /// Whether [rawUrl] is already a Bunny Stream embed player page.
 ///
 /// The adapter maps CDN playlist URLs to embed URLs itself, but callers that
@@ -51,10 +63,14 @@ bool isBunnyEmbedUrl(String rawUrl) {
 
 /// Builds the Bunny embed page URL for the given DB-stored playlist URL.
 ///
+/// [libraryId] is the owning topic's `library_id`; there is deliberately no
+/// hardcoded default, so a topic whose video library is unknown never plays
+/// under the wrong library - the caller decides what to do about that.
+///
 /// Returns `null` when [rawUrl] is not a Bunny CDN playlist so callers can
 /// fall back to the native player for sources Bunny cannot embed (mp4, other
 /// CDNs, signed non-Bunny manifests).
-String? tryBuildBunnyEmbedUrl(String rawUrl) {
+String? tryBuildBunnyEmbedUrl(String rawUrl, {required int libraryId}) {
   final videoId = extractBunnyVideoId(rawUrl);
   if (videoId == null) return null;
 
@@ -64,5 +80,5 @@ String? tryBuildBunnyEmbedUrl(String rawUrl) {
       .join('&');
 
   return 'https://player.mediadelivery.net/embed/'
-      '$kBunnyLibraryId/$videoId?$query';
+      '$libraryId/$videoId?$query';
 }

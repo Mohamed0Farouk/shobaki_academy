@@ -65,7 +65,13 @@ Future<void> _configureWebViewEnvironment() async {
 /// maps it to the embed player itself, so callers never have to know about
 /// `player.mediadelivery.net`.
 class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
-  BunnyWebviewPlayerAdapter();
+  BunnyWebviewPlayerAdapter({required int bunnyLibraryId})
+      : _libraryId = bunnyLibraryId;
+
+  /// Bunny Stream library the video belongs to, from the owning topic's
+  /// `library_id`. Required: the embed URL cannot be built without it, and
+  /// the controller refuses to construct this adapter when it is missing.
+  final int _libraryId;
 
   /// The native webview. Created eagerly (no native side exists until
   /// [WebviewController.initialize]) so the view can mount [Webview] as soon
@@ -195,8 +201,8 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   Future<void> open(String url, {Duration? start}) async {
     if (_isDisposed) return;
 
-    final embedUrl =
-        tryBuildBunnyEmbedUrl(url) ?? (isBunnyEmbedUrl(url) ? url : null);
+    final embedUrl = tryBuildBunnyEmbedUrl(url, libraryId: _libraryId) ??
+        (isBunnyEmbedUrl(url) ? url : null);
     if (embedUrl == null) {
       throw StateError('Not an embeddable Bunny Stream URL: $url');
     }

@@ -139,7 +139,11 @@ class _TopicPageState extends State<TopicPage> {
     if (topic['is_parent']) {
       widgets = await subTopicsHandler(topic['children']);
     } else {
-      widgets = await lecturesHandler(context, topic['lectures']);
+      widgets = await lecturesHandler(
+        context,
+        topic['lectures'],
+        libraryId: topic['library_id'],
+      );
     }
 
     return widgets;
@@ -184,7 +188,11 @@ class _TopicPageState extends State<TopicPage> {
     return widgets;
   }
 
-  Future<List<Widget>> lecturesHandler(context, lecturesList) async {
+  Future<List<Widget>> lecturesHandler(
+    context,
+    lecturesList, {
+    Object? libraryId,
+  }) async {
     final ApiClient api = ApiClient();
 
     final LocalDB services = Get.find();
@@ -231,6 +239,7 @@ class _TopicPageState extends State<TopicPage> {
               thumbnail: sortedData[i]['thumbnail'],
               id: '',
               url: value['url'],
+              bunnyLibraryId: libraryId,
               onTap: () async {
                 final userViews = await _getUserVideoViewCount(
                   videoUrl,
@@ -258,7 +267,12 @@ class _TopicPageState extends State<TopicPage> {
                   final isAllowed = await guard.checkNow();
                   if (isAllowed == false) return;
                 }
-                Get.to(() => VideoPlayerView(videoUrl: videoUrl));
+                Get.to(
+                  () => VideoPlayerView(
+                    videoUrl: videoUrl,
+                    bunnyLibraryId: libraryId,
+                  ),
+                );
               },
             );
             widgets.add(card);

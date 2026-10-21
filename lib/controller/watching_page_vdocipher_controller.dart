@@ -18,6 +18,7 @@ import 'package:shobaki_academy/controller/stall_detector.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_quality.dart';
 import 'package:shobaki_academy/services/player_messages.dart';
+import 'package:shobaki_academy/services/whatsapp_notification.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 class VideoPlaybackController extends GetxController
@@ -32,7 +33,13 @@ class VideoPlaybackController extends GetxController
   VideoPlaybackController(
     this.videoUrl, {
     this.maxSessionDurationSeconds = defaultMaxSessionSeconds,
+    this.bunnyLibraryId,
   });
+
+  /// Raw `topics.library_id` of the topic this video belongs to (a string
+  /// column). Only the embed player needs it; normalised through
+  /// [parseBunnyLibraryId] wherever it is used.
+  final Object? bunnyLibraryId;
 
   RxBool isLoading = true.obs;
   RxString errorMessage = ''.obs;
@@ -177,6 +184,15 @@ class VideoPlaybackController extends GetxController
     WidgetsBinding.instance.addObserver(this);
     await _loadPlayerBackendPreference();
     await _probeWebViewRuntime();
+    if (isMissingLibraryId) {
+      // No player can be opened for this video; a placeholder keeps
+      // [cleanup] from touching an unassigned `late` field while the page
+      // shows the "coming soon" dialog and closes itself.
+      player = VideoPlayerAdapter();
+      playerReady.value = true;
+      await _reportMissingLibraryId();
+      return;
+    }
     player = _createPlayer();
     playerReady.value = true;
     _initStreams();
@@ -189,14 +205,91 @@ class VideoPlaybackController extends GetxController
   /// Whether this video should open in the in-app Bunny webview rather than
   /// the native player.
   ///
-  /// All three conditions have to hold: the student has not pinned the
+  /// All four conditions have to hold: the student has not pinned the
   /// classic backend, WebView2 is actually installed (older Windows 10
-  /// machines ship without it), and the URL is one the embed player can play.
+  /// machines ship without it), the URL is one the embed player can play, and
+  /// the owning topic carries a usable `library_id`.
   bool get shouldUseBunnyWebview {
     if (!Platform.isWindows) return false;
     if (_playerBackendPreference == kPlayerBackendFvp) return false;
     if (!_webviewRuntimeAvailable) return false;
-    return tryBuildBunnyEmbedUrl(videoUrl) != null;
+    final libraryId = parseBunnyLibraryId(bunnyLibraryId);
+    if (libraryId == null) return false;
+    return tryBuildBunnyEmbedUrl(videoUrl, libraryId: libraryId) != null;
+  }
+
+  /// True when the embed player would have been used but the owning topic has
+  /// no usable `library_id`, so the video cannot be shown safely.
+  ///
+  /// Windows-only by construction ([shouldUseBunnyWebview] never applies
+  /// elsewhere); a student who pinned the classic backend is not blocked -
+  /// that player never needed the library - and neither is a non-Bunny
+  /// source, which the native player handles on its own.
+  bool get isMissingLibraryId {
+    if (!Platform.isWindows) return false;
+    if (_playerBackendPreference == kPlayerBackendFvp) return false;
+    if (!_webviewRuntimeAvailable) return false;
+    if (extractBunnyVideoId(videoUrl) == null) return false;
+    return parseBunnyLibraryId(bunnyLibraryId) == null;
+  }
+
+  /// Video URLs already reported missing a library id in this app run, so a
+  /// retry loop or re-opening the same lecture cannot flood the admin inbox.
+  static final Set<String> _missingLibraryReported = {};
+
+  /// Handles a Bunny-source video whose owning topic has no usable
+  /// `library_id` on Windows: the embed player cannot be built for it, and
+  /// silently opening the unprotected native player would defeat the whole
+  /// point of the in-app webview.
+  ///
+  /// The admin gets a WhatsApp report (throttled to once per video per app
+  /// run) so the row can be fixed, and the student sees a short "coming soon"
+  /// dialog; dismissing it pops the page, since there is nothing to play.
+  Future<void> _reportMissingLibraryId() async {
+    projectLogger.w('No library_id for Bunny video: $videoUrl');
+
+    Map<String, dynamic> student = const {};
+    try {
+      final jsonUser = Get.find<LocalDB>().sharedPref?.getString('UserData');
+      if (jsonUser != null) {
+        student = json.decode(jsonUser) as Map<String, dynamic>;
+      }
+    } catch (_) {
+      // A missing/garbled profile only costs the admin some context in the
+      // report; the alert must still go out.
+    }
+
+    if (_missingLibraryReported.add(videoUrl)) {
+      // Guests are reported too: this is an admin-side data problem.
+      await WhatsAppNotification.sendAdminMessage(
+        WhatsAppNotification.buildMissingLibraryIdMessage(
+          student: student,
+          videoUrl: videoUrl,
+        ),
+      );
+    }
+
+    // Let the first frame land so the dialog covers a rendered page.
+    await Future<void>.delayed(Duration.zero);
+    if (Get.isDialogOpen ?? false) return;
+    await Get.dialog<void>(
+      AlertDialog(
+        title: const Text('الفيديو غير متاح حالياً'),
+        content: const Text(
+          'سيكون هذا الفيديو متاحاً قريباً، وسيتم إشعار الإدارة بالمشكلة.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+    // There is nothing to watch on this page, so dismissing the dialog pops
+    // back to the topic list instead of leaving the student on a dead screen.
+    Get.back();
   }
 
   Future<void> _loadPlayerBackendPreference() async {
@@ -235,7 +328,9 @@ class VideoPlaybackController extends GetxController
     }
     if (Platform.isWindows) {
       if (shouldUseBunnyWebview) {
-        return BunnyWebviewPlayerAdapter();
+        return BunnyWebviewPlayerAdapter(
+          bunnyLibraryId: parseBunnyLibraryId(bunnyLibraryId)!,
+        );
       }
       // FVP backend: a network stream that fails to open can leave
       // initialize() pending forever, so fail fast and let the retry logic
@@ -264,7 +359,9 @@ class VideoPlaybackController extends GetxController
         );
         return;
       }
-      if (tryBuildBunnyEmbedUrl(videoUrl) == null) {
+      final libraryId = parseBunnyLibraryId(bunnyLibraryId);
+      if (libraryId == null ||
+          tryBuildBunnyEmbedUrl(videoUrl, libraryId: libraryId) == null) {
         showSnackbar(
           'المشغّل المدمج غير متاح',
           'هذا الفيديو غير مدعوم داخل المشغّل المدمج.',

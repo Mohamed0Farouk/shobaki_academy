@@ -24,14 +24,14 @@ Embed loaded in webview: `https://player.mediadelivery.net/embed/699286/c285b1e8
 
 - Detect Bunny URL: host ends with `.b-cdn.net` and path ends with `/playlist.m3u8` (reuse `isHlsManifestUrl`-style path inspection from `lib/controller/video_quality.dart:54-60`).
 - Extract video UUID = second path segment (`c285b1e8-...`).
-- Build embed URL with `kBunnyLibraryId = 699286` and the query params above.
+- Build embed URL with the owning topic's `library_id` (string column on `topics`) and the query params above. No hardcoded default: the id comes from the DB (`parseBunnyLibraryId` normalises the column).
 
 ## Files
 
 ### New: `lib/controller/bunny_embed.dart`
 Pure Dart, testable:
-- `const int kBunnyLibraryId = 699286;`
-- `String? tryBuildBunnyEmbedUrl(String rawUrl)` — returns embed URL or `null` when the URL is not a Bunny CDN playlist (→ caller falls back to fvp).
+- `int? parseBunnyLibraryId(Object? raw)` — normalises the `topics.library_id` string column; empty/zero/non-numeric → `null`.
+- `String? tryBuildBunnyEmbedUrl(String rawUrl, {required int libraryId})` — returns embed URL or `null` when the URL is not a Bunny CDN playlist (→ caller falls back to fvp). `libraryId` is required; there is no fallback constant.
 - `String? extractBunnyVideoId(String rawUrl)` — UUID extraction.
 
 ### New: `lib/controller/bunny_webview_player_adapter.dart`
@@ -103,5 +103,6 @@ Thin stateful widget: given `BunnyWebviewPlayerAdapter`, renders `Webview(contro
     - The log row keeps accruing `view_duration_seconds` for the whole session; `viewed` stays `false` (the threshold latch was removed - the dashboard does not consume it).
     - Leaving the page flushes final duration (`onClose`).
    - Session-expiry dialog still pauses the actual playback.
-   - Force fallback: temporarily point `kBunnyLibraryId` wrong or open a non-Bunny URL → fvp player path works as before.
+   - Force fallback: open a non-Bunny URL → fvp player path works as before.
+   - `library_id` plumbing: a topic with a valid id plays via embed; on Windows a topic with a missing/invalid id shows the "coming soon" dialog, sends the admin WhatsApp report (throttled once per video per app run, skipped for guests) and pops the page without opening any player.
 4. macOS build path untouched (code-review the guards only).
