@@ -47,6 +47,13 @@ class _FullscreenWindowListener with WindowListener {
 }
 
 class _VideoPlayerViewState extends State<VideoPlayerView> {
+  /// Kill switch for the hidden player-backend toggle (long-press on the page
+  /// title). False blocks the entry point without deleting the feature: the
+  /// confirmation dialog, `switchPlayerBackend()` and the persisted
+  /// `player_backend` preference all stay, and flipping this to true brings
+  /// the long-press back.
+  static const bool _kAllowPlayerBackendSwitch = false;
+
   final WatermarkController watermarkController =
       Get.find<WatermarkController>();
   late final VideoPlaybackController ctrl;
@@ -240,8 +247,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                     // Windows escape hatch: long-press swaps the in-app Bunny
                     // webview for the classic native player, or back, without
                     // leaving the lecture. Deliberately not a visible button.
-                    onLongPress:
-                        Platform.isWindows ? _confirmBackendSwitch : null,
+                    // Currently disabled via the kill switch; the feature
+                    // (dialog, controller switch, persisted preference) is
+                    // intact and comes back by flipping the flag to true.
+                    onLongPress: (_kAllowPlayerBackendSwitch &&
+                            Platform.isWindows)
+                        ? _confirmBackendSwitch
+                        : null,
                     child: Text(
                       "صفحة المشاهدة",
                       style: Theme.of(context)
@@ -258,16 +270,18 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
               fit: StackFit.expand,
               children: [
                 Positioned.fill(
-                  // Backend selection does async work (prefs, WebView2 probe)
+                  // Backend selection does async work (prefs, webview probe)
                   // before `player` exists; reading it now throws, so hold the
-                  // loading state until the choice is made.
+                  // loading state until the choice is made. The embed webview
+                  // is checked first because it is now the default backend on
+                  // every platform, not just the desktop ones.
                   child: !ctrl.playerReady.value
                       ? const Center(child: CircularProgressIndicator())
-                      : (Platform.isMacOS || Platform.isWindows)
-                            ? (ctrl.player is BunnyWebviewPlayerAdapter
-                                  ? _buildBunnyWebviewPlayer()
-                                  : _buildChewiePlayer())
-                            : _buildMediaKitPlayer(),
+                      : (ctrl.player is BunnyWebviewPlayerAdapter
+                            ? _buildBunnyWebviewPlayer()
+                            : (Platform.isMacOS || Platform.isWindows)
+                                  ? _buildChewiePlayer()
+                                  : _buildMediaKitPlayer()),
                 ),
                 if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
                 if (ctrl.isStalled.value) _buildStalledOverlay(),
@@ -309,6 +323,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   Widget _buildMediaKitPlayer() {
+    // The missing-library path parks a placeholder VideoPlayerAdapter in
+    // `ctrl.player` until its dialog pops the page; a frame can build in
+    // between, and the cast inside the controls must not blow up on it.
+    if (ctrl.player is! MediaKitPlayerAdapter) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return MaterialDesktopVideoControlsTheme(
       normal: MaterialDesktopVideoControlsThemeData(
         bottomButtonBar: [

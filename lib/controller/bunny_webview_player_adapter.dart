@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 import 'package:shobaki_academy/controller/bunny_embed.dart';
@@ -10,11 +14,81 @@ import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/services/value_deduplicator.dart';
 
+/// Name of the JavaScript channel the official plugin exposes to the page on
+/// Android/iOS/macOS. Windows has no channel: WebView2's `chrome.webview`
+/// object already carries messages, and [kBridgeScript] picks whichever host
+/// transport the document actually has.
+const String kBunnyBridgeChannel = 'BunnyBridge';
+
+/// Whether [url] is a destination the embed page may navigate the top frame to.
+///
+/// Mirrors the Windows `deny` popup policy: the student stays on Bunny's own
+/// surfaces (`player.mediadelivery.net` and the `b-cdn.net` CDN the embed may
+/// jump to) and nothing else can take over the player on Android/iOS/macOS.
+/// The app never issues a main-frame request outside that list, so this also
+/// guards the platform-side `loadRequest` itself.
+bool isAllowedBunnyNavigation(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  if (uri.scheme == 'about') return true;
+  if (uri.scheme != 'https') return false;
+  final host = uri.host.toLowerCase();
+  return host.endsWith('.mediadelivery.net') ||
+      host == 'b-cdn.net' ||
+      host.endsWith('.b-cdn.net') ||
+      host.endsWith('.bunnycdn.com');
+}
+
+/// Decodes the raw result of a script executed inside the embed page.
+///
+/// The transports hand the same JavaScript value back in different shapes:
+/// WebView2's `ExecuteScript` and WKWebView return parsed values (Map, bool,
+/// null), while Android's `evaluateJavascript` returns the JSON text it
+/// captured - an object arrives as a JSON String, and a JavaScript String
+/// arrives double-encoded. Strings are decoded at most twice, so a
+/// double-encoded value collapses back to the object while a plain payload
+/// survives unchanged.
+dynamic asScriptValue(dynamic raw) {
+  var value = raw;
+  for (var i = 0; i < 2 && value is String; i++) {
+    try {
+      value = jsonDecode(value);
+    } catch (_) {
+      // Not JSON: Android's plugin falls back to the raw text for anything
+      // it could not parse, so hand it back as-is.
+      break;
+    }
+  }
+  return value;
+}
+
+/// The media snapshot from [kProbeScript] or a bridge message, or null when
+/// the transport returned something this shape cannot describe.
+Map<String, dynamic>? asScriptMap(dynamic raw) {
+  final value = asScriptValue(raw);
+  return value is Map ? value.cast<String, dynamic>() : null;
+}
+
+/// A script's boolean answer (`false` = no media element found), tolerant of
+/// every encoding the transports use for it.
+bool? asScriptBool(dynamic raw) {
+  final value = asScriptValue(raw);
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+  }
+  return null;
+}
+
 /// Whether the shared WebView2 environment has already been pointed at a
 /// writable user-data folder.
 ///
 /// The environment is shared by every controller in the process, so this is
-/// configured once rather than per adapter.
+/// configured once rather than per adapter. Windows-only: the official
+/// plugin on Android/iOS/macOS has no equivalent.
 bool _environmentConfigured = false;
 
 /// Points WebView2 at a user-data folder the app can actually write to.
@@ -49,34 +123,80 @@ Future<void> _configureWebViewEnvironment() async {
 }
 
 /// [IPlayerAdapter] backed by the Bunny Stream embed player running inside an
-/// in-app WebView2 surface.
+/// in-app WebView.
 ///
-/// The embed page is a normal Chromium document, so every interaction with the
-/// media goes through JavaScript: events arrive as `postMessage` payloads from
-/// an injected bridge script, and commands are pushed back in with
-/// `executeScript`. That is deliberately different from the native adapters,
-/// where the platform hands us position/duration for free.
+/// The embed page is a normal document, so every interaction with the media
+/// goes through JavaScript: events arrive as message payloads from an injected
+/// bridge script, and commands are pushed back in as executed scripts. That is
+/// deliberately different from the native adapters, where the platform hands
+/// us position/duration for free.
 ///
-/// Why in-app: WebView2 composites its content as a Flutter `Texture`, so the
-/// watermark overlay painted in `main.dart` keeps covering the video - a
-/// separate OS window (the `desktop_webview_window` approach) would not.
+/// Two hosts carry that traffic:
+///
+/// - **Windows** uses the WebView2 fork (`webview_flutter_windows`), which
+///   composites its content as a Flutter `Texture` - the watermark overlay
+///   painted in `main.dart` keeps covering the video - and injects the bridge
+///   with `addScriptToExecuteOnDocumentCreated`, before the page runs a line.
+/// - **Android/iOS/macOS** use the official `webview_flutter` plugin (system
+///   WebView / WKWebView). It has no per-document injection, so the bridge is
+///   injected from `onPageStarted`/`onPageFinished` (the script self-heals: it
+///   scans for the media element immediately and every second), and messages
+///   travel over a `BunnyBridge` JavaScript channel instead of
+///   `chrome.webview`.
+///
+/// On iOS/macOS the controller is built with inline playback enabled and no
+/// user-gesture requirement: without the first, WKWebView ejects the video
+/// into a native fullscreen player that escapes the watermark; without the
+/// second, a programmatic `play()` (resume intent, `ended` recovery) is
+/// refused because it is not a user gesture. Android gets the matching
+/// `setMediaPlaybackRequiresUserGesture(false)`.
 ///
 /// The page is loaded from the raw CDN playlist URL the DB stores: [open]
 /// maps it to the embed player itself, so callers never have to know about
 /// `player.mediadelivery.net`.
 class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   BunnyWebviewPlayerAdapter({required int bunnyLibraryId})
-      : _libraryId = bunnyLibraryId;
+      : _libraryId = bunnyLibraryId,
+        _win = Platform.isWindows ? WebviewController() : null,
+        _web = Platform.isWindows ? null : _newWebViewController();
 
   /// Bunny Stream library the video belongs to, from the owning topic's
   /// `library_id`. Required: the embed URL cannot be built without it, and
   /// the controller refuses to construct this adapter when it is missing.
   final int _libraryId;
 
-  /// The native webview. Created eagerly (no native side exists until
-  /// [WebviewController.initialize]) so the view can mount [Webview] as soon
-  /// as this adapter exists; the widget renders an empty box until then.
-  final WebviewController controller = WebviewController();
+  /// The WebView2 surface. Non-null on Windows only; the view mounts it as a
+  /// texture under the watermark overlay.
+  final WebviewController? _win;
+
+  /// The official webview_flutter surface. Non-null on Android/iOS/macOS
+  /// only; the view mounts it as a platform view.
+  final WebViewController? _web;
+
+  /// Builds the platform webview controller for Android/iOS/macOS.
+  ///
+  /// iOS/macOS get inline playback with no gesture requirement (see the class
+  /// docs); Android's gesture flag is applied in [_ensureWired], where the
+  /// platform implementation object is easiest to reach.
+  static WebViewController _newWebViewController() {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return WebViewController.fromPlatformCreationParams(
+        WebKitWebViewControllerCreationParams(
+          allowsInlineMediaPlayback: true,
+          mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+        ),
+      );
+    }
+    return WebViewController();
+  }
+
+  /// The WebView2 controller, when this adapter runs on Windows. The view
+  /// mounts it; nothing else needs it.
+  WebviewController? get windowsController => _win;
+
+  /// The official-plugin controller, when this adapter runs on
+  /// Android/iOS/macOS. The view mounts it; nothing else needs it.
+  WebViewController? get webController => _web;
 
   final StreamController<bool> _playingCtrl =
       StreamController<bool>.broadcast();
@@ -194,8 +314,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// Fires when the embed page enters or leaves HTML5 fullscreen. The view
   /// turns this into an OS-level window fullscreen so the student gets the
   /// same immersive mode the native player has.
+  ///
+  /// Windows-only: WebView2 reports the element's fullscreen state, while the
+  /// official plugin has no such callback - on Android/iOS/macOS the embed's
+  /// own fullscreen runs inside the platform webview instead, so there is no
+  /// window state to keep in sync.
   Stream<bool> get onFullScreenChanged =>
-      controller.containsFullScreenElementChanged;
+      _win?.containsFullScreenElementChanged ?? Stream<bool>.empty();
 
   @override
   Future<void> open(String url, {Duration? start}) async {
@@ -222,7 +347,12 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _lastRecoveryAttemptPosition = null;
 
     await _ensureWired();
-    await controller.loadUrl(embedUrl);
+    final win = _win;
+    if (win != null) {
+      await win.loadUrl(embedUrl);
+    } else {
+      await _web!.loadRequest(Uri.parse(embedUrl));
+    }
     _startProbe();
   }
 
@@ -273,7 +403,10 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     await _messageSub?.cancel();
     await _loadingSub?.cancel();
     await _loadErrorSub?.cancel();
-    await controller.dispose();
+    // The official plugin has no controller-level dispose: its platform view
+    // is torn down together with the widget, which unmounts right after this
+    // adapter goes away (the view is keyed on `playerGeneration`).
+    await _win?.dispose();
     await _playingCtrl.close();
     await _durationCtrl.close();
     await _completedCtrl.close();
@@ -294,31 +427,109 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   ///
   /// Everything that must happen before the first navigation is done here and
   /// exactly once per adapter: the event subscriptions are attached before
-  /// [WebviewController.loadUrl], otherwise the early lifecycle events of the
-  /// embed page would be lost.
+  /// the load, otherwise the early lifecycle events of the embed page would be
+  /// lost.
   Future<void> _ensureWired() async {
+    if (_win != null) {
+      await _ensureWiredWindows();
+      return;
+    }
+    if (_wired) return;
+    _wired = true;
+    await _ensureWiredOfficial();
+    _isInitialized = true;
+  }
+
+  /// Windows wiring: WebView2 environment, popup deny policy, and the
+  /// per-document script injection the fork provides.
+  Future<void> _ensureWiredWindows() async {
+    final win = _win!;
     await _configureWebViewEnvironment();
-    if (!controller.value.isInitialized) {
-      await controller.initialize();
+    if (!win.value.isInitialized) {
+      await win.initialize();
     }
     if (_wired) return;
     _wired = true;
 
-    await controller.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
-    await controller.setBackgroundColor(const Color(0xFF000000));
+    await win.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
+    await win.setBackgroundColor(const Color(0xFF000000));
     // The embed page is a plain media player: DevTools and its context menu
     // would only be a detour (and a screenshot surface) for the student.
-    await controller.setDevToolsEnabled(false);
-    await controller.setDefaultContextMenusEnabled(false);
-    await controller.addScriptToExecuteOnDocumentCreated(kBridgeScript);
+    await win.setDevToolsEnabled(false);
+    await win.setDefaultContextMenusEnabled(false);
+    await win.addScriptToExecuteOnDocumentCreated(kBridgeScript);
 
-    _messageSub = controller.webMessage.listen(_onBridgeMessage);
-    _loadingSub = controller.loadingState.listen(_onLoadingStateChanged);
-    _loadErrorSub = controller.onLoadError.listen((status) {
+    _messageSub = win.webMessage.listen(_onBridgeMessage);
+    _loadingSub = win.loadingState.listen(_onLoadingStateChanged);
+    _loadErrorSub = win.onLoadError.listen((status) {
       _emitError('تعذر تحميل صفحة المشغّل (${status.name})');
     });
 
     _isInitialized = true;
+  }
+
+  /// Android/iOS/macOS wiring: JS channel, navigation policy, and the
+  /// autoplay flags that keep programmatic `play()` and inline rendering
+  /// working on the platform webviews.
+  Future<void> _ensureWiredOfficial() async {
+    final web = _web!;
+    await web.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await web.setBackgroundColor(const Color(0xFF000000));
+    await web.addJavaScriptChannel(
+      kBunnyBridgeChannel,
+      onMessageReceived: (message) => _onBridgeMessage(message.message),
+    );
+    await web.setNavigationDelegate(
+      NavigationDelegate(
+        onPageStarted: (_) {
+          if (_isDisposed) return;
+          // A (re)navigation is in flight: the previous document's media is
+          // gone, so the probe must wait for the new one to settle. There is
+          // no per-document injection API here, so the bridge goes in now -
+          // it scans for the media element itself and repeats every second.
+          _pageSettled = false;
+          unawaited(_injectBridge());
+        },
+        onPageFinished: (_) {
+          if (_isDisposed) return;
+          _pageSettled = true;
+          // Backstop for the `onPageStarted` injection: if that run raced
+          // the document, this one lands on a parsed page. The script's own
+          // `__shobakiBridge` guard makes a double run a no-op.
+          unawaited(_injectBridge());
+        },
+        onWebResourceError: (error) {
+          if (_isDisposed) return;
+          // Android reports subresource failures through this callback too;
+          // only a main-frame failure means the page itself did not load.
+          if (error.isForMainFrame == false) return;
+          _emitError('تعذر تحميل صفحة المشغّل (${error.errorCode})');
+        },
+        onNavigationRequest: (request) {
+          // Subframe loads (the embed's own assets) are never a takeover;
+          // the top frame may only move between Bunny surfaces.
+          if (!request.isMainFrame) return NavigationDecision.navigate;
+          return isAllowedBunnyNavigation(request.url)
+              ? NavigationDecision.navigate
+              : NavigationDecision.prevent;
+        },
+      ),
+    );
+    final platformController = web.platform;
+    if (platformController is AndroidWebViewController) {
+      await platformController.setMediaPlaybackRequiresUserGesture(false);
+    }
+  }
+
+  /// Installs [kBridgeScript] in the current document (official plugin only).
+  Future<void> _injectBridge() async {
+    final web = _web;
+    if (web == null || _isDisposed) return;
+    try {
+      await web.runJavaScript(kBridgeScript);
+    } catch (e) {
+      projectLogger.d('Bunny bridge injection failed: $e');
+    }
   }
 
   void _onLoadingStateChanged(LoadingState state) {
@@ -332,10 +543,12 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     }
   }
 
+  /// Accepts both transports' payload shapes: the fork delivers a parsed
+  /// Map, the official plugin a JSON String through its channel.
   void _onBridgeMessage(dynamic raw) {
-    if (_isDisposed || raw is! Map) return;
-    final msg = raw.cast<String, dynamic>();
-    if (msg['source'] != 'shobaki') return;
+    if (_isDisposed) return;
+    final msg = asScriptMap(raw);
+    if (msg == null || msg['source'] != 'shobaki') return;
 
     _lastBridgeAt = DateTime.now();
     final type = msg['e'] as String? ?? '';
@@ -469,25 +682,38 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// Reads the media element directly when the bridge has gone quiet.
   ///
   /// This is the "timer fallback" half of the design: if the injected script
-  /// never runs (CSP, a page change, a WebView2 quirk) playback state would
+  /// never runs (CSP, a page change, a webview quirk) playback state would
   /// otherwise freeze and the session tracker would stop counting. The probe
   /// asks the page instead of inventing an answer, so a paused student still
   /// reads as paused.
-  Future<void> _probe() async {
-    if (_isDisposed || !controller.value.isInitialized) return;
+  ///
+  /// [force] skips the bridge-silence gate; the controller uses it when the
+  /// app returns to the foreground, where `SessionTracker` re-syncs from
+  /// [isPlaying] immediately and the cached flag may predate whatever the
+  /// platform webview did to the page while backgrounded.
+  Future<void> _probe({bool force = false}) async {
+    if (_isDisposed) return;
+    final win = _win;
+    if (win != null && !win.value.isInitialized) return;
+    if (_web == null && win == null) return;
     if (!_pageSettled) return;
     final lastBridge = _lastBridgeAt;
-    if (lastBridge != null &&
+    if (!force &&
+        lastBridge != null &&
         DateTime.now().difference(lastBridge) < _bridgeSilenceThreshold) {
       return;
     }
     try {
-      final result = await controller.executeScript(kProbeScript);
-      if (_isDisposed || result is! Map) return;
+      final dynamic result = win != null
+          ? await win.executeScript(kProbeScript)
+          : await _web!.runJavaScriptReturningResult(kProbeScript);
+      if (_isDisposed) return;
+      final snapshot = asScriptMap(result);
+      if (snapshot == null) return;
       _applyState(
-        position: _secondsToDuration(result['p']),
-        duration: _secondsToDuration(result['d']),
-        playing: result['playing'] == true,
+        position: _secondsToDuration(snapshot['p']),
+        duration: _secondsToDuration(snapshot['d']),
+        playing: snapshot['playing'] == true,
         type: 'probe',
       );
     } catch (e) {
@@ -495,19 +721,34 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     }
   }
 
+  /// Probes the media element immediately, ignoring the bridge-silence gate.
+  ///
+  /// Called when the app returns to the foreground so the play state feeding
+  /// `SessionTracker` reflects the page as it is *now*, not as it was before
+  /// the platform webview was backgrounded.
+  Future<void> probeNow() => _probe(force: true);
+
   /// Runs [body] against the page's `<video>` element.
   ///
-  /// Commands go through `executeScript` rather than `postWebMessage` because
-  /// the result is observable: a command that found no media returns `false`
-  /// and is logged, instead of disappearing into an unlistened page event.
+  /// Commands go through a script execution rather than a message to the page
+  /// because the result is observable: a command that found no media returns
+  /// `false` and is logged, instead of disappearing into an unlistened page
+  /// event.
   ///
   /// Returns whether the media element was found, so callers can tell "the
   /// page refused" from "the page was not ready yet".
   Future<bool> _runOnVideo(String body) async {
-    if (_isDisposed || !controller.value.isInitialized) return false;
+    if (_isDisposed) return false;
     try {
-      final found = await controller.executeScript(_commandScript(body));
-      return found == true;
+      final dynamic result;
+      final win = _win;
+      if (win != null) {
+        if (!win.value.isInitialized) return false;
+        result = await win.executeScript(_commandScript(body));
+      } else {
+        result = await _web!.runJavaScriptReturningResult(_commandScript(body));
+      }
+      return asScriptBool(result) ?? false;
     } catch (e) {
       projectLogger.w('Bunny webview command "$body" failed: $e');
       return false;
@@ -567,6 +808,10 @@ const String _kFindVideoExpr = '''
 ''';
 
 /// Self-contained state snapshot, used by the Dart-side probe timer.
+///
+/// Returns an object rather than JSON text: WebView2 and WKWebView hand
+/// parsed values straight back, Android's `evaluateJavascript` returns the
+/// JSON text, and [asScriptMap] folds both into the same map.
 const String kProbeScript = '''
 (function () {
   var v = $_kFindVideoExpr;
@@ -581,17 +826,26 @@ const String kProbeScript = '''
 
 /// Bridge script injected into every document the webview creates.
 ///
-/// It reports media state upward with `chrome.webview.postMessage` (or, from a
-/// child frame, `parent.postMessage`, which the top document forwards). The
-/// page carries no DRM and no nested advertising frames today; the frame
+/// It reports media state upward over whichever host transport the document
+/// has: `chrome.webview.postMessage` on Windows, the [kBunnyBridgeChannel]
+/// JavaScript channel on Android/iOS/macOS (a JSON string, because the
+/// channel only carries strings), or `parent.postMessage` from a child frame,
+/// which the top document forwards over its own host channel. The frame
 /// relay is kept because it costs a few lines and removes an entire class of
 /// "the video moved into an iframe" breakage.
+///
+/// On the official plugin there is no `addScriptToExecuteOnDocumentCreated`,
+/// so the script is injected from `onPageStarted` (and again from
+/// `onPageFinished` as a backstop). The `__shobakiBridge` guard makes the
+/// double run a no-op, and the immediate scan plus the repeating scan below
+/// mean a slightly late injection still attaches to the media element.
 const String kBridgeScript = '''
 (function () {
   if (window.__shobakiBridge) return;
   window.__shobakiBridge = true;
 
   var hasHost = !!(window.chrome && window.chrome.webview);
+  var hasChannel = !!window.BunnyBridge;
   var isTop = window === window.top;
 
   function post(msg) {
@@ -599,6 +853,8 @@ const String kBridgeScript = '''
     try {
       if (hasHost) {
         window.chrome.webview.postMessage(msg);
+      } else if (hasChannel) {
+        window.BunnyBridge.postMessage(JSON.stringify(msg));
       } else if (!isTop && window.parent) {
         window.parent.postMessage(msg, '*');
       }
@@ -607,11 +863,17 @@ const String kBridgeScript = '''
 
   // Top document: re-send anything a child frame reported, so one host
   // channel carries every frame's events.
-  if (hasHost && isTop) {
+  if (isTop && (hasHost || hasChannel)) {
     window.addEventListener('message', function (ev) {
       var data = ev.data;
       if (data && data.source === 'shobaki') {
-        try { window.chrome.webview.postMessage(data); } catch (e) {}
+        try {
+          if (hasHost) {
+            window.chrome.webview.postMessage(data);
+          } else if (hasChannel) {
+            window.BunnyBridge.postMessage(JSON.stringify(data));
+          }
+        } catch (e) {}
       }
     });
   }

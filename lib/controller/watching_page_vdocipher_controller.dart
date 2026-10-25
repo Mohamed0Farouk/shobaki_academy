@@ -145,8 +145,10 @@ class VideoPlaybackController extends GetxController
   /// webview path.
   String _playerBackendPreference = '';
 
-  /// Whether WebView2's runtime is installed. Probed once on Windows;
-  /// false on every other platform, which keeps the native adapters in place.
+  /// Whether a WebView backend is usable on this platform. Probed once on
+  /// Windows (WebView2 must actually be installed); on Android/iOS/macOS the
+  /// system webview ships with the OS, so it is always available; false
+  /// anywhere else, which keeps the native adapters in place.
   bool _webviewRuntimeAvailable = false;
 
   static const int _maxLoadAttempts = 3;
@@ -206,11 +208,11 @@ class VideoPlaybackController extends GetxController
   /// the native player.
   ///
   /// All four conditions have to hold: the student has not pinned the
-  /// classic backend, WebView2 is actually installed (older Windows 10
-  /// machines ship without it), the URL is one the embed player can play, and
-  /// the owning topic carries a usable `library_id`.
+  /// classic backend, a WebView backend exists on this platform (WebView2 on
+  /// Windows, the bundled system webview on Android/iOS/macOS), the URL is
+  /// one the embed player can play, and the owning topic carries a usable
+  /// `library_id`.
   bool get shouldUseBunnyWebview {
-    if (!Platform.isWindows) return false;
     if (_playerBackendPreference == kPlayerBackendFvp) return false;
     if (!_webviewRuntimeAvailable) return false;
     final libraryId = parseBunnyLibraryId(bunnyLibraryId);
@@ -221,12 +223,11 @@ class VideoPlaybackController extends GetxController
   /// True when the embed player would have been used but the owning topic has
   /// no usable `library_id`, so the video cannot be shown safely.
   ///
-  /// Windows-only by construction ([shouldUseBunnyWebview] never applies
-  /// elsewhere); a student who pinned the classic backend is not blocked -
+  /// Applies on every platform that has the embed player (Windows, Android,
+  /// iOS, macOS); a student who pinned the classic backend is not blocked -
   /// that player never needed the library - and neither is a non-Bunny
   /// source, which the native player handles on its own.
   bool get isMissingLibraryId {
-    if (!Platform.isWindows) return false;
     if (_playerBackendPreference == kPlayerBackendFvp) return false;
     if (!_webviewRuntimeAvailable) return false;
     if (extractBunnyVideoId(videoUrl) == null) return false;
@@ -238,9 +239,10 @@ class VideoPlaybackController extends GetxController
   static final Set<String> _missingLibraryReported = {};
 
   /// Handles a Bunny-source video whose owning topic has no usable
-  /// `library_id` on Windows: the embed player cannot be built for it, and
-  /// silently opening the unprotected native player would defeat the whole
-  /// point of the in-app webview.
+  /// `library_id` wherever the embed player would have run (Windows, Android,
+  /// iOS, macOS): the embed player cannot be built for it, and silently
+  /// opening the unprotected native player would defeat the whole point of
+  /// the in-app webview.
   ///
   /// The admin gets a WhatsApp report (throttled to once per video per app
   /// run) so the row can be fixed, and the student sees a short "coming soon"
@@ -305,7 +307,14 @@ class VideoPlaybackController extends GetxController
   }
 
   Future<void> _probeWebViewRuntime() async {
-    if (!Platform.isWindows) return;
+    if (!Platform.isWindows) {
+      // Android/iOS/macOS bundle a system webview (WebView / WKWebView), so
+      // there is nothing to probe. Linux has no official plugin support and
+      // stays on the native adapters.
+      _webviewRuntimeAvailable =
+          Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+      return;
+    }
     try {
       final version = await WebviewController.getWebViewVersion();
       _webviewRuntimeAvailable = version != null;
@@ -323,15 +332,15 @@ class VideoPlaybackController extends GetxController
   }
 
   IPlayerAdapter _createPlayer() {
+    if (shouldUseBunnyWebview) {
+      return BunnyWebviewPlayerAdapter(
+        bunnyLibraryId: parseBunnyLibraryId(bunnyLibraryId)!,
+      );
+    }
     if (Platform.isMacOS) {
       return VideoPlayerAdapter();
     }
     if (Platform.isWindows) {
-      if (shouldUseBunnyWebview) {
-        return BunnyWebviewPlayerAdapter(
-          bunnyLibraryId: parseBunnyLibraryId(bunnyLibraryId)!,
-        );
-      }
       // FVP backend: a network stream that fails to open can leave
       // initialize() pending forever, so fail fast and let the retry logic
       // (watchdog / _onLoadFailed) take over.
@@ -553,11 +562,13 @@ class VideoPlaybackController extends GetxController
     _stallRecoveryExhausted = false;
     _loadAttempts = 0;
     _retryTimer?.cancel();
-    if (!Platform.isMacOS) {
-      // On Windows/Android/iOS a failed load can leave the underlying player
-      // in a wedged state where audio plays but video output stays black.
-      // Re-opening on top of that state does not fix it, so tear the whole
-      // player down and build a fresh one with a brand-new video surface.
+    // On Windows/macOS a failed load can leave the underlying player in a
+    // wedged state where audio plays but video output stays black (fvp), or a
+    // half-navigated webview stuck behind a spinner. Re-opening on top of
+    // that state does not fix it, so tear the whole player down and build a
+    // fresh one with a brand-new surface - the embed webview included.
+    // media_kit on Android/iOS re-opens cleanly, so it keeps the lighter path.
+    if (!Platform.isMacOS || player is BunnyWebviewPlayerAdapter) {
       _resetPlayer();
     }
     await _beginLoad(_pendingUrl ?? videoUrl, start: _pendingStart);
@@ -1231,6 +1242,14 @@ class VideoPlaybackController extends GetxController
         viewDurationSeconds.value = _session.viewDurationSeconds;
         break;
       case AppLifecycleState.resumed:
+        // Refresh the embed's play state before the session bookkeeping reads
+        // it: the platform webview may have paused (or resumed) the page
+        // while the app was backgrounded, and the cached flag predates that.
+        // The result lands within a frame through the usual stream events.
+        final activePlayer = player;
+        if (activePlayer is BunnyWebviewPlayerAdapter) {
+          unawaited(activePlayer.probeNow());
+        }
         if (_session.tick()) {
           _onSessionExpired(reason: _session.expiryReason!);
           return;
