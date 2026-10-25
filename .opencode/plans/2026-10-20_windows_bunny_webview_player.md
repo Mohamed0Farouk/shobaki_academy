@@ -106,3 +106,88 @@ Thin stateful widget: given `BunnyWebviewPlayerAdapter`, renders `Webview(contro
    - Force fallback: open a non-Bunny URL → fvp player path works as before.
    - `library_id` plumbing: a topic with a valid id plays via embed; on Windows a topic with a missing/invalid id shows the "coming soon" dialog, sends the admin WhatsApp report (throttled once per video per app run, skipped for guests) and pops the page without opening any player.
 4. macOS build path untouched (code-review the guards only).
+
+
+## Cross-platform port (2026-10-25) - Android / iOS / macOS
+
+The embed player is now the default backend on every platform that has a
+WebView; fvp (Windows/macOS) and media_kit (Android/iOS) remain as fallbacks
+for non-Bunny URLs and as the classic pin.
+
+### Dependencies
+- Added `webview_flutter: ^4.14.1` (+ explicit `webview_flutter_android`,
+  `webview_flutter_wkwebview`). The Windows fork `webview_flutter_windows`
+  stays; the two packages are independent (different class names:
+  `WebviewController`/`Webview` vs `WebViewController`/`WebViewWidget`).
+- Platform floors verified: Android `flutter.minSdkVersion = 24`, iOS Podfile
+  `15.0`, macOS `12.0` - all above the plugin minimums. Android manifest keeps
+  `hardwareAccelerated` + orientation in `configChanges`; minify stays off.
+
+### Adapter (`bunny_webview_player_adapter.dart`)
+- Holds `_win` (fork, Windows) or `_web` (official, Android/iOS/macOS);
+  exposed via `windowsController` / `webController`; the view branches on them.
+- **Bridge transport feature-detect**: `chrome.webview.postMessage` (Windows)
+  else `window.BunnyBridge.postMessage(JSON.stringify(msg))` (mobile channel),
+  including the child-frame relay re-post in the top document. Without this
+  every message dropped on mobile and `view_duration_seconds` would stay 0.
+- Official plugin has no `addScriptToExecuteOnDocumentCreated`: the bridge is
+  injected from `onPageStarted` + `onPageFinished` backstop (self-healing via
+  `__shobakiBridge` guard + 1 Hz scan).
+- `_onBridgeMessage` accepts Map (fork) and JSON String (channel) through
+  `asScriptMap`; `asScriptValue`/`asScriptBool` decode all three transports'
+  shapes (Windows/iOS parsed values, Android JSON text, double-encoded
+  strings) - unit-tested in `test/bunny_webview_bridge_test.dart`.
+- `NavigationDelegate`: `onPageStarted/Finished` drive `_pageSettled`,
+  main-frame-only `onWebResourceError` feeds the existing Arabic error/retry
+  path, `onNavigationRequest` allowlists `*.mediadelivery.net`/`*.b-cdn.net`/
+  `*.bunnycdn.com`/`about` on the top frame (parity with the Windows popup
+  `deny` policy) via `isAllowedBunnyNavigation` (unit-tested).
+- Inline playback is mandatory on iOS/macOS:
+  `WebKitWebViewControllerCreationParams(allowsInlineMediaPlayback: true,
+  mediaTypesRequiringUserAction: {})`; Android gets
+  `setMediaPlaybackRequiresUserGesture(false)` - otherwise WKWebView/WebView
+  eject to native fullscreen (watermark escapes) or refuse programmatic
+  `play()` (resume intent, `ended` recovery).
+- `probeNow()` skips the bridge-silence gate; the controller calls it on
+  `AppLifecycleState.resumed` so `SessionTracker`'s re-sync reads the page as
+  it is *now*, not the pre-background cached flag.
+- `onFullScreenChanged` is Windows-only (empty stream elsewhere); official
+  has no fullscreen callback and the platform webview owns its own surface.
+- `dispose()` calls `_win?.dispose()`; the official controller has no dispose
+  API - its platform view dies with the widget (`playerGeneration` key).
+
+### Controller (`watching_page_vdocipher_controller.dart`)
+- `_probeWebViewRuntime`: non-Windows sets `_webviewRuntimeAvailable =
+  Platform.isAndroid || isIOS || isMacOS` (Linux stays native).
+- `shouldUseBunnyWebview` / `isMissingLibraryId`: dropped the Windows gate -
+  the embed is the default everywhere and the missing-`library_id` block
+  (WhatsApp + dialog + pop) now applies on all four platforms (user-approved).
+- `_createPlayer`: webview check first, then macOS -> fvp (no timeout),
+  Windows -> fvp (15 s timeout), else media_kit.
+- `retry()`: `_resetPlayer()` also runs on macOS when the player is the
+  webview (half-navigated webview needs a fresh controller).
+- Logging pipeline untouched: `_createInitialLog` / `_tickLogging` / final
+  flush are platform-independent; only `onPlayingChanged` feeds them, which
+  is why the bridge transport fix above is the logging-critical change.
+  `viewed` stays a constant `false` everywhere.
+
+### View
+- `vdo_video_player.dart`: the build branch now checks
+  `player is BunnyWebviewPlayerAdapter` **before** the platform check - the
+  old order made Android/iOS always build media_kit and would have hidden the
+  webview (and crashed its placeholder cast).
+  `_buildMediaKitPlayer` guards against the missing-library placeholder
+  adapter (`is! MediaKitPlayerAdapter` -> spinner).
+- `bunny_webview_player.dart`: `WebViewWidget(controller: webController)` on
+  mobile, `ValueListenableBuilder + Webview(windowsController)` on Windows.
+
+### Verification done here (Windows machine)
+- `flutter analyze`: 72 pre-existing issues, 0 errors, none in touched files.
+- `flutter test`: 253 pass (14 new in `bunny_webview_bridge_test.dart`), 1
+  pre-existing failure (stock `widget_test.dart` counter).
+- `flutter build windows --release`: OK. `flutter build apk --debug`: OK.
+- Not possible on this machine: run on an Android device and build iOS/macOS
+  (needs a Mac/Xcode). Device checklist: play -> `logs` row appears; pause/
+  background/foreground -> `view_duration_seconds` grows only while playing
+  (60 s heartbeat + final flush); rotation survives; watermark covers video;
+  retry after airplane mode; missing `library_id` shows dialog + pops.
