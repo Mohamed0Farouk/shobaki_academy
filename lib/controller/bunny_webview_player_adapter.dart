@@ -20,6 +20,14 @@ import 'package:shobaki_academy/services/value_deduplicator.dart';
 /// transport the document actually has.
 const String kBunnyBridgeChannel = 'BunnyBridge';
 
+/// Name of the state self-read helper [kBridgeScript] exports on `window`.
+///
+/// The probe fires it through a void `runJavaScript` (whose `undefined`
+/// return WebKit explicitly tolerates) and the answer travels back as an
+/// ordinary `e='probe'` bridge message, so reading the page never depends
+/// on the plugin marshalling a script *result* across the platform channel.
+const String kBunnyProbeExport = 'window.__shobakiProbe';
+
 /// Whether [url] is a destination the embed page may navigate the top frame to.
 ///
 /// Mirrors the Windows `deny` popup policy: the student stays on Bunny's own
@@ -37,6 +45,45 @@ bool isAllowedBunnyNavigation(String url) {
       host == 'b-cdn.net' ||
       host.endsWith('.b-cdn.net') ||
       host.endsWith('.bunnycdn.com');
+}
+
+/// How long after [BunnyWebviewPlayerAdapter.open] the probe may run even
+/// though no navigation callback has confirmed the page settled.
+///
+/// On the official plugin the settle flag is set exclusively by
+/// `onPageFinished`; if WebKit never delivers it (the failure mode that
+/// left the macOS spinner stuck), waiting for it blocks the probe *and*
+/// starves the bridge self-heal together. Three seconds is past a normal
+/// document commit but far below the load watchdog, so a genuinely slow
+/// page still gets probed rather than declared dead.
+const Duration kBunnyProbeSettleFallback = Duration(seconds: 3);
+
+/// Decides whether one probe tick may read the page.
+///
+/// `force` (the app returning to the foreground) always probes: the
+/// controller re-syncs `SessionTracker` from `isPlaying` immediately, and
+/// the cached flag may predate whatever the webview did while backgrounded.
+/// Otherwise the page must look settled - either the navigation callback
+/// confirmed it, or [settleFallback] has elapsed since [lastOpenAt] - and
+/// the bridge must have been silent for [silenceThreshold], so a healthy
+/// push channel is never raced by a redundant read.
+bool shouldRunProbe({
+  required bool pageSettled,
+  required bool force,
+  required DateTime? lastBridgeAt,
+  required DateTime? lastOpenAt,
+  required DateTime now,
+  Duration silenceThreshold = const Duration(seconds: 8),
+  Duration settleFallback = kBunnyProbeSettleFallback,
+}) {
+  if (force) return true;
+  final opened = lastOpenAt;
+  final settled =
+      pageSettled || (opened != null && now.difference(opened) >= settleFallback);
+  if (!settled) return false;
+  final bridge = lastBridgeAt;
+  if (bridge != null && now.difference(bridge) < silenceThreshold) return false;
+  return true;
 }
 
 /// Decodes the raw result of a script executed inside the embed page.
@@ -237,8 +284,31 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   bool _isBuffering = true;
 
   /// Set when the embed page finished its first navigation. The fallback
-  /// probe must not poke a document that is still loading.
+  /// probe prefers this but no longer depends on it: [shouldRunProbe] also
+  /// opens the gate by time after [open], so a WebKit build that never
+  /// delivers `didFinish` still gets probed (and self-healed).
   bool _pageSettled = false;
+
+  /// When the current navigation was started by [open]; anchors the probe
+  /// gate's settle fallback when no navigation callback ever arrives.
+  DateTime? _lastOpenAt;
+
+  /// Whether any bridge message has been received since [open]; makes the
+  /// "first message proves the transport" diagnostic log happen once per
+  /// navigation instead of spamming.
+  bool _bridgeSeen = false;
+
+  /// Last probe outcome that was logged, so the diagnostic line only
+  /// appears when something actually changed.
+  String? _lastProbeSummary;
+
+  /// Last bridge-injection error text, used to log a failure once per
+  /// distinct problem instead of once per self-heal attempt.
+  String? _lastInjectionError;
+
+  /// When the last probe failure was logged (throttle for the noisy
+  /// "no media element yet" window while the embed boots).
+  DateTime? _lastProbeFailLog;
 
   /// Last time the bridge script checked in. `null` means "never", which
   /// keeps the probe quiet until the page has had a chance to start.
@@ -343,6 +413,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _errorText = null;
     _isBuffering = true;
     _pageSettled = false;
+    _lastOpenAt = DateTime.now();
+    _bridgeSeen = false;
+    _lastProbeSummary = null;
     _lastBridgeAt = null;
     _lastRecoveryAttemptPosition = null;
 
@@ -481,8 +554,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     );
     await web.setNavigationDelegate(
       NavigationDelegate(
-        onPageStarted: (_) {
+        onPageStarted: (url) {
           if (_isDisposed) return;
+          projectLogger.i('Bunny webview navigation started: $url');
           // A (re)navigation is in flight: the previous document's media is
           // gone, so the probe must wait for the new one to settle. There is
           // no per-document injection API here, so the bridge goes in now -
@@ -490,8 +564,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
           _pageSettled = false;
           unawaited(_injectBridge());
         },
-        onPageFinished: (_) {
+        onPageFinished: (url) {
           if (_isDisposed) return;
+          projectLogger.i('Bunny webview navigation finished: $url');
           _pageSettled = true;
           // Backstop for the `onPageStarted` injection: if that run raced
           // the document, this one lands on a parsed page. The script's own
@@ -503,6 +578,10 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
           // Android reports subresource failures through this callback too;
           // only a main-frame failure means the page itself did not load.
           if (error.isForMainFrame == false) return;
+          projectLogger.w(
+            'Bunny webview resource error: ${error.errorCode} '
+            '(main=${error.isForMainFrame})',
+          );
           _emitError('تعذر تحميل صفحة المشغّل (${error.errorCode})');
         },
         onNavigationRequest: (request) {
@@ -522,13 +601,24 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   }
 
   /// Installs [kBridgeScript] in the current document (official plugin only).
+  ///
+  /// Also called from the probe timer while the bridge stays silent, so a
+  /// missed `didFinish` (or a document replaced without a callback) heals
+  /// itself within one probe interval instead of stranding the player.
   Future<void> _injectBridge() async {
     final web = _web;
     if (web == null || _isDisposed) return;
     try {
       await web.runJavaScript(kBridgeScript);
+      _lastInjectionError = null;
     } catch (e) {
-      projectLogger.d('Bunny bridge injection failed: $e');
+      // The self-heal path retries every probe tick; log only a new error
+      // so a persistent failure does not bury the log with identical lines.
+      final text = e.toString();
+      if (text != _lastInjectionError) {
+        _lastInjectionError = text;
+        projectLogger.w('Bunny bridge injection failed: $text');
+      }
     }
   }
 
@@ -552,6 +642,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
 
     _lastBridgeAt = DateTime.now();
     final type = msg['e'] as String? ?? '';
+    if (!_bridgeSeen) {
+      _bridgeSeen = true;
+      projectLogger.i(
+        'Bunny bridge alive: e=$type d=${msg['d']} p=${msg['p']} '
+        'playing=${msg['playing']}',
+      );
+    }
 
     _applyState(
       position: _secondsToDuration(msg['p']),
@@ -682,26 +779,44 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// Reads the media element directly when the bridge has gone quiet.
   ///
   /// This is the "timer fallback" half of the design: if the injected script
-  /// never runs (CSP, a page change, a webview quirk) playback state would
-  /// otherwise freeze and the session tracker would stop counting. The probe
-  /// asks the page instead of inventing an answer, so a paused student still
-  /// reads as paused.
+  /// never runs (CSP, a page change, a webview quirk, a navigation callback
+  /// that never arrives) playback state would otherwise freeze and the
+  /// session tracker would stop counting. The probe asks the page instead of
+  /// inventing an answer, so a paused student still reads as paused.
   ///
-  /// [force] skips the bridge-silence gate; the controller uses it when the
-  /// app returns to the foreground, where `SessionTracker` re-syncs from
-  /// [isPlaying] immediately and the cached flag may predate whatever the
-  /// platform webview did to the page while backgrounded.
+  /// On the official plugin each tick also re-injects the bridge while it is
+  /// silent ([_injectBridge] is a no-op when the script is already present)
+  /// and fires [kBunnyProbeExport] so the answer can arrive over the channel
+  /// too - that path only needs a void `runJavaScript`, the most reliable
+  /// call the plugin has, instead of a result-marshalling one.
+  ///
+  /// [force] skips every gate (settle and silence); the controller uses it
+  /// when the app returns to the foreground, where `SessionTracker` re-syncs
+  /// from [isPlaying] immediately and the cached flag may predate whatever
+  /// the platform webview did to the page while backgrounded.
   Future<void> _probe({bool force = false}) async {
     if (_isDisposed) return;
     final win = _win;
     if (win != null && !win.value.isInitialized) return;
     if (_web == null && win == null) return;
-    if (!_pageSettled) return;
-    final lastBridge = _lastBridgeAt;
-    if (!force &&
-        lastBridge != null &&
-        DateTime.now().difference(lastBridge) < _bridgeSilenceThreshold) {
+    if (!shouldRunProbe(
+      pageSettled: _pageSettled,
+      force: force,
+      lastBridgeAt: _lastBridgeAt,
+      lastOpenAt: _lastOpenAt,
+      now: DateTime.now(),
+      silenceThreshold: _bridgeSilenceThreshold,
+    )) {
       return;
+    }
+    if (win == null) {
+      // Self-heal first: the push below is only useful once the bridge
+      // script exists in the current document, and a probe that is running
+      // at all means the bridge has been silent (or never phoned home) -
+      // exactly what a missed `didFinish` or an unloaded document looks
+      // like. The script's own guard makes the repeat a no-op.
+      await _injectBridge();
+      unawaited(_pushProbe());
     }
     try {
       final dynamic result = win != null
@@ -710,6 +825,11 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
       if (_isDisposed) return;
       final snapshot = asScriptMap(result);
       if (snapshot == null) return;
+      _logProbeOutcome(snapshot);
+      // A page without a media element still produces a snapshot (it carries
+      // the iframe count for diagnostics) but must not be folded into the
+      // state: a missing `playing` flag would read as "paused".
+      if (snapshot['found'] != true) return;
       _applyState(
         position: _secondsToDuration(snapshot['p']),
         duration: _secondsToDuration(snapshot['d']),
@@ -717,8 +837,47 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         type: 'probe',
       );
     } catch (e) {
-      projectLogger.d('Bunny webview probe failed: $e');
+      // WebKit throws `ArgumentError` whenever the script answers `null`
+      // (no media element yet) - that is the normal boot window, not a
+      // transport failure, so it is logged at debug and rate-limited.
+      final now = DateTime.now();
+      if (_lastProbeFailLog == null ||
+          now.difference(_lastProbeFailLog!) >= const Duration(seconds: 30)) {
+        _lastProbeFailLog = now;
+        projectLogger.d('Bunny webview probe failed: $e');
+      }
     }
+  }
+
+  /// Asks the page to push its own state over the bridge channel.
+  ///
+  /// Complements the evaluate-and-return probe: this needs only a void
+  /// `runJavaScript` (whose undefined return WebKit explicitly tolerates)
+  /// plus the channel the wrapper user script installs, where the direct
+  /// probe needs `runJavaScriptReturningResult` to marshal an object back.
+  /// The message arrives as a normal `e='probe'` bridge event, which
+  /// [_onBridgeMessage] already folds into [_applyState].
+  Future<void> _pushProbe() async {
+    final web = _web;
+    if (web == null || _isDisposed) return;
+    try {
+      await web.runJavaScript('$kBunnyProbeExport && $kBunnyProbeExport();');
+    } catch (e) {
+      projectLogger.d('Bunny webview push-probe failed: $e');
+    }
+  }
+
+  /// Logs the probe outcome when it changes (video presence, iframe count,
+  /// whether a duration is known) - the fields that identify which link of
+  /// the pipeline is broken, without a line per tick.
+  void _logProbeOutcome(Map<String, dynamic> snapshot) {
+    final video = snapshot['found'] == true;
+    final iframes = snapshot['ifr'];
+    final hasDuration = _secondsToDuration(snapshot['d']) > Duration.zero;
+    final summary = 'video=$video ifr=$iframes duration=$hasDuration';
+    if (summary == _lastProbeSummary) return;
+    _lastProbeSummary = summary;
+    projectLogger.i('Bunny webview probe: $summary');
   }
 
   /// Probes the media element immediately, ignoring the bridge-silence gate.
@@ -811,16 +970,19 @@ const String _kFindVideoExpr = '''
 ///
 /// Returns an object rather than JSON text: WebView2 and WKWebView hand
 /// parsed values straight back, Android's `evaluateJavascript` returns the
-/// JSON text, and [asScriptMap] folds both into the same map.
+/// JSON text, and [asScriptMap] folds both into the same map. The answer is
+/// always an object (even with no media element) so WebKit's
+/// "null result" `ArgumentError` never fires and the iframe count stays
+/// available as a diagnostic.
 const String kProbeScript = '''
 (function () {
   var v = $_kFindVideoExpr;
-  if (!v) return null;
-  return {
-    p: v.currentTime || 0,
-    d: (typeof v.duration === 'number' && isFinite(v.duration)) ? v.duration : 0,
-    playing: !!(!v.paused && !v.ended)
-  };
+  var out = { found: !!v, ifr: document.querySelectorAll('iframe').length };
+  if (!v) return out;
+  out.p = v.currentTime || 0;
+  out.d = (typeof v.duration === 'number' && isFinite(v.duration)) ? v.duration : 0;
+  out.playing = !!(!v.paused && !v.ended);
+  return out;
 })()
 ''';
 
@@ -836,44 +998,52 @@ const String kProbeScript = '''
 ///
 /// On the official plugin there is no `addScriptToExecuteOnDocumentCreated`,
 /// so the script is injected from `onPageStarted` (and again from
-/// `onPageFinished` as a backstop). The `__shobakiBridge` guard makes the
-/// double run a no-op, and the immediate scan plus the repeating scan below
-/// mean a slightly late injection still attaches to the media element.
+/// `onPageFinished` as a backstop), with the Dart probe timer re-injecting
+/// while the bridge stays silent. The `__shobakiBridge` guard makes a
+/// repeated run a no-op, the immediate scan plus the repeating scan below
+/// mean a slightly late injection still attaches to the media element, and
+/// the [kBunnyProbeExport] helper lets the Dart side read state back through
+/// a void `runJavaScript` when evaluating a script *result* is unreliable.
 const String kBridgeScript = '''
 (function () {
   if (window.__shobakiBridge) return;
   window.__shobakiBridge = true;
 
-  var hasHost = !!(window.chrome && window.chrome.webview);
-  var hasChannel = !!window.BunnyBridge;
   var isTop = window === window.top;
+
+  // Transports are probed per message rather than cached at script start:
+  // the channel wrapper user script and the host object can appear after
+  // this script first ran, and a cached "no transport" would silently drop
+  // every message for the life of the document.
+  function send(data) {
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage(data);
+      return true;
+    }
+    if (window.BunnyBridge) {
+      window.BunnyBridge.postMessage(JSON.stringify(data));
+      return true;
+    }
+    return false;
+  }
 
   function post(msg) {
     msg.source = 'shobaki';
     try {
-      if (hasHost) {
-        window.chrome.webview.postMessage(msg);
-      } else if (hasChannel) {
-        window.BunnyBridge.postMessage(JSON.stringify(msg));
-      } else if (!isTop && window.parent) {
+      if (!send(msg) && !isTop && window.parent) {
         window.parent.postMessage(msg, '*');
       }
     } catch (e) {}
   }
 
   // Top document: re-send anything a child frame reported, so one host
-  // channel carries every frame's events.
-  if (isTop && (hasHost || hasChannel)) {
+  // channel carries every frame's events. Registered unconditionally, for
+  // the same reason the transport check above is lazy.
+  if (isTop) {
     window.addEventListener('message', function (ev) {
       var data = ev.data;
       if (data && data.source === 'shobaki') {
-        try {
-          if (hasHost) {
-            window.chrome.webview.postMessage(data);
-          } else if (hasChannel) {
-            window.BunnyBridge.postMessage(JSON.stringify(data));
-          }
-        } catch (e) {}
+        try { send(data); } catch (e) {}
       }
     });
   }
@@ -949,6 +1119,18 @@ const String kBridgeScript = '''
   function scan() {
     attach(find(document, 0));
   }
+
+  // Proactive state read, fired by the Dart probe timer through a void
+  // runJavaScript so a page whose push events are silent can still answer
+  // - the reply rides back over the same channel as a normal message.
+  window.__shobakiProbe = function () {
+    if (!video) scan();
+    if (!video) return false;
+    var msg = snapshot();
+    msg.e = 'probe';
+    post(msg);
+    return true;
+  };
 
   scan();
   // The embed mounts its player after the document parses, and may rebuild it
