@@ -114,22 +114,18 @@ void main() {
   group('shouldRunProbe', () {
     final now = DateTime(2026, 10, 25, 12);
     const silence = Duration(seconds: 8);
-    const fallback = kBunnyProbeSettleFallback;
 
     bool call({
       bool pageSettled = false,
       bool force = false,
       DateTime? lastBridgeAt,
-      DateTime? lastOpenAt,
     }) =>
         shouldRunProbe(
           pageSettled: pageSettled,
           force: force,
           lastBridgeAt: lastBridgeAt,
-          lastOpenAt: lastOpenAt,
           now: now,
           silenceThreshold: silence,
-          settleFallback: fallback,
         );
 
     test('force always probes (foreground re-sync)', () {
@@ -140,24 +136,9 @@ void main() {
       );
     });
 
-    test('blocks until the page is settled by callback or by time', () {
-      // The macOS failure mode: no didFinish ever arrives, so pageSettled
-      // stays false - the time fallback must open the gate anyway.
+    test('blocks until the page is settled by callback', () {
       expect(call(), isFalse);
-      expect(
-        call(
-          lastOpenAt: now.subtract(const Duration(seconds: 2)),
-        ),
-        isFalse,
-      );
-      expect(
-        call(
-          lastOpenAt: now.subtract(fallback + const Duration(seconds: 1)),
-        ),
-        isTrue,
-      );
       expect(call(pageSettled: true), isTrue);
-      expect(call(lastOpenAt: null), isFalse);
     });
 
     test('stays quiet while the bridge is talking', () {

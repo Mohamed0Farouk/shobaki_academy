@@ -15,6 +15,12 @@ class PlayerMessages {
   static const String connectionLost =
       'انقطع الاتصال بالإنترنت، يرجى التحقق من الاتصال وإعادة المحاولة.';
 
+  /// Shown once the load attempt budget is burnt: the embed never came up,
+  /// so the shared failure surface (this message + the retry button) takes
+  /// over instead of a player that will never talk back.
+  static const String loadFailed =
+      'تعذّر تحميل الفيديو بعد عدة محاولات. تحقق من الاتصال ثم أعد المحاولة.';
+
   /// Label for the quality menu entry that hands control back to the app.
   static const String autoQualityLabel = 'تلقائي';
 

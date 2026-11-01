@@ -217,6 +217,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.1"
+  dartx:
+    dependency: transitive
+    description:
+      name: dartx
+      sha256: "8b25435617027257d43e6508b5fe061012880ddfdaa75a71d607c3de2a13d244"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   dbus:
     dependency: transitive
     description:
@@ -920,6 +928,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.1"
+  quiver:
+    dependency: transitive
+    description:
+      name: quiver
+      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.2"
   realtime_client:
     dependency: transitive
     description:
@@ -1237,6 +1253,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
+  time:
+    dependency: transitive
+    description:
+      name: time
+      sha256: "46187cf30bffdab28c56be9a63861b36e4ab7347bf403297595d6a97e10c789f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.6"
   typed_data:
     dependency: transitive
     description:
@@ -1493,6 +1517,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.26.2"
+  webview_windows:
+    dependency: transitive
+    description:
+      name: webview_windows
+      sha256: "47fcad5875a45db29dbb5c9e6709bf5c88dcc429049872701343f91ed7255730"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0"
   win32:
     dependency: transitive
     description:
@@ -1549,6 +1581,78 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  zikzak_inappwebview:
+    dependency: "direct main"
+    description:
+      name: zikzak_inappwebview
+      sha256: c338268fcc2fd58625b81c3ee715d65407406dbe9306b5789c1455bf77648784
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.1"
+  zikzak_inappwebview_android:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_android
+      sha256: "4198b44f3d8f16092c19d4a67075c61988bf455abb79469d979a74225619511a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_ios:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_ios
+      sha256: "92761161295d90fa9a423030d8ce7d64654c8c29d452e4f58115f25d77976c09"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_linux:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_linux
+      sha256: "17e8e6258a2d7bb18279dad51c51e9b2f01c3461261c5dbbb7a9659f5958feb7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_macos:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_macos
+      sha256: "267f6d0abfc6deb8058dea49501cd1186c958189163c9b49040ebf70cc89bfda"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_platform_interface:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_platform_interface
+      sha256: "9fb575a5d223f5dc96d10c25943715302a8a201c9c64a8b3368b62ca3b07065e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_web:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_web
+      sha256: "15aaad5451a7ad8ea4c4ba361fc1595e61245f03218db3d572308fb3d69853f6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zikzak_inappwebview_windows:
+    dependency: transitive
+    description:
+      name: zikzak_inappwebview_windows
+      sha256: b68605c6f8f8fdaf48631c73d261e9cbdb9ef18a8bb792c64babfa146c0bb6b0
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.3.4"
+  zorphy_annotation:
+    dependency: transitive
+    description:
+      name: zorphy_annotation
+      sha256: efaacbd84d2a41efb7b06e2081c0f8149169d10b23aeaf930ff7fff4396801dd
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.4"
 sdks:
   dart: ">=3.12.0 <4.0.0"
   flutter: ">=3.44.0"

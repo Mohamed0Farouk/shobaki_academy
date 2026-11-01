@@ -4,18 +4,27 @@ import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart'
+    hide WebResourceError, WebResourceRequest, WebResourceErrorType;
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
+import 'package:zikzak_inappwebview/zikzak_inappwebview.dart'
+    show InAppWebViewController, NavigationAction, NavigationActionPolicy,
+        URLRequest, WebResourceError, WebResourceErrorType,
+        WebResourceRequest, WebUri;
 
 import 'package:shobaki_academy/controller/bunny_embed.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/services/value_deduplicator.dart';
 
-/// Name of the JavaScript channel the official plugin exposes to the page on
-/// Android/iOS/macOS. Windows has no channel: WebView2's `chrome.webview`
+/// Name of the JavaScript channel the page uses to reach the app.
+///
+/// Android/iOS: the official plugin's `addJavaScriptChannel` wrapper.
+/// macOS: the same string is the zikzak `addJavaScriptHandler` name, which
+/// the page calls through `window.zikzak_inappwebview.callHandler`.
+/// Windows has no channel: WebView2's `chrome.webview`
 /// object already carries messages, and [kBridgeScript] picks whichever host
 /// transport the document actually has.
 const String kBunnyBridgeChannel = 'BunnyBridge';
@@ -62,40 +71,24 @@ bool isFatalBunnyResourceError({
   return errorCode != -999;
 }
 
-/// How long after [BunnyWebviewPlayerAdapter.open] the probe may run even
-/// though no navigation callback has confirmed the page settled.
-///
-/// On the official plugin the settle flag is set exclusively by
-/// `onPageFinished`; if WebKit never delivers it (the failure mode that
-/// left the macOS spinner stuck), waiting for it blocks the probe *and*
-/// starves the bridge self-heal together. Three seconds is past a normal
-/// document commit but far below the load watchdog, so a genuinely slow
-/// page still gets probed rather than declared dead.
-const Duration kBunnyProbeSettleFallback = Duration(seconds: 3);
-
 /// Decides whether one probe tick may read the page.
 ///
 /// `force` (the app returning to the foreground) always probes: the
 /// controller re-syncs `SessionTracker` from `isPlaying` immediately, and
 /// the cached flag may predate whatever the webview did while backgrounded.
-/// Otherwise the page must look settled - either the navigation callback
-/// confirmed it, or [settleFallback] has elapsed since [lastOpenAt] - and
-/// the bridge must have been silent for [silenceThreshold], so a healthy
-/// push channel is never raced by a redundant read.
+/// Otherwise the page must look settled - the navigation callback
+/// confirmed it - and the bridge must have been silent for
+/// [silenceThreshold], so a healthy push channel is never raced by a
+/// redundant read.
 bool shouldRunProbe({
   required bool pageSettled,
   required bool force,
   required DateTime? lastBridgeAt,
-  required DateTime? lastOpenAt,
   required DateTime now,
   Duration silenceThreshold = const Duration(seconds: 8),
-  Duration settleFallback = kBunnyProbeSettleFallback,
 }) {
   if (force) return true;
-  final opened = lastOpenAt;
-  final settled =
-      pageSettled || (opened != null && now.difference(opened) >= settleFallback);
-  if (!settled) return false;
+  if (!pageSettled) return false;
   final bridge = lastBridgeAt;
   if (bridge != null && now.difference(bridge) < silenceThreshold) return false;
   return true;
@@ -193,25 +186,32 @@ Future<void> _configureWebViewEnvironment() async {
 /// deliberately different from the native adapters, where the platform hands
 /// us position/duration for free.
 ///
-/// Two hosts carry that traffic:
+/// Three hosts carry that traffic:
 ///
 /// - **Windows** uses the WebView2 fork (`webview_flutter_windows`), which
 ///   composites its content as a Flutter `Texture` - the watermark overlay
 ///   painted in `main.dart` keeps covering the video - and injects the bridge
 ///   with `addScriptToExecuteOnDocumentCreated`, before the page runs a line.
-/// - **Android/iOS/macOS** use the official `webview_flutter` plugin (system
+/// - **macOS** uses `zikzak_inappwebview` (WKWebView). The bridge goes in
+///   through `initialUserScripts` - the same per-document injection Windows
+///   has - and messages travel over a `BunnyBridge` JavaScript handler. The
+///   official `webview_flutter` macOS host is gone: its controller threw on
+///   background-color wiring and never implemented dispose, which leaked
+///   audio past the page.
+/// - **Android/iOS** use the official `webview_flutter` plugin (system
 ///   WebView / WKWebView). It has no per-document injection, so the bridge is
-///   injected from `onPageStarted`/`onPageFinished` (the script self-heals: it
-///   scans for the media element immediately and every second), and messages
-///   travel over a `BunnyBridge` JavaScript channel instead of
+///   injected from `onPageStarted`/`onPageFinished` (the script self-heals:
+///   it scans for the media element immediately and every second), and
+///   messages travel over a `BunnyBridge` JavaScript channel instead of
 ///   `chrome.webview`.
 ///
-/// On iOS/macOS the controller is built with inline playback enabled and no
-/// user-gesture requirement: without the first, WKWebView ejects the video
+/// On iOS the official controller is built with inline playback enabled and
+/// no user-gesture requirement: without the first, WKWebView ejects the video
 /// into a native fullscreen player that escapes the watermark; without the
 /// second, a programmatic `play()` (resume intent, `ended` recovery) is
 /// refused because it is not a user gesture. Android gets the matching
-/// `setMediaPlaybackRequiresUserGesture(false)`.
+/// `setMediaPlaybackRequiresUserGesture(false)`. macOS carries both flags
+/// through the zikzak `InAppWebViewSettings`.
 ///
 /// The page is loaded from the raw CDN playlist URL the DB stores: [open]
 /// maps it to the embed player itself, so callers never have to know about
@@ -219,12 +219,21 @@ Future<void> _configureWebViewEnvironment() async {
 class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   BunnyWebviewPlayerAdapter({required int bunnyLibraryId})
       : _libraryId = bunnyLibraryId,
+        _isZikzakHost = Platform.isMacOS,
         _win = Platform.isWindows ? WebviewController() : null,
-        _web = Platform.isWindows ? null : _newWebViewController() {
+        _web = (Platform.isAndroid || Platform.isIOS)
+            ? _newWebViewController()
+            : null {
     projectLogger.i(
       'Bunny adapter created (libraryId=$_libraryId, '
-      'platform=${Platform.operatingSystem})',
+      'platform=${Platform.operatingSystem}, host=${_hostName()})',
     );
+  }
+
+  String _hostName() {
+    if (_win != null) return 'WebView2';
+    if (_isZikzakHost) return 'zikzak-inappwebview';
+    return 'webview_flutter';
   }
 
   /// Bunny Stream library the video belongs to, from the owning topic's
@@ -236,34 +245,47 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// texture under the watermark overlay.
   final WebviewController? _win;
 
-  /// The official webview_flutter surface. Non-null on Android/iOS/macOS
-  /// only; the view mounts it as a platform view.
+  /// The official webview_flutter surface. Non-null on Android/iOS only;
+  /// the view mounts it as a platform view.
   final WebViewController? _web;
 
-  /// Builds the platform webview controller for Android/iOS/macOS.
-  ///
-  /// iOS/macOS get inline playback with no gesture requirement (see the class
-  /// docs); Android's gesture flag is applied in [_ensureWired], where the
-  /// platform implementation object is easiest to reach.
+  /// Whether this adapter hosts the embed through `zikzak_inappwebview`
+  /// (macOS only). The view checks it to mount the matching widget.
+  final bool _isZikzakHost;
+
+  /// The zikzak macOS controller. Null until the view's `InAppWebView` is
+  /// created; [attachMac] wires it, and a load handed to [open] before that
+  /// waits in [_macPendingUrl].
+  InAppWebViewController? _mac;
+
+  /// Embed URL handed to [open] before the macOS view mounted.
+  String? _macPendingUrl;
+
+  /// Builds the official platform webview controller (iOS only; macOS runs
+  /// zikzak, Android gets its gesture flag in [_ensureWired]).
   static WebViewController _newWebViewController() {
-    if (Platform.isIOS || Platform.isMacOS) {
-      return WebViewController.fromPlatformCreationParams(
-        WebKitWebViewControllerCreationParams(
-          allowsInlineMediaPlayback: true,
-          mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
-        ),
-      );
-    }
-    return WebViewController();
+    return WebViewController.fromPlatformCreationParams(
+      WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      ),
+    );
   }
 
   /// The WebView2 controller, when this adapter runs on Windows. The view
   /// mounts it; nothing else needs it.
   WebviewController? get windowsController => _win;
 
-  /// The official-plugin controller, when this adapter runs on
-  /// Android/iOS/macOS. The view mounts it; nothing else needs it.
+  /// The official-plugin controller, when this adapter runs on Android/iOS.
+  /// The view mounts it; nothing else needs it.
   WebViewController? get webController => _web;
+
+  /// True while this adapter hosts the embed through `zikzak_inappwebview`
+  /// (macOS). The view uses it to pick the widget branch.
+  bool get isZikzakHost => _isZikzakHost;
+
+  /// The zikzak controller once the macOS view has mounted; null before.
+  InAppWebViewController? get inAppController => _mac;
 
   final StreamController<bool> _playingCtrl =
       StreamController<bool>.broadcast();
@@ -303,15 +325,11 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// it extend the wait instead of declaring a premature load failure.
   bool _isBuffering = true;
 
-  /// Set when the embed page finished its first navigation. The fallback
-  /// probe prefers this but no longer depends on it: [shouldRunProbe] also
-  /// opens the gate by time after [open], so a WebKit build that never
-  /// delivers `didFinish` still gets probed (and self-healed).
+  /// Whether the current navigation has settled (its load-finished callback
+  /// arrived on the host that reports it). [shouldRunProbe] gates on it so a
+  /// probe never reads a half-loaded page; a callback that never arrives
+  /// shows up as a stuck gate in the navigation logs.
   bool _pageSettled = false;
-
-  /// When the current navigation was started by [open]; anchors the probe
-  /// gate's settle fallback when no navigation callback ever arrives.
-  DateTime? _lastOpenAt;
 
   /// Whether any bridge message has been received since [open]; makes the
   /// "first message proves the transport" diagnostic log happen once per
@@ -444,7 +462,6 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _errorText = null;
     _isBuffering = true;
     _pageSettled = false;
-    _lastOpenAt = DateTime.now();
     _bridgeSeen = false;
     _mediaOnlineSeen = false;
     _lastProbeSummary = null;
@@ -455,6 +472,15 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     final win = _win;
     if (win != null) {
       await win.loadUrl(embedUrl);
+    } else if (_isZikzakHost) {
+      final mac = _mac;
+      if (mac != null) {
+        await mac.loadUrl(urlRequest: URLRequest(url: WebUri(embedUrl)));
+      } else {
+        // The view has not mounted yet; attachMac flushes this the moment
+        // the controller exists.
+        _macPendingUrl = embedUrl;
+      }
     } else {
       await _web!.loadRequest(Uri.parse(embedUrl));
     }
@@ -508,10 +534,26 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     await _messageSub?.cancel();
     await _loadingSub?.cancel();
     await _loadErrorSub?.cancel();
-    // The official plugin has no controller-level dispose: its platform view
-    // is torn down together with the widget, which unmounts right after this
-    // adapter goes away (the view is keyed on `playerGeneration`).
     await _win?.dispose();
+    final mac = _mac;
+    if (mac != null) {
+      // Real native teardown - unlike the official plugin's no-op surface,
+      // disposing the zikzak controller destroys the WKWebView, so the
+      // embed's audio dies with it instead of surviving in the background.
+      try {
+        await mac.evaluateJavascript(source: _commandScript('pause()'));
+      } catch (_) {}
+      try {
+        await mac.evaluateJavascript(source: 'location.href = "about:blank";');
+      } catch (_) {}
+      try {
+        mac.dispose();
+      } catch (e) {
+        projectLogger.w('Bunny webview dispose failed: $e');
+      }
+      _mac = null;
+      _macPendingUrl = null;
+    }
     await _playingCtrl.close();
     await _durationCtrl.close();
     await _completedCtrl.close();
@@ -539,6 +581,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
       await _ensureWiredWindows();
       return;
     }
+    // macOS: the zikzak host wires in attachMac when the view mounts, which
+    // always precedes the first load flush; there is nothing to do here.
+    if (_isZikzakHost) return;
     if (_wired) return;
     _wired = true;
     await _ensureWiredOfficial();
@@ -574,9 +619,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _isInitialized = true;
   }
 
-  /// Android/iOS/macOS wiring: JS channel, navigation policy, and the
-  /// autoplay flags that keep programmatic `play()` and inline rendering
-  /// working on the platform webviews.
+  /// Android/iOS wiring: JS channel, navigation policy, and the autoplay
+  /// flags that keep programmatic `play()` and inline rendering working on
+  /// the platform webviews.
   Future<void> _ensureWiredOfficial() async {
     final web = _web!;
     await web.setJavaScriptMode(JavaScriptMode.unrestricted);
@@ -646,16 +691,113 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     projectLogger.d('Bunny webview wired (official plugin host)');
   }
 
-  /// Installs [kBridgeScript] in the current document (official plugin only).
+  /// Wires the zikzak macOS webview when the view mounts it.
   ///
-  /// Also called from the probe timer while the bridge stays silent, so a
-  /// missed `didFinish` (or a document replaced without a callback) heals
-  /// itself within one probe interval instead of stranding the player.
+  /// The package hands the controller out through the widget's
+  /// `onWebViewCreated` (there is no pre-mount controller API), so this runs
+  /// exactly where [_ensureWiredWindows] runs for Windows: before any load,
+  /// registering the JS handler first, then flushing a URL that [open] handed
+  /// over before the mount.
+  void attachMac(InAppWebViewController controller) {
+    if (_isDisposed) return;
+    _mac = controller;
+    controller.addJavaScriptHandler(
+      handlerName: kBunnyBridgeChannel,
+      callback: (args) => _onBridgeMessage(args.isNotEmpty ? args[0] : null),
+    );
+    _wired = true;
+    _isInitialized = true;
+    projectLogger.i('Bunny webview wired (zikzak inappwebview macOS host)');
+    final pending = _macPendingUrl;
+    if (pending != null) {
+      _macPendingUrl = null;
+      unawaited(() async {
+        try {
+          await controller.loadUrl(
+            urlRequest: URLRequest(url: WebUri(pending)),
+          );
+        } catch (e) {
+          projectLogger.e('Bunny webview pending load failed: $e');
+          _emitError('تعذر تحميل صفحة المشغّل');
+        }
+      }());
+    }
+  }
+
+  /// Load-start callback forwarded from the zikzak widget: logs the
+  /// navigation and re-arms the probe gate. Injection is not needed here -
+  /// `initialUserScripts` installs [kBridgeScript] per document, the same
+  /// way Windows does.
+  void onMacLoadStart(String url) {
+    if (_isDisposed) return;
+    projectLogger.i('Bunny webview navigation started: $url');
+    _pageSettled = false;
+  }
+
+  /// Load-finished callback forwarded from the zikzak widget: logs the
+  /// navigation and opens the probe gate.
+  void onMacLoadStop(String url) {
+    if (_isDisposed) return;
+    projectLogger.i('Bunny webview navigation finished: $url');
+    _pageSettled = true;
+  }
+
+  /// Load-error callback forwarded from the zikzak widget. The 5.x entity
+  /// model carries a typed error instead of an NSError code, so the
+  /// cancelled-navigation case is mapped onto the -999 sentinel the shared
+  /// [isFatalBunnyResourceError] filter knows; frame attribution comes from
+  /// the request, which WebKit may leave null.
+  void onMacReceivedError(WebResourceRequest request, WebResourceError error) {
+    if (_isDisposed) return;
+    final fatal = isFatalBunnyResourceError(
+      isForMainFrame: request.isForMainFrame,
+      errorCode: error.type == WebResourceErrorType.CANCELLED ? -999 : 1,
+    );
+    projectLogger.w(
+      'Bunny webview load error: ${error.type} ${error.description} '
+      '(fatal=$fatal)',
+    );
+    if (!fatal) return;
+    _emitError('تعذر تحميل صفحة المشغّل');
+  }
+
+  /// Navigation policy forwarded from the zikzak widget: subframes (the
+  /// embed's own assets) always load; the top frame may only move between
+  /// Bunny surfaces, mirroring the Windows deny-popup policy and the
+  /// official plugin's `onNavigationRequest`.
+  Future<NavigationActionPolicy> onMacShouldOverrideUrlLoading(
+    NavigationAction action,
+  ) async {
+    if (action.isForMainFrame != true) return NavigationActionPolicy.ALLOW;
+    final url = action.request.url?.toString() ?? '';
+    if (isAllowedBunnyNavigation(url)) return NavigationActionPolicy.ALLOW;
+    // A blocked takeover is one of the most actionable diagnostic events
+    // this adapter can report: whatever the page asked for, the student is
+    // still on Bunny's surface because of this line.
+    projectLogger.w('Bunny navigation prevented: $url');
+    return NavigationActionPolicy.CANCEL;
+  }
+
+  /// Installs [kBridgeScript] in the current document.
+  ///
+  /// Windows and macOS get the script per document before any page code runs
+  /// (`addScriptToExecuteOnDocumentCreated` / `initialUserScripts`); this is
+  /// the official-plugin path for Android/iOS, and also runs from the probe
+  /// timer while the bridge stays silent, so a missed `didFinish` (or a
+  /// document replaced without a callback) heals itself within one probe
+  /// interval instead of stranding the player. The script's own
+  /// `__shobakiBridge` guard makes a repeat a no-op.
   Future<void> _injectBridge() async {
-    final web = _web;
-    if (web == null || _isDisposed) return;
+    if (_isDisposed) return;
     try {
-      await web.runJavaScript(kBridgeScript);
+      final mac = _mac;
+      if (mac != null) {
+        await mac.evaluateJavascript(source: kBridgeScript);
+      } else {
+        final web = _web;
+        if (web == null) return;
+        await web.runJavaScript(kBridgeScript);
+      }
       if (_lastInjectionError != null) {
         _lastInjectionError = null;
         projectLogger.i('Bunny bridge injection recovered');
@@ -865,12 +1007,11 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     if (_isDisposed) return;
     final win = _win;
     if (win != null && !win.value.isInitialized) return;
-    if (_web == null && win == null) return;
+    if (_web == null && win == null && _mac == null) return;
     if (!shouldRunProbe(
       pageSettled: _pageSettled,
       force: force,
       lastBridgeAt: _lastBridgeAt,
-      lastOpenAt: _lastOpenAt,
       now: DateTime.now(),
       silenceThreshold: _bridgeSilenceThreshold,
     )) {
@@ -880,15 +1021,21 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
       // Self-heal first: the push below is only useful once the bridge
       // script exists in the current document, and a probe that is running
       // at all means the bridge has been silent (or never phoned home) -
-      // exactly what a missed `didFinish` or an unloaded document looks
-      // like. The script's own guard makes the repeat a no-op.
+      // exactly what a missed navigation callback or an unloaded document
+      // looks like. The script's own guard makes the repeat a no-op.
       await _injectBridge();
       unawaited(_pushProbe());
     }
     try {
-      final dynamic result = win != null
-          ? await win.executeScript(kProbeScript)
-          : await _web!.runJavaScriptReturningResult(kProbeScript);
+      final dynamic result;
+      final mac = _mac;
+      if (win != null) {
+        result = await win.executeScript(kProbeScript);
+      } else if (mac != null) {
+        result = await mac.evaluateJavascript(source: kProbeScript);
+      } else {
+        result = await _web!.runJavaScriptReturningResult(kProbeScript);
+      }
       if (_isDisposed) return;
       final snapshot = asScriptMap(result);
       if (snapshot == null) return;
@@ -925,10 +1072,18 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// The message arrives as a normal `e='probe'` bridge event, which
   /// [_onBridgeMessage] already folds into [_applyState].
   Future<void> _pushProbe() async {
-    final web = _web;
-    if (web == null || _isDisposed) return;
+    if (_isDisposed) return;
     try {
-      await web.runJavaScript('$kBunnyProbeExport && $kBunnyProbeExport();');
+      final mac = _mac;
+      if (mac != null) {
+        await mac.evaluateJavascript(
+          source: '$kBunnyProbeExport && $kBunnyProbeExport();',
+        );
+      } else {
+        final web = _web;
+        if (web == null) return;
+        await web.runJavaScript('$kBunnyProbeExport && $kBunnyProbeExport();');
+      }
     } catch (e) {
       projectLogger.d('Bunny webview push-probe failed: $e');
     }
@@ -972,7 +1127,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         if (!win.value.isInitialized) return false;
         result = await win.executeScript(_commandScript(body));
       } else {
-        result = await _web!.runJavaScriptReturningResult(_commandScript(body));
+        final mac = _mac;
+        if (mac != null) {
+          result = await mac.evaluateJavascript(source: _commandScript(body));
+        } else {
+          result =
+              await _web!.runJavaScriptReturningResult(_commandScript(body));
+        }
       }
       return asScriptBool(result) ?? false;
     } catch (e) {
@@ -1056,21 +1217,24 @@ const String kProbeScript = '''
 /// Bridge script injected into every document the webview creates.
 ///
 /// It reports media state upward over whichever host transport the document
-/// has: `chrome.webview.postMessage` on Windows, the [kBunnyBridgeChannel]
-/// JavaScript channel on Android/iOS/macOS (a JSON string, because the
-/// channel only carries strings), or `parent.postMessage` from a child frame,
-/// which the top document forwards over its own host channel. The frame
-/// relay is kept because it costs a few lines and removes an entire class of
-/// "the video moved into an iframe" breakage.
+/// has: `chrome.webview.postMessage` on Windows,
+/// `window.zikzak_inappwebview.callHandler` on macOS, the
+/// [kBunnyBridgeChannel] JavaScript channel on Android/iOS (a JSON string,
+/// because the channel only carries strings), or `parent.postMessage` from a
+/// child frame, which the top document forwards over its own host channel.
+/// The frame relay is kept because it costs a few lines and removes an
+/// entire class of "the video moved into an iframe" breakage.
 ///
-/// On the official plugin there is no `addScriptToExecuteOnDocumentCreated`,
-/// so the script is injected from `onPageStarted` (and again from
-/// `onPageFinished` as a backstop), with the Dart probe timer re-injecting
-/// while the bridge stays silent. The `__shobakiBridge` guard makes a
-/// repeated run a no-op, the immediate scan plus the repeating scan below
-/// mean a slightly late injection still attaches to the media element, and
-/// the [kBunnyProbeExport] helper lets the Dart side read state back through
-/// a void `runJavaScript` when evaluating a script *result* is unreliable.
+/// Windows and macOS install the script per document before any page code
+/// runs (`addScriptToExecuteOnDocumentCreated` / `initialUserScripts`). The
+/// official plugin has no such API, so on Android/iOS the script is injected
+/// from `onPageStarted` (and again from `onPageFinished` as a backstop),
+/// with the Dart probe timer re-injecting while the bridge stays silent. The
+/// `__shobakiBridge` guard makes a repeated run a no-op, the immediate scan
+/// plus the repeating scan below mean a slightly late injection still
+/// attaches to the media element, and the [kBunnyProbeExport] helper lets
+/// the Dart side read state back through a void script execution when
+/// evaluating a script *result* is unreliable.
 const String kBridgeScript = '''
 (function () {
   if (window.__shobakiBridge) return;
@@ -1086,6 +1250,12 @@ const String kBridgeScript = '''
     if (window.chrome && window.chrome.webview) {
       window.chrome.webview.postMessage(data);
       return true;
+    }
+    if (window.zikzak_inappwebview && window.zikzak_inappwebview.callHandler) {
+      try {
+        window.zikzak_inappwebview.callHandler('BunnyBridge', JSON.stringify(data));
+        return true;
+      } catch (e) {}
     }
     if (window.BunnyBridge) {
       window.BunnyBridge.postMessage(JSON.stringify(data));
