@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/media_error_reporter.dart';
 
 class PdfController extends GetxController {
   final RxBool isDownloading = false.obs;
@@ -18,10 +19,17 @@ class PdfController extends GetxController {
           ? filename.substring(0, filename.length - 4)
           : filename;
 
-      final response = await http.Client().get(Uri.parse(url));
-
-      if (response.statusCode != 200) {
-        throw Exception('فشل تحميل الملف (${response.statusCode})');
+      // Fetch the bytes in its own try so only network/TLS/HTTP failures are
+      // reported to Sentry (a user cancelling the save dialog is not).
+      late final http.Response response;
+      try {
+        response = await http.Client().get(Uri.parse(url));
+        if (response.statusCode != 200) {
+          throw Exception('فشل تحميل الملف (${response.statusCode})');
+        }
+      } catch (e) {
+        reportMediaLoadError(e, null, url: url, mediaType: 'pdf_download');
+        rethrow;
       }
 
       if (saveAs) {

@@ -11,7 +11,7 @@ import 'package:shobaki_academy/services/device_guard.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/utils/responsive_utils.dart';
-import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
+import 'package:shobaki_academy/view/sub/video_player_view.dart';
 
 class TopicPage extends StatefulWidget {
   const TopicPage({super.key, required this.topicId});

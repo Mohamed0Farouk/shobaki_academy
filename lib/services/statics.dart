@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'package:logger/logger.dart';
+import 'package:shobaki_academy/services/diagnostic_log.dart';
 
 final projectLogger = Logger(
-  printer: PrettyPrinter(
+  // DevelopmentFilter is assert-based: it silences *every* level in a
+  // release build, which would leave the diagnostics console empty on the
+  // shipped diagnostics edition (a release build). The flag comes from
+  // `.env` (DIAG_EDITION=1) and is set in main() before anything logs;
+  // top-level finals initialize lazily on first access, so the choice is
+  // always made after that. Regular builds keep the stock behavior.
+  filter: diagnosticsEnabled ? ProductionFilter() : DevelopmentFilter(),
+  printer: CapturingPrettyPrinter(
     methodCount: 2, // Number of method calls to be displayed
     errorMethodCount: 8, // Number of method calls if stacktrace is provided
     lineLength: 120, // Width of the output

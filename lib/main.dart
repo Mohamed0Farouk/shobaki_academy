@@ -1,12 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:fvp/fvp.dart' as fvp;
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import 'package:get/get.dart';
-//import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shobaki_academy/controller/auth_controller.dart';
 import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/security_controller.dart';
@@ -14,6 +15,8 @@ import 'package:shobaki_academy/controller/version_controller.dart';
 import 'package:shobaki_academy/controller/watermark_controller.dart';
 import 'package:shobaki_academy/controller/windows_player_options.dart';
 import 'package:shobaki_academy/services/device_guard.dart';
+import 'package:shobaki_academy/services/diagnostic_log.dart';
+import 'package:shobaki_academy/services/diagnostics_console.dart';
 import 'package:shobaki_academy/services/locale_db.dart';
 import 'package:shobaki_academy/services/router.dart';
 import 'package:shobaki_academy/theme.dart';
@@ -23,8 +26,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:no_screenshot/no_screenshot.dart';
 import 'package:window_manager/window_manager.dart';
 
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set global HttpOverrides to allow self-signed / MITM-inspected
+  // certificates (enterprise proxies, antivirus). Must be set before any
+  // HttpClient is created (Supabase, Image.network, SfPdfViewer, ...).
+  // DANGER!! Disables certificate validation app-wide.
+  HttpOverrides.global = MyHttpOverrides();
+
   if (Platform.isAndroid || Platform.isIOS || Platform.isLinux) {
     MediaKit.ensureInitialized();
   }
@@ -37,6 +55,10 @@ void main() async {
   }
 
   await dotenv.load(fileName: '.env');
+  // Single diagnostics switch: must be decided before anything can touch
+  // projectLogger, whose filter (and the whole console/banner surface)
+  // reads this flag at first use.
+  diagnosticsEnabled = parseDiagEditionEnv(dotenv.env['DIAG_EDITION']);
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
@@ -64,6 +86,7 @@ void main() async {
   //   // Adds request headers and IP for users,
   //   // visit: https://docs.sentry.io/platforms/dart/data-management/data-collected/ for more info
   //   options.sendDefaultPii = true;
+  //   options.environment = kReleaseMode ? 'production' : 'debug';
   // }, appRunner: () => runApp(SentryWidget(child: MyApp())));
   runApp(const MyApp());
 }
@@ -94,24 +117,36 @@ class MyApp extends StatelessWidget {
       title: 'Al Shobaki Academy',
 
       builder: (context, child) {
-        return Stack(
+        return Column(
           children: [
-            // Main app
-            child!,
+            // Diagnostics edition only: a fixed top strip marking this build
+            // and opening the log console. Collapses to nothing in regular
+            // builds, so the layout below is untouched in production.
+            const DiagnosticsConsoleBanner(),
+            Expanded(
+              child: Stack(
+                children: [
+                  // Main app
+                  child!,
 
-            // Your watermark
-            const PermanentWatermark(),
+                  // Your watermark
+                  const PermanentWatermark(),
 
-            // Security overlay
-            Obx(() {
-              if (securityController.isScreenshotDetected.value) {
-                return const ScreenshotAlertBanner();
-              }
-              if (!securityController.isRecordingDetected.value) {
-                return const SizedBox.shrink();
-              }
-              return RecordingDetectedOverlay(controller: securityController);
-            }),
+                  // Security overlay
+                  Obx(() {
+                    if (securityController.isScreenshotDetected.value) {
+                      return const ScreenshotAlertBanner();
+                    }
+                    if (!securityController.isRecordingDetected.value) {
+                      return const SizedBox.shrink();
+                    }
+                    return RecordingDetectedOverlay(
+                      controller: securityController,
+                    );
+                  }),
+                ],
+              ),
+            ),
           ],
         );
       },

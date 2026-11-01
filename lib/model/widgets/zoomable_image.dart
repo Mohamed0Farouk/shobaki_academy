@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/utils/image_utils.dart';
+import 'package:shobaki_academy/utils/media_error_reporter.dart';
 
 class ZoomableImage extends StatelessWidget {
   final String imageUrl;
@@ -53,6 +54,12 @@ class ZoomableImage extends StatelessWidget {
                 loadingBuilder: (context, event) =>
                     Center(child: loading(context)),
                 errorBuilder: (context, error, stackTrace) {
+                  reportMediaLoadError(
+                    error,
+                    stackTrace,
+                    url: imageUrl,
+                    mediaType: 'zoomable_image',
+                  );
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

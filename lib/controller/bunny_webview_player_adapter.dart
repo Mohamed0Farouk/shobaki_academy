@@ -47,6 +47,21 @@ bool isAllowedBunnyNavigation(String url) {
       host.endsWith('.bunnycdn.com');
 }
 
+/// Whether a web resource failure actually killed the embed load.
+///
+/// Only a confirmed main-frame failure means the page itself is gone. WebKit
+/// frequently leaves [isForMainFrame] null (it cannot always attribute the
+/// error to a frame), and it reports -999 whenever a navigation is cancelled
+/// by another navigation starting - both arrive while the page is perfectly
+/// alive, so neither may burn a load attempt or dead-end into the error UI.
+bool isFatalBunnyResourceError({
+  required bool? isForMainFrame,
+  required int errorCode,
+}) {
+  if (isForMainFrame != true) return false;
+  return errorCode != -999;
+}
+
 /// How long after [BunnyWebviewPlayerAdapter.open] the probe may run even
 /// though no navigation callback has confirmed the page settled.
 ///
@@ -205,7 +220,12 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   BunnyWebviewPlayerAdapter({required int bunnyLibraryId})
       : _libraryId = bunnyLibraryId,
         _win = Platform.isWindows ? WebviewController() : null,
-        _web = Platform.isWindows ? null : _newWebViewController();
+        _web = Platform.isWindows ? null : _newWebViewController() {
+    projectLogger.i(
+      'Bunny adapter created (libraryId=$_libraryId, '
+      'platform=${Platform.operatingSystem})',
+    );
+  }
 
   /// Bunny Stream library the video belongs to, from the owning topic's
   /// `library_id`. Required: the embed URL cannot be built without it, and
@@ -306,6 +326,14 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// distinct problem instead of once per self-heal attempt.
   String? _lastInjectionError;
 
+  /// True after the first `Media ONLINE` milestone of the current
+  /// navigation, so the log stays one line per load instead of per message.
+  bool _mediaOnlineSeen = false;
+
+  /// When the last heartbeat receipt was logged; keeps the 5s heartbeat from
+  /// drowning the log (30s sampling is enough to time-stamp liveness).
+  DateTime? _lastHeartbeatLogAt;
+
   /// When the last probe failure was logged (throttle for the noisy
   /// "no media element yet" window while the embed boots).
   DateTime? _lastProbeFailLog;
@@ -401,6 +429,9 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     if (embedUrl == null) {
       throw StateError('Not an embeddable Bunny Stream URL: $url');
     }
+    projectLogger.i(
+      'Bunny embed open: $embedUrl (start=${start?.inSeconds ?? 0}s)',
+    );
 
     _pendingSeek = (start != null && start > Duration.zero) ? start : null;
     _playWhenReady = false;
@@ -415,6 +446,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _pageSettled = false;
     _lastOpenAt = DateTime.now();
     _bridgeSeen = false;
+    _mediaOnlineSeen = false;
     _lastProbeSummary = null;
     _lastBridgeAt = null;
     _lastRecoveryAttemptPosition = null;
@@ -537,6 +569,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _loadErrorSub = win.onLoadError.listen((status) {
       _emitError('تعذر تحميل صفحة المشغّل (${status.name})');
     });
+    projectLogger.d('Bunny webview wired (WebView2 host)');
 
     _isInitialized = true;
   }
@@ -576,21 +609,33 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         onWebResourceError: (error) {
           if (_isDisposed) return;
           // Android reports subresource failures through this callback too;
-          // only a main-frame failure means the page itself did not load.
+          // only a fatal main-frame failure means the page itself did not
+          // load. WebKit's ambiguous cases (null attribution, cancelled
+          // navigation) are logged and survivable by design.
           if (error.isForMainFrame == false) return;
+          final fatal = isFatalBunnyResourceError(
+            isForMainFrame: error.isForMainFrame,
+            errorCode: error.errorCode,
+          );
           projectLogger.w(
             'Bunny webview resource error: ${error.errorCode} '
-            '(main=${error.isForMainFrame})',
+            '(main=${error.isForMainFrame}, fatal=$fatal)',
           );
+          if (!fatal) return;
           _emitError('تعذر تحميل صفحة المشغّل (${error.errorCode})');
         },
         onNavigationRequest: (request) {
           // Subframe loads (the embed's own assets) are never a takeover;
           // the top frame may only move between Bunny surfaces.
           if (!request.isMainFrame) return NavigationDecision.navigate;
-          return isAllowedBunnyNavigation(request.url)
-              ? NavigationDecision.navigate
-              : NavigationDecision.prevent;
+          if (!isAllowedBunnyNavigation(request.url)) {
+            // A blocked takeover is one of the most actionable diagnostic
+            // events this adapter can report: whatever the page asked for,
+            // the student is still on Bunny's surface because of this line.
+            projectLogger.w('Bunny navigation prevented: ${request.url}');
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
         },
       ),
     );
@@ -598,6 +643,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     if (platformController is AndroidWebViewController) {
       await platformController.setMediaPlaybackRequiresUserGesture(false);
     }
+    projectLogger.d('Bunny webview wired (official plugin host)');
   }
 
   /// Installs [kBridgeScript] in the current document (official plugin only).
@@ -610,7 +656,10 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     if (web == null || _isDisposed) return;
     try {
       await web.runJavaScript(kBridgeScript);
-      _lastInjectionError = null;
+      if (_lastInjectionError != null) {
+        _lastInjectionError = null;
+        projectLogger.i('Bunny bridge injection recovered');
+      }
     } catch (e) {
       // The self-heal path retries every probe tick; log only a new error
       // so a persistent failure does not bury the log with identical lines.
@@ -624,6 +673,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
 
   void _onLoadingStateChanged(LoadingState state) {
     if (_isDisposed) return;
+    projectLogger.d('Bunny webview (windows) loading state: $state');
     if (state == LoadingState.navigationCompleted) {
       _pageSettled = true;
     } else if (state == LoadingState.loading) {
@@ -648,6 +698,17 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         'Bunny bridge alive: e=$type d=${msg['d']} p=${msg['p']} '
         'playing=${msg['playing']}',
       );
+    }
+    if (type == 'hb') {
+      final now = DateTime.now();
+      if (_lastHeartbeatLogAt == null ||
+          now.difference(_lastHeartbeatLogAt!) >= const Duration(seconds: 30)) {
+        _lastHeartbeatLogAt = now;
+        projectLogger.d(
+          'Bunny heartbeat: d=${msg['d']} p=${msg['p']} '
+          'playing=${msg['playing']}',
+        );
+      }
     }
 
     _applyState(
@@ -683,6 +744,12 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
       _durationValue = duration;
       if (_duration.shouldEmit(duration) && !_durationCtrl.isClosed) {
         _durationCtrl.add(duration);
+      }
+      if (!_mediaOnlineSeen) {
+        _mediaOnlineSeen = true;
+        projectLogger.i(
+          'Bunny media ONLINE: d=${duration.inSeconds}s via $type',
+        );
       }
       // First time the media is real: release the buffering latch the load
       // watchdog is waiting on, and honour any resume position. A `wait`

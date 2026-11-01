@@ -13,7 +13,7 @@ import 'package:shobaki_academy/utils/image_utils.dart';
 import 'package:shobaki_academy/utils/text_utils.dart';
 import 'package:shobaki_academy/view/auth/login_page.dart';
 import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
-import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
+import 'package:shobaki_academy/view/sub/video_player_view.dart';
 
 // ignore: must_be_immutable
 class TopicContentPage extends StatelessWidget {

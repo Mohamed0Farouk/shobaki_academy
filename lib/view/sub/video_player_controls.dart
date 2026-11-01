@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
-import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
+import 'package:shobaki_academy/controller/video_playback_controller.dart';
 
 class _ControlsNotifier {
   bool hideStuff = false;
@@ -217,7 +217,13 @@ class _VideoControlsState extends State<VideoControls>
   Widget build(BuildContext context) {
     final ch = chewieCtrl;
     if (ch == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      );
     }
 
     if (_latestValue.hasError) {
