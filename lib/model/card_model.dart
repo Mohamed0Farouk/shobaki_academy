@@ -14,7 +14,7 @@ import 'package:shobaki_academy/view/enrolled_topics/topic_page.dart';
 import 'package:shobaki_academy/view/results/results_page.dart';
 import 'package:shobaki_academy/view/sub/exam_page.dart';
 import 'package:shobaki_academy/view/sub/homework_page.dart';
-import 'package:shobaki_academy/view/sub/vdo_video_player.dart';
+import 'package:shobaki_academy/view/sub/video_player_view.dart';
 
 enum CardTypes {
   topic,

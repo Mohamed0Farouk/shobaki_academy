@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shobaki_academy/utils/media_error_reporter.dart';
 
 class ImageUtils {
   static Widget networkWithFallback(
@@ -24,6 +25,12 @@ class ImageUtils {
         return _shimmerPlaceholder(height: height);
       },
       errorBuilder: (context, error, stackTrace) {
+        reportMediaLoadError(
+          error,
+          stackTrace,
+          url: url,
+          mediaType: 'image',
+        );
         return errorWidget ?? _errorPlaceholder(context, height: height);
       },
       cacheWidth: (MediaQuery.of(context).size.width * 2).toInt(),
@@ -115,7 +122,15 @@ class ImageUtils {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _avatarPlaceholder(size, placeholderText),
+          errorBuilder: (_, error, stackTrace) {
+            reportMediaLoadError(
+              error,
+              stackTrace,
+              url: imageUrl,
+              mediaType: 'avatar',
+            );
+            return _avatarPlaceholder(size, placeholderText);
+          },
         ),
       );
     }
@@ -161,12 +176,20 @@ class ImageUtils {
       width: width,
       fit: fit,
       cacheWidth: width?.toInt(),
-      errorBuilder: (_, __, ___) => Container(
-        height: height,
-        width: width,
-        color: Colors.grey[200],
-        child: Icon(Icons.image, color: Colors.grey[400]),
-      ),
+      errorBuilder: (_, error, stackTrace) {
+        reportMediaLoadError(
+          error,
+          stackTrace,
+          url: url,
+          mediaType: 'image',
+        );
+        return Container(
+          height: height,
+          width: width,
+          color: Colors.grey[200],
+          child: Icon(Icons.image, color: Colors.grey[400]),
+        );
+      },
     );
   }
 }

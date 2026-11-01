@@ -101,6 +101,17 @@ class VideoPlaybackController extends GetxController
   String? _logId;
   int? _videoDurationSeconds;
 
+  /// Wall-clock seconds counted while no media signal has ever arrived (the
+  /// broken-transport case where the student is watching a perfectly good
+  /// player that never talks back). Frozen the moment any media signal lands,
+  /// so the signal-driven session and this never double-count.
+  int _unsyncedElapsed = 0;
+
+  /// Whether the app is foregrounded; the fallback clock only counts while
+  /// the page is visible and never while backgrounded/locked. Maintained by
+  /// [didChangeAppLifecycleState].
+  bool _appForeground = true;
+
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<String?>? _errorSub;
@@ -152,31 +163,24 @@ class VideoPlaybackController extends GetxController
   bool _webviewRuntimeAvailable = false;
 
   static const int _maxLoadAttempts = 3;
-  static const List<Duration> _loadTimeouts = [
-    Duration(seconds: 3),
-    Duration(seconds: 4),
-    Duration(seconds: 6),
-  ];
-  // Slower networks & software rendering (e.g. Android emulators) need a much
-  // more generous budget before a load is treated as stalled.
-  static const List<Duration> _loadTimeoutsMobile = [
-    Duration(seconds: 10),
-    Duration(seconds: 15),
-    Duration(seconds: 25),
-  ];
   static const int _maxLoadWaitSeconds = 60;
-  Duration get _loadTimeoutForAttempt {
-    final list = (Platform.isAndroid || Platform.isIOS)
-        ? _loadTimeoutsMobile
-        : _loadTimeouts;
-    return list[_loadAttempts.clamp(0, list.length - 1)];
-  }
+  Duration get _loadTimeoutForAttempt => loadTimeoutForAttempt(
+        attempt: _loadAttempts,
+        webViewBootPlatform:
+            Platform.isAndroid || Platform.isIOS || Platform.isMacOS,
+      );
 
   int _loadAttempts = 0;
   int _loadWaitElapsed = 0;
   Timer? _loadWatchdog;
   Timer? _retryTimer;
   bool _loadFailurePending = false;
+
+  /// True once the attempt budget is burnt. Loading stays silent from there
+  /// on: no error screen for initial loads, only the logger. Cleared by a
+  /// manual retry, a backend switch, or the media arriving after all.
+  bool _loadExhausted = false;
+
   String? _pendingUrl;
   Duration? _pendingStart;
 
@@ -338,7 +342,9 @@ class VideoPlaybackController extends GetxController
       );
     }
     if (Platform.isMacOS) {
-      return VideoPlayerAdapter();
+      // Same fail-fast contract as Windows: a stream that never reports an
+      // initialize error would strand the load watchdog otherwise.
+      return VideoPlayerAdapter(initializeTimeout: const Duration(seconds: 15));
     }
     if (Platform.isWindows) {
       // FVP backend: a network stream that fails to open can leave
@@ -399,6 +405,7 @@ class VideoPlaybackController extends GetxController
     // Fresh backend, fresh attempt budget: a backend that had already burned
     // two retries must not hand its successor a nearly-expired one.
     _loadAttempts = 0;
+    _loadExhausted = false;
     await _beginLoad(
       currentPlayUrl,
       start: position > Duration.zero ? position : null,
@@ -468,6 +475,61 @@ class VideoPlaybackController extends GetxController
 
   bool get _videoDurationLoaded => _videoDurationSeconds != null;
 
+  /// Watch time as it should be reported: the signal-driven session, plus the
+  /// wall-clock fallback for as long as no media signal has ever landed.
+  /// After the first signal the fallback contributes nothing, so the two
+  /// branches never double-count.
+  int get _reportableWatchSeconds =>
+      _session.viewDurationSeconds +
+      (mediaSignalSeen ? 0 : _unsyncedElapsed);
+
+  /// Whether any position/duration/playing observation has reached the app.
+  /// Until it does (or after it does, permanently) the fallback clock owns
+  /// the count while the session owns it after.
+  bool get mediaSignalSeen =>
+      _videoDurationLoaded || _session.onPlaySeen;
+
+  /// Live snapshot of the player pipeline for the diagnostics console.
+  ///
+  /// Diagnostics builds only: the video page wires this into
+  /// [DiagnosticsConsoleHost.playerStatusCollector] so the console can read
+  /// numbers without importing controllers. Not for playback decisions.
+  Map<String, dynamic> diagnosticsStatus() {
+    try {
+      if (!playerReady.value) {
+        return {
+          'backend': 'pending',
+          'ready': false,
+          'loading': isLoading.value,
+        };
+      }
+      final adapter = player;
+      return {
+        'backend': adapter.runtimeType.toString(),
+        'ready': true,
+        'loading': isLoading.value,
+        'attempt': '$_loadAttempts/$_maxLoadAttempts'
+            '${_loadExhausted ? ' (exhausted)' : ''}',
+        'budgetS': _loadTimeoutForAttempt.inSeconds,
+        'durationS': adapter.duration.inSeconds,
+        'positionS': adapter.position.inSeconds,
+        'playing': adapter.isPlaying,
+        'buffering': adapter.isBuffering,
+        'stalled': isStalled.value,
+        'stalls': stallCount.value,
+        'generation': playerGeneration.value,
+        'noMediaSignal': !mediaSignalSeen,
+        'fallbackS': _unsyncedElapsed,
+        'watchedS': _reportableWatchSeconds,
+      };
+    } catch (e) {
+      // The adapter's internals may legitimately be unassigned between
+      // generations; the console loses its numbers before a crash-free
+      // requirement here.
+      return {'diagError': e.toString()};
+    }
+  }
+
   /// Opens the video and automatically retries if the media fails to load
   /// (stalls, errors, or times out). Retries are automatic so the user is not
   /// left with a stuck player.
@@ -480,6 +542,11 @@ class VideoPlaybackController extends GetxController
     errorMessage.value = '';
     isLoading.value = true;
     _loadWatchdog?.cancel();
+    projectLogger.i(
+      "Load attempt ${_loadAttempts + 1}/$_maxLoadAttempts start "
+      "(budget ${_loadTimeoutForAttempt.inSeconds}s, "
+      "resume ${start?.inSeconds ?? 0}s): $url",
+    );
     try {
       // Reset the player before opening a new source. On Android re-opening
       // over an actively-buffering stream detaches/re-attaches the video
@@ -525,6 +592,7 @@ class VideoPlaybackController extends GetxController
     _loadWatchdog?.cancel();
     _retryTimer?.cancel();
     _loadFailurePending = false;
+    _loadExhausted = false;
     _loadAttempts = 0;
     _loadWaitElapsed = 0;
     isLoading.value = false;
@@ -537,22 +605,30 @@ class VideoPlaybackController extends GetxController
   void _onLoadFailed() {
     if (_disposed) return;
     _loadWatchdog?.cancel();
-    if (_loadFailurePending) return;
+    if (_loadFailurePending || _loadExhausted) return;
     _loadAttempts++;
-    if (_loadAttempts >= _maxLoadAttempts) {
-      isLoading.value = false;
-      errorMessage.value =
-          'فشل تحميل الفيديو، يرجى التحقق من اتصال الإنترنت وإعادة المحاولة.';
-      projectLogger.e("Video failed to load after $_maxLoadAttempts attempts");
+    if (_loadAttempts < _maxLoadAttempts) {
+      _loadFailurePending = true;
+      final url = _pendingUrl ?? videoUrl;
+      final start = _pendingStart;
+      _retryTimer?.cancel();
+      _retryTimer = Timer(
+        Duration(seconds: _loadAttempts),
+        () => _beginLoad(url, start: start),
+      );
       return;
     }
-    _loadFailurePending = true;
-    final url = _pendingUrl ?? videoUrl;
-    final start = _pendingStart;
-    _retryTimer?.cancel();
-    _retryTimer = Timer(
-      Duration(seconds: _loadAttempts),
-      () => _beginLoad(url, start: start),
+    // Budget burnt: go quiet. A slow WKWebView boot was being recast as a
+    // fatal failure with a "try again" screen while the embed happily ran
+    // behind the surface, so initial-load failures are never shown; the
+    // spinner drops, the student just sees the player, and watch-time stays
+    // honest through the timer fallback.
+    _loadExhausted = true;
+    isLoading.value = false;
+    errorMessage.value = '';
+    projectLogger.e(
+      "Video failed to load after $_maxLoadAttempts attempts"
+      "${_pendingUrl != null ? ' (url: $_pendingUrl)' : ''}",
     );
   }
 
@@ -560,6 +636,7 @@ class VideoPlaybackController extends GetxController
   Future<void> retry() async {
     errorMessage.value = '';
     _stallRecoveryExhausted = false;
+    _loadExhausted = false;
     _loadAttempts = 0;
     _retryTimer?.cancel();
     // On Windows/macOS a failed load can leave the underlying player in a
@@ -657,7 +734,8 @@ class VideoPlaybackController extends GetxController
 
       await _beginLoad(currentPlayUrl);
     } catch (e) {
-      errorMessage.value = "Failed to load video";
+      // Initial load must never show an error surface; the spinner drop and
+      // the logger are all the failure looks like.
       projectLogger.e("Video init error: $e");
       isLoading.value = false;
     }
@@ -963,7 +1041,26 @@ class VideoPlaybackController extends GetxController
       return;
     }
 
-    viewDurationSeconds.value = _session.viewDurationSeconds;
+    _tickFallbackTracking();
+    viewDurationSeconds.value = _reportableWatchSeconds;
+  }
+
+  /// One wall-clock second against the no-signal fallback.
+  ///
+  /// Mirrors the session's own limit: a page that never produced a media
+  /// signal still cannot accumulate past the session budget, and hitting the
+  /// cap raises the very same expiry the signal path does.
+  void _tickFallbackTracking() {
+    final result = tickUnsyncedFallback(
+      elapsed: _unsyncedElapsed,
+      mediaSignalSeen: mediaSignalSeen,
+      appForeground: _appForeground,
+      maxSeconds: maxSessionDurationSeconds,
+    );
+    _unsyncedElapsed = result.elapsed;
+    if (result.expired) {
+      _onSessionExpired(reason: SessionTracker.sessionExpiredMessage);
+    }
   }
 
   /// Feeds one observation to the stall detector and applies whatever recovery
@@ -1234,14 +1331,16 @@ class VideoPlaybackController extends GetxController
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
+        _appForeground = false;
         _session.onBackground();
         if (_isPlaying != _session.isPlaying) {
           _isPlaying = _session.isPlaying;
           isPlaying.value = _session.isPlaying;
         }
-        viewDurationSeconds.value = _session.viewDurationSeconds;
+        viewDurationSeconds.value = _reportableWatchSeconds;
         break;
       case AppLifecycleState.resumed:
+        _appForeground = true;
         // Refresh the embed's play state before the session bookkeeping reads
         // it: the platform webview may have paused (or resumed) the page
         // while the app was backgrounded, and the cached flag predates that.
@@ -1254,7 +1353,7 @@ class VideoPlaybackController extends GetxController
           _onSessionExpired(reason: _session.expiryReason!);
           return;
         }
-        viewDurationSeconds.value = _session.viewDurationSeconds;
+        viewDurationSeconds.value = _reportableWatchSeconds;
         if (player.isPlaying && !_session.isPlaying) {
           _session.onPlay();
           _isPlaying = true;
@@ -1299,7 +1398,7 @@ class VideoPlaybackController extends GetxController
     WidgetsBinding.instance.removeObserver(this);
     _session.onClose();
 
-    final finalDuration = _session.accumulatedSeconds;
+    final finalDuration = _reportableWatchSeconds;
 
     if (logInitialized &&
         _logId != null &&
@@ -1329,4 +1428,61 @@ class VideoPlaybackController extends GetxController
     cleanup();
     super.onClose();
   }
+}
+
+/// The fast ladder. Windows keeps it: WebView2/texture boot is reliably fast
+/// there, and the short windows produce a snappy first failure on a platform
+/// that has a real backend switch to fall back on.
+const List<Duration> kFastLoadTimeouts = [
+  Duration(seconds: 3),
+  Duration(seconds: 4),
+  Duration(seconds: 6),
+];
+
+/// The webview-boot ladder for Android/iOS/macOS.
+///
+/// All three boot the embed through a platform webview whose cold start,
+/// media-chrome hydration and Bunny CDN warm-up regularly outrun the desktop
+/// windows. The video usually loads perfectly behind the surface during that
+/// stretch; these longer budgets keep a normal boot from being declared dead
+/// mid-flight and burning the whole attempt budget on nothing.
+const List<Duration> kWebViewBootLoadTimeouts = [
+  Duration(seconds: 10),
+  Duration(seconds: 15),
+  Duration(seconds: 25),
+];
+
+/// Timeout budget for load attempt [attempt] (0-based).
+///
+/// WebView-boot platforms get the slower ladder; later attempts always
+/// escalate within whichever ladder applies. Clamped so a budget already
+/// deep past the last rung keeps using the largest one.
+Duration loadTimeoutForAttempt({
+  required int attempt,
+  required bool webViewBootPlatform,
+}) {
+  final list = webViewBootPlatform
+      ? kWebViewBootLoadTimeouts
+      : kFastLoadTimeouts;
+  return list[attempt.clamp(0, list.length - 1)];
+}
+
+/// Advances the no-signal wall-clock fallback by one tick (one second).
+///
+/// Gates: a media signal having arrived means the signal path owns the count
+/// (freeze, never double-count); a backgrounded app owns nothing visible;
+/// and the session budget must clamp the fallback exactly like the session.
+/// `expired` is true on the tick that reaches the budget, and the caller
+/// raises the same session expiry the signal path uses.
+({int elapsed, bool expired}) tickUnsyncedFallback({
+  required int elapsed,
+  required bool mediaSignalSeen,
+  required bool appForeground,
+  required int maxSeconds,
+}) {
+  if (mediaSignalSeen || !appForeground || elapsed >= maxSeconds) {
+    return (elapsed: elapsed, expired: false);
+  }
+  final next = elapsed + 1;
+  return (elapsed: next, expired: next >= maxSeconds);
 }

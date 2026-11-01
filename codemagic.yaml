@@ -29,3 +29,57 @@ workflows:
 
     artifacts:
       - artifacts/*.zip
+
+  # Diagnostics edition: same app, with .env carrying DIAG_EDITION=1 (forced
+  # at build time by the step below), so the amber strip, the log console,
+  # the verbose filter and the extra trace logs turn on. Rebranded (name +
+  # bundle id) so it installs next to the released app instead of replacing
+  # it - use it to debug a real Mac.
+  macos-diagnostics-build:
+    name: macOS Diagnostics Build
+
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+
+    environment:
+      flutter: 3.44.8
+      xcode: latest
+
+    scripts:
+      - name: Enable macOS
+        script: flutter config --enable-macos-desktop
+
+      - name: Get Packages
+        script: flutter pub get
+
+      - name: Rebrand for side-by-side install
+        script: |
+          cd macos/Runner/Configs
+          sed -i '' 's/^PRODUCT_NAME = .*/PRODUCT_NAME = Al-Shobaki Diagnostics/' AppInfo.xcconfig
+          sed -i '' 's/^PRODUCT_BUNDLE_IDENTIFIER = .*/PRODUCT_BUNDLE_IDENTIFIER = com.shobakiAcademy.app.diagnostics/' AppInfo.xcconfig
+
+      # The diagnostics trigger lives in .env (DIAG_EDITION=1), read at app
+      # startup - no dart-define involved. Replace an existing value (the
+      # dotenv parser keeps the FIRST occurrence, so appending would lose),
+      # otherwise append; a commented template line is inert and harmless.
+      - name: Enable diagnostics flag in .env
+        script: |
+          if grep -q '^DIAG_EDITION=' .env; then
+            sed -i.bak 's/^DIAG_EDITION=.*/DIAG_EDITION=1/' .env && rm -f .env.bak
+          else
+            echo 'DIAG_EDITION=1' >> .env
+          fi
+
+      - name: Build macOS App (diagnostics edition)
+        script: |
+          flutter build macos --release
+
+      - name: Package App
+        script: |
+          mkdir -p artifacts
+          cp -R build/macos/Build/Products/Release/*.app artifacts/
+          cd artifacts
+          zip -r app-macos-diagnostics.zip *.app
+
+    artifacts:
+      - artifacts/*.zip

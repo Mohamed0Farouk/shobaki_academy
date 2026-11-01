@@ -8,7 +8,7 @@ import 'package:webview_flutter_windows/webview_flutter_windows.dart'
 import 'package:window_manager/window_manager.dart';
 
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
-import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
+import 'package:shobaki_academy/controller/video_playback_controller.dart';
 
 /// Hosts the Bunny embed webview inside the normal player page.
 ///

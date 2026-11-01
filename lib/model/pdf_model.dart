@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:shobaki_academy/controller/book_controller.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:shobaki_academy/services/statics.dart';
+import 'package:shobaki_academy/utils/media_error_reporter.dart';
 
 class PdfModel extends StatefulWidget {
   final String? pdfUrl;
@@ -24,6 +25,7 @@ class _PdfModelState extends State<PdfModel> {
   final ScrollController _scrollController = ScrollController();
   final RxBool _showAppBar = true.obs;
   final RxBool _isLoadingPdf = true.obs;
+  final RxBool _loadFailed = false.obs;
   late PdfViewerController _pdfViewerController;
 
   @override
@@ -163,6 +165,9 @@ class _PdfModelState extends State<PdfModel> {
 
   Widget _buildPdfViewer() {
     return Obx(() {
+      if (_loadFailed.value) {
+        return _buildLoadFailedPlaceholder();
+      }
       return Stack(
         children: [
           SfPdfViewer.network(
@@ -171,6 +176,16 @@ class _PdfModelState extends State<PdfModel> {
             pageSpacing: 8,
             onDocumentLoaded: (details) {
               _isLoadingPdf.value = false;
+            },
+            onDocumentLoadFailed: (details) {
+              _isLoadingPdf.value = false;
+              _loadFailed.value = true;
+              reportMediaLoadError(
+                Exception('${details.error}: ${details.description}'),
+                null,
+                url: _pdfUrl,
+                mediaType: 'pdf',
+              );
             },
             canShowScrollHead: true,
             enableTextSelection: true,
@@ -198,5 +213,32 @@ class _PdfModelState extends State<PdfModel> {
         ],
       );
     });
+  }
+
+  Widget _buildLoadFailedPlaceholder() {
+    return Container(
+      color: Colors.grey[200],
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.picture_as_pdf_outlined,
+              color: Colors.grey[400],
+              size: 48,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'تعذر تحميل الملف',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -25,6 +25,12 @@ class SessionTracker {
 
   bool get isPlaying => _isPlaying;
 
+  /// Whether [onPlay] has ever arrived - i.e. whether the media has ever
+  /// reported being live through the signal path. Readers that keep a
+  /// wall-clock fallback alongside this tracker use it to know when the
+  /// fallback must stop.
+  bool get onPlaySeen => _watchSessionStart != null;
+
   void onPlay() {
     if (expired) return;
     if (_isPlaying) return;

@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
-import 'package:shobaki_academy/controller/watching_page_vdocipher_controller.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shobaki_academy/controller/video_playback_controller.dart';
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
+import 'package:shobaki_academy/controller/network_controller.dart';
 import 'package:shobaki_academy/controller/video_player_adapter.dart';
+import 'package:shobaki_academy/services/diagnostics_console.dart';
 import 'package:shobaki_academy/services/player_messages.dart';
 import 'package:shobaki_academy/view/sub/bunny_webview_player.dart';
 import 'package:shobaki_academy/view/sub/video_player_controls.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:shobaki_academy/controller/watermark_controller.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -62,8 +66,37 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   StreamSubscription<bool>? _loadingSub;
   late Worker _qualityWorker;
 
+  /// Every platform now boots the player surface right away, so the loading
+  /// hint is exactly that: a small, tap-through spinner that starts with the
+  /// page and retires for good on the earlier of "media loaded" or
+  /// [_loadingHintGrace]. Nothing in the app shows a blocking loading state
+  /// for the stream itself.
+  static const Duration _loadingHintGrace = Duration(seconds: 10);
+  bool _loadingHintExpired = false;
+  Timer? _loadingHintTimer;
+
   VideoController? _videoController;
   _FullscreenWindowListener? _fsListener;
+
+  /// Diagnostics edition only: everything the console needs from this page,
+  /// filled while it is open and re-filled by the next page instance.
+  String? _appVersionText;
+  bool _consoleCollectorsWired = false;
+
+  /// App-side row for the console status bar. Player numbers come from
+  /// [VideoPlaybackController.diagnosticsStatus]; this one describes the app.
+  Map<String, dynamic> _collectAppStatus() {
+    final network = Get.isRegistered<NetworkController>()
+        ? Get.find<NetworkController>().connectedToInternet.value
+        : null;
+    return {
+      'platform':
+          '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      'build': kReleaseMode ? 'release' : 'debug',
+      if (_appVersionText != null) 'app': _appVersionText!,
+      'network': network ?? 'unknown',
+    };
+  }
 
   // On Android, attaching the surface immediately (instead of waiting for the
   // video parameters) avoids the known "audio plays but video stays black"
@@ -154,9 +187,33 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         _initChewie();
       }
     });
+
+    _loadingHintTimer = Timer(_loadingHintGrace, () {
+      if (mounted) setState(() => _loadingHintExpired = true);
+    });
+
     if (!ctrl.isLoading.value) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _initChewie());
     }
+
+    _wireDiagnosticsConsole();
+  }
+
+  /// Diagnostics edition only: points the console at this player's live
+  /// snapshot; the console itself is opened from the global top strip.
+  /// Regular builds compile this out via [DiagnosticsConsoleHost.supported].
+  void _wireDiagnosticsConsole() {
+    final host = DiagnosticsConsoleHost.instance;
+    if (!host.supported) return;
+    host.playerStatusCollector = () => ctrl.diagnosticsStatus();
+    host.appStatusCollector = _collectAppStatus;
+    _consoleCollectorsWired = true;
+    unawaited(PackageInfo.fromPlatform().then((info) {
+      if (!mounted) return;
+      setState(() {
+        _appVersionText = 'v${info.version} (${info.buildNumber})';
+      });
+    }, onError: (_) {}));
   }
 
   @override
@@ -170,6 +227,15 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     }
     _qualityWorker.dispose();
     _loadingSub?.cancel();
+    _loadingHintTimer?.cancel();
+    if (_consoleCollectorsWired) {
+      final host = DiagnosticsConsoleHost.instance;
+      if (host.appStatusCollector == _collectAppStatus) {
+        host.appStatusCollector = null;
+      }
+      host.playerStatusCollector = null;
+      _consoleCollectorsWired = false;
+    }
     _chewieController.value?.dispose();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       watermarkController.updateWaterMarkState(false);
@@ -276,7 +342,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   // is checked first because it is now the default backend on
                   // every platform, not just the desktop ones.
                   child: !ctrl.playerReady.value
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        )
                       : (ctrl.player is BunnyWebviewPlayerAdapter
                             ? _buildBunnyWebviewPlayer()
                             : (Platform.isMacOS || Platform.isWindows)
@@ -285,10 +357,19 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                 ),
                 if (ctrl.qualitiesLoaded.value) _buildQualityChip(),
                 if (ctrl.isStalled.value) _buildStalledOverlay(),
-                if (ctrl.isLoading.value)
-                  ColoredBox(
-                    color: Colors.black54,
-                    child: const Center(child: CircularProgressIndicator()),
+                // The starter hint: small, tap-through, and it retires
+                // at most [_loadingHintGrace] after mount, so a load that
+                // never reports success cannot pin an overlay over a
+                // player that is running behind it.
+                if (ctrl.isLoading.value && !_loadingHintExpired)
+                  IgnorePointer(
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: const CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    ),
                   ),
                 if (ctrl.errorMessage.value.isNotEmpty)
                   ColoredBox(
@@ -327,7 +408,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     // `ctrl.player` until its dialog pops the page; a frame can build in
     // between, and the cast inside the controls must not blow up on it.
     if (ctrl.player is! MediaKitPlayerAdapter) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      );
     }
     return MaterialDesktopVideoControlsTheme(
       normal: MaterialDesktopVideoControlsThemeData(
@@ -479,7 +566,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   Widget _buildChewiePlayer() {
     final chewie = _chewieController.value;
     if (chewie == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      );
     }
     return Chewie(controller: chewie);
   }
