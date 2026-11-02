@@ -101,17 +101,6 @@ class VideoPlaybackController extends GetxController
   String? _logId;
   int? _videoDurationSeconds;
 
-  /// Wall-clock seconds counted while no media signal has ever arrived (the
-  /// broken-transport case where the student is watching a perfectly good
-  /// player that never talks back). Frozen the moment any media signal lands,
-  /// so the signal-driven session and this never double-count.
-  int _unsyncedElapsed = 0;
-
-  /// Whether the app is foregrounded; the fallback clock only counts while
-  /// the page is visible and never while backgrounded/locked. Maintained by
-  /// [didChangeAppLifecycleState].
-  bool _appForeground = true;
-
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<String?>? _errorSub;
@@ -176,9 +165,9 @@ class VideoPlaybackController extends GetxController
   Timer? _retryTimer;
   bool _loadFailurePending = false;
 
-  /// True once the attempt budget is burnt. Loading stays silent from there
-  /// on: no error screen for initial loads, only the logger. Cleared by a
-  /// manual retry, a backend switch, or the media arriving after all.
+  /// True once the attempt budget is burnt. Loading stops retrying and the
+  /// shared failure surface (message + retry button) takes over. Cleared by
+  /// a manual retry, a backend switch, or the media arriving after all.
   bool _loadExhausted = false;
 
   String? _pendingUrl;
@@ -475,20 +464,6 @@ class VideoPlaybackController extends GetxController
 
   bool get _videoDurationLoaded => _videoDurationSeconds != null;
 
-  /// Watch time as it should be reported: the signal-driven session, plus the
-  /// wall-clock fallback for as long as no media signal has ever landed.
-  /// After the first signal the fallback contributes nothing, so the two
-  /// branches never double-count.
-  int get _reportableWatchSeconds =>
-      _session.viewDurationSeconds +
-      (mediaSignalSeen ? 0 : _unsyncedElapsed);
-
-  /// Whether any position/duration/playing observation has reached the app.
-  /// Until it does (or after it does, permanently) the fallback clock owns
-  /// the count while the session owns it after.
-  bool get mediaSignalSeen =>
-      _videoDurationLoaded || _session.onPlaySeen;
-
   /// Live snapshot of the player pipeline for the diagnostics console.
   ///
   /// Diagnostics builds only: the video page wires this into
@@ -518,9 +493,7 @@ class VideoPlaybackController extends GetxController
         'stalled': isStalled.value,
         'stalls': stallCount.value,
         'generation': playerGeneration.value,
-        'noMediaSignal': !mediaSignalSeen,
-        'fallbackS': _unsyncedElapsed,
-        'watchedS': _reportableWatchSeconds,
+        'watchedS': _session.viewDurationSeconds,
       };
     } catch (e) {
       // The adapter's internals may legitimately be unassigned between
@@ -618,14 +591,14 @@ class VideoPlaybackController extends GetxController
       );
       return;
     }
-    // Budget burnt: go quiet. A slow WKWebView boot was being recast as a
-    // fatal failure with a "try again" screen while the embed happily ran
-    // behind the surface, so initial-load failures are never shown; the
-    // spinner drops, the student just sees the player, and watch-time stays
-    // honest through the timer fallback.
+    // Budget burnt: the embed genuinely never came up, so the student gets
+    // the honest failure surface every platform shares - message plus the
+    // retry button - instead of a player that will never talk back. (The
+    // earlier "stay quiet" behaviour existed only to paper over the macOS
+    // bridge never being wired; with a real host there is nothing to hide.)
     _loadExhausted = true;
     isLoading.value = false;
-    errorMessage.value = '';
+    errorMessage.value = PlayerMessages.loadFailed;
     projectLogger.e(
       "Video failed to load after $_maxLoadAttempts attempts"
       "${_pendingUrl != null ? ' (url: $_pendingUrl)' : ''}",
@@ -639,13 +612,12 @@ class VideoPlaybackController extends GetxController
     _loadExhausted = false;
     _loadAttempts = 0;
     _retryTimer?.cancel();
-    // On Windows/macOS a failed load can leave the underlying player in a
-    // wedged state where audio plays but video output stays black (fvp), or a
-    // half-navigated webview stuck behind a spinner. Re-opening on top of
-    // that state does not fix it, so tear the whole player down and build a
-    // fresh one with a brand-new surface - the embed webview included.
-    // media_kit on Android/iOS re-opens cleanly, so it keeps the lighter path.
-    if (!Platform.isMacOS || player is BunnyWebviewPlayerAdapter) {
+    // A failed webview load can leave the host wedged where audio plays but
+    // the page is stuck behind a spinner. Re-opening on top of that state
+    // does not fix it, so tear the whole player down and build a fresh one
+    // with a brand-new surface - the embed webview included. The native
+    // backends (media_kit, fvp) re-open cleanly and keep the lighter path.
+    if (player is BunnyWebviewPlayerAdapter) {
       _resetPlayer();
     }
     await _beginLoad(_pendingUrl ?? videoUrl, start: _pendingStart);
@@ -1041,26 +1013,7 @@ class VideoPlaybackController extends GetxController
       return;
     }
 
-    _tickFallbackTracking();
-    viewDurationSeconds.value = _reportableWatchSeconds;
-  }
-
-  /// One wall-clock second against the no-signal fallback.
-  ///
-  /// Mirrors the session's own limit: a page that never produced a media
-  /// signal still cannot accumulate past the session budget, and hitting the
-  /// cap raises the very same expiry the signal path does.
-  void _tickFallbackTracking() {
-    final result = tickUnsyncedFallback(
-      elapsed: _unsyncedElapsed,
-      mediaSignalSeen: mediaSignalSeen,
-      appForeground: _appForeground,
-      maxSeconds: maxSessionDurationSeconds,
-    );
-    _unsyncedElapsed = result.elapsed;
-    if (result.expired) {
-      _onSessionExpired(reason: SessionTracker.sessionExpiredMessage);
-    }
+    viewDurationSeconds.value = _session.viewDurationSeconds;
   }
 
   /// Feeds one observation to the stall detector and applies whatever recovery
@@ -1331,16 +1284,14 @@ class VideoPlaybackController extends GetxController
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
-        _appForeground = false;
         _session.onBackground();
         if (_isPlaying != _session.isPlaying) {
           _isPlaying = _session.isPlaying;
           isPlaying.value = _session.isPlaying;
         }
-        viewDurationSeconds.value = _reportableWatchSeconds;
+        viewDurationSeconds.value = _session.viewDurationSeconds;
         break;
       case AppLifecycleState.resumed:
-        _appForeground = true;
         // Refresh the embed's play state before the session bookkeeping reads
         // it: the platform webview may have paused (or resumed) the page
         // while the app was backgrounded, and the cached flag predates that.
@@ -1353,7 +1304,7 @@ class VideoPlaybackController extends GetxController
           _onSessionExpired(reason: _session.expiryReason!);
           return;
         }
-        viewDurationSeconds.value = _reportableWatchSeconds;
+        viewDurationSeconds.value = _session.viewDurationSeconds;
         if (player.isPlaying && !_session.isPlaying) {
           _session.onPlay();
           _isPlaying = true;
@@ -1398,7 +1349,7 @@ class VideoPlaybackController extends GetxController
     WidgetsBinding.instance.removeObserver(this);
     _session.onClose();
 
-    final finalDuration = _reportableWatchSeconds;
+    final finalDuration = _session.viewDurationSeconds;
 
     if (logInitialized &&
         _logId != null &&
@@ -1465,24 +1416,4 @@ Duration loadTimeoutForAttempt({
       ? kWebViewBootLoadTimeouts
       : kFastLoadTimeouts;
   return list[attempt.clamp(0, list.length - 1)];
-}
-
-/// Advances the no-signal wall-clock fallback by one tick (one second).
-///
-/// Gates: a media signal having arrived means the signal path owns the count
-/// (freeze, never double-count); a backgrounded app owns nothing visible;
-/// and the session budget must clamp the fallback exactly like the session.
-/// `expired` is true on the tick that reaches the budget, and the caller
-/// raises the same session expiry the signal path uses.
-({int elapsed, bool expired}) tickUnsyncedFallback({
-  required int elapsed,
-  required bool mediaSignalSeen,
-  required bool appForeground,
-  required int maxSeconds,
-}) {
-  if (mediaSignalSeen || !appForeground || elapsed >= maxSeconds) {
-    return (elapsed: elapsed, expired: false);
-  }
-  final next = elapsed + 1;
-  return (elapsed: next, expired: next >= maxSeconds);
 }

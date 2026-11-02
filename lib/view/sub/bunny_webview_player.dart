@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection' show UnmodifiableListView;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,9 @@ import 'package:webview_flutter/webview_flutter.dart' show WebViewWidget;
 import 'package:webview_flutter_windows/webview_flutter_windows.dart'
     show Webview, WebviewValue;
 import 'package:window_manager/window_manager.dart';
+import 'package:zikzak_inappwebview/zikzak_inappwebview.dart'
+    show InAppWebView, InAppWebViewSettings, UserScript,
+        UserScriptInjectionTime;
 
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_playback_controller.dart';
@@ -15,8 +19,9 @@ import 'package:shobaki_academy/controller/video_playback_controller.dart';
 /// On Windows the fork's [Webview] renders an empty box until its controller
 /// has finished initializing, and the page's own loading spinner (driven by
 /// `ctrl.isLoading`) covers that gap, so no extra state machine is needed
-/// here. Android/iOS/macOS mount the official [WebViewWidget] against the
-/// adapter's platform controller, which follows the same loading overlay.
+/// here. macOS mounts the zikzak `InAppWebView` against the adapter's
+/// controller with the same loading overlay; Android/iOS mount the official
+/// [WebViewWidget].
 class BunnyWebviewPlayer extends StatefulWidget {
   const BunnyWebviewPlayer({
     super.key,
@@ -71,6 +76,37 @@ class _BunnyWebviewPlayerState extends State<BunnyWebviewPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.adapter.isZikzakHost) {
+      // macOS: the bridge script rides in as a per-document user script -
+      // the same injection point the WebView2 fork uses - and the four
+      // navigation callbacks forward into the adapter, where the shared
+      // allowlist/settle/error logic already lives.
+      return InAppWebView(
+        initialSettings: InAppWebViewSettings(
+          allowsInlineMediaPlayback: true,
+          mediaPlaybackRequiresUserGesture: false,
+          useShouldOverrideUrlLoading: true,
+          disableContextMenu: true,
+          supportZoom: false,
+        ),
+        initialUserScripts: UnmodifiableListView<UserScript>([
+          UserScript(
+            source: kBridgeScript,
+            injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+          ),
+        ]),
+        onWebViewCreated: (controller) =>
+            widget.adapter.attachMac(controller),
+        onLoadStart: (controller, url) =>
+            widget.adapter.onMacLoadStart(url.toString()),
+        onLoadStop: (controller, url) =>
+            widget.adapter.onMacLoadStop(url.toString()),
+        onReceivedError: (controller, request, error) =>
+            widget.adapter.onMacReceivedError(request, error),
+        shouldOverrideUrlLoading: (controller, action) =>
+            widget.adapter.onMacShouldOverrideUrlLoading(action),
+      );
+    }
     final windowsController = widget.adapter.windowsController;
     if (windowsController != null) {
       // The texture only exists once the native side is up; watching the

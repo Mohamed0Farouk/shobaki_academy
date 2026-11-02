@@ -124,11 +124,21 @@ void main() {
       );
     });
 
+    test('load-failed message tells the student to check and retry', () {
+      // The exhausted attempt budget lands here on every platform; without
+      // actionable wording the student faces a dead player with no next step.
+      final message = PlayerMessages.loadFailed;
+      expect(RegExp(r'[\u0600-\u06FF]').hasMatch(message), isTrue);
+      expect(message, contains('الاتصال'));
+      expect(message, contains('أعد المحاولة'));
+    });
+
     test('every message is non-empty', () {
       expect(PlayerMessages.autoQualityTitle.trim(), isNotEmpty);
       expect(PlayerMessages.autoQualityBody.trim(), isNotEmpty);
       expect(PlayerMessages.stalledLabel.trim(), isNotEmpty);
       expect(PlayerMessages.connectionLost.trim(), isNotEmpty);
+      expect(PlayerMessages.loadFailed.trim(), isNotEmpty);
       expect(PlayerMessages.qualityMenuTitle.trim(), isNotEmpty);
       expect(PlayerMessages.autoQualityOptionSubtitle(null).trim(), isNotEmpty);
       expect(

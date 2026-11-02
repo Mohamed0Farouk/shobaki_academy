@@ -14,6 +14,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   syncfusion_pdfviewer_linux
   url_launcher_linux
   window_manager
+  zikzak_inappwebview_linux
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
