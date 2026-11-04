@@ -83,6 +83,7 @@ class _BunnyWebviewPlayerState extends State<BunnyWebviewPlayer> {
       // allowlist/settle/error logic already lives.
       return InAppWebView(
         initialSettings: InAppWebViewSettings(
+          javaScriptEnabled: true,
           allowsInlineMediaPlayback: true,
           mediaPlaybackRequiresUserGesture: false,
           useShouldOverrideUrlLoading: true,

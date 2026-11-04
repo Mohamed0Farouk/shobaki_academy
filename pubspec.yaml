@@ -83,7 +83,7 @@ dependencies:
   phosphoricons_flutter: ^1.0.0
   ffi: ^2.1.0
   android_id: ^0.5.2
-  zikzak_inappwebview: ">=5.0.1 <7.0.0"
+  zikzak_inappwebview: ^6.3.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

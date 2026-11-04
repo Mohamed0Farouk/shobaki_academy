@@ -537,20 +537,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     await _win?.dispose();
     final mac = _mac;
     if (mac != null) {
-      // Real native teardown - unlike the official plugin's no-op surface,
-      // disposing the zikzak controller destroys the WKWebView, so the
-      // embed's audio dies with it instead of surviving in the background.
+      // Avoid double-disposal: let the InAppWebView widget dispose the controller.
       try {
         await mac.evaluateJavascript(source: _commandScript('pause()'));
       } catch (_) {}
       try {
         await mac.evaluateJavascript(source: 'location.href = "about:blank";');
       } catch (_) {}
-      try {
-        mac.dispose();
-      } catch (e) {
-        projectLogger.w('Bunny webview dispose failed: $e');
-      }
       _mac = null;
       _macPendingUrl = null;
     }
