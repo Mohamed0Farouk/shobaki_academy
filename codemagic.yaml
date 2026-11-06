@@ -50,8 +50,9 @@ workflows:
     max_build_duration: 30
 
     environment:
-      # See macos-release-build: 3.47.8 carries the zikzak 6.x line.
-      flutter: 3.47.8
+      # Same engine as the release build, so a DIAG soak measures playback and
+      # not a Flutter-version difference.
+      flutter: 3.47.9
       xcode: latest
 
     scripts:

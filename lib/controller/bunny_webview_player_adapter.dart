@@ -128,10 +128,13 @@ String formatBunnyWebviewStats(Map<String, dynamic> s) {
       : s['lastError'];
   return 'Bunny stats exp=${s['exp']} mode=${s['mode']} src=${s['source']} '
       'mms=${s['preferMMS']} worker=${s['worker']}/${s['workerCfg']} '
-      'maxBuf=${s['maxBuf']} fwd=${s['forwardS']} ranges=${s['ranges']} '
-      'wait=${s['waiting']} stall=${s['stalled']} suspend=${s['suspend']} '
-      'evict=${s['evicted']} hlsErr=${s['hlsErrors']} err=$errorText '
-      'seg=${s['segAvgMs']}/${s['segMaxMs']}ms n=${s['segCount']} '
+      'maxBuf=${s['maxBuf']}/${s['maxMaxBuf']} back=${s['backBuf']} '
+      'fwd=${s['forwardS']} total=${s['bufferedTotalS']}S '
+      'ranges=${s['ranges']} wait=${s['waiting']} stall=${s['stalled']} '
+      'suspend=${s['suspend']} evict=${s['evicted']} '
+      'hlsErr=${s['hlsErrors']} fatal=${s['fatalErrors']} err=$errorText '
+      'seg=${s['segAvgMs']}/${s['segMaxMs']}ms ${s['segCount']} '
+      'frag=${s['fragAvgMs']}/${s['fragMaxMs']}ms ${s['fragCount']} '
       'lvl=${s['level']} next=${s['next']} auto=${s['auto']} bw=${s['bwKbps']} '
       'drop=${s['droppedFrames']}/${s['frames']} '
       'ready=${s['ready']} t=${s['t']} ver=${s['version']}';

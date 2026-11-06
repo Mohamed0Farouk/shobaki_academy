@@ -9,10 +9,30 @@ import 'dart:convert' show jsonEncode;
 /// element; the accessor merges these values into whatever config the player
 /// assigns.
 ///
-/// Empty means "no change" while the playback experiments are running. Once
-/// the macOS DIAG build identifies the winning combination, its values are
-/// baked in here and ship in the release build.
-const Map<String, Object?> kBunnyMacosShippingOverrides = <String, Object?>{};
+/// Shipping config, decided by the 2026-11 DIAG runs:
+///
+///  * `preferManagedMediaSource: false` — ManagedMediaSource hands buffer
+///    control to WebKit, which keeps only ~30 s of forward buffer and evicts
+///    silently. Classic MSE gives control back to hls.js, which fills to the
+///    configured target. Classic MSE is the long-established hls.js path on
+///    WebKit desktop; the guard in the tuning script forces MMS back on
+///    where classic MSE does not exist (iOS).
+///  * `maxBufferLength` / `maxMaxBufferLength: 120` — keep the 2-minute
+///    forward target (pinned explicitly so a future Bunny change cannot
+///    silently shrink it).
+///  * `backBufferLength: 30` — hls.js's default back buffer is infinite, so
+///    without this a two-hour lecture would buffer hundreds of MB behind the
+///    playhead and eventually jank the page.
+///
+/// Empty means "keep Bunny's defaults": the tuning script is then not
+/// injected in release builds at all, everything is guarded and reversible
+/// with this one map.
+const Map<String, Object?> kBunnyMacosShippingOverrides = <String, Object?>{
+  'preferManagedMediaSource': false,
+  'maxBufferLength': 120,
+  'maxMaxBufferLength': 120,
+  'backBufferLength': 30,
+};
 
 /// One selectable playback experiment in the diagnostics console.
 ///
@@ -27,11 +47,20 @@ class BunnyPlayerExperiment {
   final Map<String, Object?> flags;
 }
 
-/// macOS-only experiment matrix. Ordered from the baseline to the most
-/// invasive host-level control.
+/// macOS-only experiment matrix. Baseline is the shipped config above; the
+/// `mms` preset is the A/B control that puts WebKit's ~30 s managed window
+/// back, so a regression seen only with classic MSE can be isolated in one
+/// session.
 const List<BunnyPlayerExperiment> kMacosPlayerExperiments =
     <BunnyPlayerExperiment>[
-  BunnyPlayerExperiment('baseline', 'Baseline'),
+  BunnyPlayerExperiment('baseline', 'Baseline (shipping MSE 120s)'),
+  BunnyPlayerExperiment(
+    'mms',
+    'WebKit managed (old ~30s)',
+    <String, Object?>{
+      'hls': <String, Object?>{'preferManagedMediaSource': true},
+    },
+  ),
   BunnyPlayerExperiment(
     'candidate',
     'Classic MSE + 30s',
@@ -46,34 +75,26 @@ const List<BunnyPlayerExperiment> kMacosPlayerExperiments =
     },
   ),
   BunnyPlayerExperiment(
+    'mse60',
+    'MSE + 60s',
+    <String, Object?>{
+      'hls': <String, Object?>{
+        'maxBufferLength': 60,
+        'maxMaxBufferLength': 60,
+        'backBufferLength': 30,
+      },
+    },
+  ),
+  BunnyPlayerExperiment(
     'native',
     'Native in webview',
     <String, Object?>{'native': true},
-  ),
-  BunnyPlayerExperiment(
-    'mse',
-    'Classic MSE only',
-    <String, Object?>{
-      'hls': <String, Object?>{'preferManagedMediaSource': false},
-    },
   ),
   BunnyPlayerExperiment(
     'worker',
     'Worker off',
     <String, Object?>{
       'hls': <String, Object?>{'enableWorker': false},
-    },
-  ),
-  BunnyPlayerExperiment(
-    'buffer',
-    'Buffer 30s only',
-    <String, Object?>{
-      'hls': <String, Object?>{
-        'maxBufferLength': 30,
-        'maxMaxBufferLength': 30,
-        'backBufferLength': 30,
-        'maxBufferSize': 30000000,
-      },
     },
   ),
   BunnyPlayerExperiment(
@@ -103,9 +124,12 @@ const List<BunnyPlayerExperiment> kMacosPlayerExperiments =
 /// Builds the document-start script that applies [kBunnyMacosShippingOverrides]
 /// (and, in diagnostics builds, the selected experiment) to Bunny's player.
 ///
-/// In release builds with no shipping overrides this script is a no-op and is
-/// not injected at all. Everything is guarded: if Bunny changes its element or
-/// the config hand-off, playback falls back to the untouched player.
+/// With the current shipping overrides this script runs in every macOS build,
+/// so a regression here would reach students — that is why the harness above
+/// and the `mms`/`mse60` A/B presets exist. Everything is guarded: if Bunny
+/// changes its element or the config hand-off, playback falls back to the
+/// untouched player (and classic MSE falls back to MMS where it is
+/// unavailable).
 String buildMacosPlayerTuningScript({required bool diagnostics}) {
   return _kMacosPlayerTuningTemplate
       .replaceAll('__DIAG__', diagnostics ? 'true' : 'false')
@@ -208,9 +232,19 @@ const String _kMacosPlayerTuningTemplate = r'''
     mode: experiment.native ? 'native' : 'hlsjs',
     exp: experiment.id || 'baseline'
   };
+  // Engine version matters when a playback regression turns out to be a
+  // WebKit change shipped by macOS, not by us.
+  try {
+    stats.ua = String(navigator.userAgent || '').slice(0, 140);
+  } catch (e) {}
   var counters = {};
   var lastApi = null;
   var lastMedia = null;
+
+  /// Rolling fragment transfer times from hls.js FRAG_LOADED. Resource Timing
+  /// cannot see Bunny's cross-origin segments, so this is the only real
+  /// network-latency view we have.
+  var fragMs = null;
 
   function bump(name) {
     counters[name] = (counters[name] || 0) + 1;
@@ -251,7 +285,10 @@ const String _kMacosPlayerTuningTemplate = r'''
     try {
       api.on(events.ERROR, function (event, data) {
         var text = String(data && data.details ? data.details : 'error');
-        if (data && data.fatal) text = text + '!';
+        if (data && data.fatal) {
+          text = text + '!';
+          bump('fatal');
+        }
         stats.lastError = text;
         bump('hlsError');
         var list = stats.errors || (stats.errors = []);
@@ -266,6 +303,23 @@ const String _kMacosPlayerTuningTemplate = r'''
     } catch (e) {}
     try {
       api.on(events.LEVEL_SWITCHED, function () { bump('levelSwitches'); });
+    } catch (e) {}
+    try {
+      api.on(events.FRAG_LOADED, function (event, data) {
+        bump('fragLoaded');
+        var loading = data && data.frag && data.frag.stats &&
+            data.frag.stats.loading;
+        if (loading && loading.first > 0 && loading.end > loading.first) {
+          var ms = loading.end - loading.first;
+          fragMs = fragMs || { total: 0, count: 0, max: 0 };
+          fragMs.total += ms;
+          fragMs.count++;
+          if (ms > fragMs.max) fragMs.max = ms;
+        }
+      });
+    } catch (e) {}
+    try {
+      api.on(events.FRAG_BUFFERED, function () { bump('fragBuffered'); });
     } catch (e) {}
     bump('hlsConnected');
   }
@@ -285,6 +339,25 @@ const String _kMacosPlayerTuningTemplate = r'''
     } catch (e) {
       return -1;
     }
+  }
+
+  /// Every buffered range plus the total, so a buffer that looks shallow in
+  /// `forwardS` (only the range holding the playhead) can be told apart from
+  /// one that is genuinely shallow.
+  function bufferedRanges(media) {
+    try {
+      var ranges = media.buffered;
+      var out = [];
+      var total = 0;
+      for (var i = 0; i < ranges.length; i++) {
+        var start = Math.round(ranges.start(i) * 10) / 10;
+        var end = Math.round(ranges.end(i) * 10) / 10;
+        out.push([start, end]);
+        total += end - start;
+      }
+      stats.bufferRanges = out;
+      stats.bufferedTotalS = Math.round(total * 10) / 10;
+    } catch (e) {}
   }
 
   function segmentTimings() {
@@ -349,8 +422,17 @@ const String _kMacosPlayerTuningTemplate = r'''
       stats.droppedEvents = counters.error || 0;
       stats.evicted = counters.evicted || 0;
       stats.hlsErrors = counters.hlsError || 0;
+      stats.fatalErrors = counters.fatal || 0;
       stats.levelSwitches = counters.levelSwitches || 0;
       stats.forwardS = media ? bufferedAhead(media) : -1;
+      if (media) bufferedRanges(media);
+      stats.fragLoaded = counters.fragLoaded || 0;
+      stats.fragBuffered = counters.fragBuffered || 0;
+      if (fragMs && fragMs.count) {
+        stats.fragCount = fragMs.count;
+        stats.fragAvgMs = Math.round(fragMs.total / fragMs.count);
+        stats.fragMaxMs = Math.round(fragMs.max);
+      }
 
       if (media) {
         stats.t = Math.round((media.currentTime || 0) * 10) / 10;
@@ -381,11 +463,18 @@ const String _kMacosPlayerTuningTemplate = r'''
         stats.streams = (api.levels || []).map(function (level) {
           return Math.round((level.bitrate || 0) / 1000);
         }).join('/');
-        stats.worker = !!(api.transmuxer && api.transmuxer.workerContext);
+        // `api.transmuxer` does not exist at all; the transmuxer lives on the
+        // stream controller and can be null between fragments, so sample only
+        // when it is real instead of reporting a meaningless false.
+        var stream = api.streamController;
+        var demux = stream && stream.transmuxer;
+        if (demux) stats.worker = !!demux.workerContext;
         stats.workerCfg = !!(api.config && api.config.enableWorker);
         stats.preferMMS = !!(api.config &&
             api.config.preferManagedMediaSource);
         stats.maxBuf = api.config ? api.config.maxBufferLength : 0;
+        stats.maxMaxBuf = api.config ? api.config.maxMaxBufferLength : 0;
+        stats.backBuf = api.config ? api.config.backBufferLength : 0;
         stats.version = (window.Hls && window.Hls.version) ||
             api.version || '';
       } else {

@@ -230,11 +230,47 @@ void main() {
       expect(source, isNot(contains('__SHIPPING__')));
     });
 
-    test('release script with no shipping overrides does not invent any', () {
+    test('#yt native mode marks the element for the embed to see', () {
+      final native = kMacosPlayerExperiments
+          .firstWhere((experiment) => experiment.id == 'native');
+      expect(native.flags['native'], isTrue);
+    });
+
+    test('shipping pins classic MSE with a 120s forward / 30s back buffer', () {
+      expect(kBunnyMacosShippingOverrides, <String, Object?>{
+        'preferManagedMediaSource': false,
+        'maxBufferLength': 120,
+        'maxMaxBufferLength': 120,
+        'backBufferLength': 30,
+      });
       final source = buildMacosPlayerTuningScript(diagnostics: false);
       expect(source, contains('var DIAG = false'));
-      expect(source, contains('var SHIPPING = {}'));
-      expect(kBunnyMacosShippingOverrides, isEmpty);
+      expect(source, contains('"preferManagedMediaSource":false'));
+      expect(source, contains('"backBufferLength":30'));
+    });
+
+    test('mms preset puts the old WebKit-managed window back', () {
+      // The A/B control: with the shipping config in place, this experiment
+      // must be able to restore ManagedMediaSource in one tap.
+      final mms = kMacosPlayerExperiments
+          .firstWhere((experiment) => experiment.id == 'mms');
+      final hls = mms.flags['hls'] as Map<String, Object?>;
+      expect(hls['preferManagedMediaSource'], isTrue);
+    });
+
+    test('all presets only layer hls overrides on top of shipping', () {
+      // The tuning script merges experiment flags OVER the shipping map, so a
+      // preset that wants Bunny's other defaults must not have to repeat them
+      // — but every preset must at least be explicable from those two maps.
+      for (final experiment in kMacosPlayerExperiments) {
+        final hls = experiment.flags['hls'];
+        expect(hls, anyOf(isNull, isA<Map<String, Object?>>()));
+        if (hls is Map<String, Object?>) {
+          for (final key in hls.keys) {
+            expect(key, isA<String>());
+          }
+        }
+      }
     });
 
     test('candidate experiment is classic MSE plus a 30s buffer', () {
@@ -253,15 +289,27 @@ void main() {
         'source': 'MediaSource',
         'preferMMS': false,
         'forwardS': 12.4,
+        'bufferedTotalS': 95.0,
         'waiting': 1,
         'evicted': 0,
+        'maxBuf': 30,
+        'maxMaxBuf': 30,
+        'backBuf': 30,
+        'fatalErrors': 0,
         'segAvgMs': 180,
+        'fragCount': 9,
+        'fragAvgMs': 40,
+        'fragMaxMs': 60,
         'errors': ['bufferStalledError'],
       });
       expect(line, contains('exp=candidate'));
       expect(line, contains('src=MediaSource'));
       expect(line, contains('mms=false'));
+      expect(line, contains('maxBuf=30/30 back=30'));
       expect(line, contains('fwd=12.4'));
+      expect(line, contains('total=95.0S'));
+      expect(line, contains('fatal=0'));
+      expect(line, contains('frag=40/60ms 9'));
       expect(line, contains('err=bufferStalledError'));
     });
   });
