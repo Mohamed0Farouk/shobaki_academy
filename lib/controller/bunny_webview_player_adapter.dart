@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/services.dart';
@@ -15,7 +15,9 @@ import 'package:zikzak_inappwebview/zikzak_inappwebview.dart'
         WebResourceRequest, WebUri;
 
 import 'package:shobaki_academy/controller/bunny_embed.dart';
+import 'package:shobaki_academy/controller/bunny_player_tuning.dart';
 import 'package:shobaki_academy/controller/player_adapter.dart';
+import 'package:shobaki_academy/services/diagnostic_log.dart';
 import 'package:shobaki_academy/services/statics.dart';
 import 'package:shobaki_academy/services/value_deduplicator.dart';
 
@@ -115,6 +117,24 @@ dynamic asScriptValue(dynamic raw) {
     }
   }
   return value;
+}
+
+/// One log line for a macOS diagnostics sample. Field order is stable so two
+/// heartbeats can be diffed by eye. Missing probes stay visible as `null`.
+String formatBunnyWebviewStats(Map<String, dynamic> s) {
+  final errors = s['errors'];
+  final errorText = errors is List && errors.isNotEmpty
+      ? errors.join(',')
+      : s['lastError'];
+  return 'Bunny stats exp=${s['exp']} mode=${s['mode']} src=${s['source']} '
+      'mms=${s['preferMMS']} worker=${s['worker']}/${s['workerCfg']} '
+      'maxBuf=${s['maxBuf']} fwd=${s['forwardS']} ranges=${s['ranges']} '
+      'wait=${s['waiting']} stall=${s['stalled']} suspend=${s['suspend']} '
+      'evict=${s['evicted']} hlsErr=${s['hlsErrors']} err=$errorText '
+      'seg=${s['segAvgMs']}/${s['segMaxMs']}ms n=${s['segCount']} '
+      'lvl=${s['level']} next=${s['next']} auto=${s['auto']} bw=${s['bwKbps']} '
+      'drop=${s['droppedFrames']}/${s['frames']} '
+      'ready=${s['ready']} t=${s['t']} ver=${s['version']}';
 }
 
 /// The media snapshot from [kProbeScript] or a bridge message, or null when
@@ -287,6 +307,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   /// The zikzak controller once the macOS view has mounted; null before.
   InAppWebViewController? get inAppController => _mac;
 
+  /// Latest hls.js/media snapshot pushed by the macOS diagnostics script.
+  ///
+  /// Null in every build except the diagnostics edition (and before the first
+  /// heartbeat). The controller forwards it to the diagnostics console; it
+  /// never feeds a playback decision.
+  Map<String, dynamic>? get webviewStats => _webviewStats;
+
   final StreamController<bool> _playingCtrl =
       StreamController<bool>.broadcast();
   final StreamController<Duration> _durationCtrl =
@@ -313,6 +340,13 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
   bool _wired = false;
   bool _isInitialized = false;
   bool _isDisposed = false;
+
+  Map<String, dynamic>? _webviewStats;
+
+  /// The window sharing channel already used by `SecurityController`; the
+  /// host experiment reuses it rather than adding a second channel.
+  static const MethodChannel _securityChannel =
+      MethodChannel('shobaki/security');
 
   Duration _positionValue = Duration.zero;
   Duration _durationValue = Duration.zero;
@@ -463,6 +497,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     _isBuffering = true;
     _pageSettled = false;
     _bridgeSeen = false;
+    _webviewStats = null;
     _mediaOnlineSeen = false;
     _lastProbeSummary = null;
     _lastBridgeAt = null;
@@ -717,6 +752,59 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     }
   }
 
+  /// Applies one macOS playback experiment from the diagnostics console.
+  ///
+  /// hls.js overrides and the native control are picked up by the
+  /// document-start tuning script, so they are persisted in the player
+  /// origin's `localStorage` and the page is reloaded. The window sharing
+  /// experiment is applied live through the host channel instead.
+  ///
+  /// Diagnostics only; the console is the only caller.
+  Future<void> applyPlayerExperiment(String preset) async {
+    if (_isDisposed || !diagnosticsEnabled || !_isZikzakHost) return;
+    BunnyPlayerExperiment? experiment;
+    for (final candidate in kMacosPlayerExperiments) {
+      if (candidate.id == preset) {
+        experiment = candidate;
+        break;
+      }
+    }
+    if (experiment == null) return;
+
+    final sharing = experiment.flags['sharing'];
+    if (sharing is String) {
+      await _setWindowSharing(sharing);
+      return;
+    }
+
+    final mac = _mac;
+    if (mac == null) return;
+    final payload = <String, Object?>{'id': experiment.id};
+    payload.addAll(experiment.flags);
+    final literal = jsonEncode(jsonEncode(payload));
+    projectLogger.i('Bunny experiment: ${experiment.id}');
+    try {
+      await mac.evaluateJavascript(
+        source: "try { localStorage.setItem('shobaki.exp', $literal); } "
+            'catch (e) {} location.reload();',
+      );
+    } catch (e) {
+      // The navigation tears down the script context; WebKit may report the
+      // reload itself as an evaluation failure. The flag is already stored.
+      projectLogger.d('Bunny experiment reload: $e');
+    }
+  }
+
+  Future<void> _setWindowSharing(String mode) async {
+    if (!diagnosticsEnabled || !_isZikzakHost) return;
+    try {
+      await _securityChannel.invokeMethod<bool>('setSharingType', mode);
+      projectLogger.i('Bunny experiment: window sharing=$mode');
+    } catch (e) {
+      projectLogger.w('Bunny window sharing toggle failed: $e');
+    }
+  }
+
   /// Load-start callback forwarded from the zikzak widget: logs the
   /// navigation and re-arms the probe gate. Injection is not needed here -
   /// `initialUserScripts` installs [kBridgeScript] per document, the same
@@ -725,6 +813,7 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     if (_isDisposed) return;
     projectLogger.i('Bunny webview navigation started: $url');
     _pageSettled = false;
+    _webviewStats = null;
   }
 
   /// Load-finished callback forwarded from the zikzak widget: logs the
@@ -834,6 +923,16 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         'playing=${msg['playing']}',
       );
     }
+    final stats = msg['stats'];
+    if (stats is Map) {
+      _webviewStats = Map<String, dynamic>.from(stats);
+      // Heartbeats are the timeline; `waiting` is the pause itself, with the
+      // buffer-ahead sampled at that moment. Both go to the log so a copied
+      // dump still has the numbers after the console is closed.
+      if (type == 'hb' || type == 'waiting') {
+        projectLogger.i(formatBunnyWebviewStats(_webviewStats!));
+      }
+    }
     if (type == 'hb') {
       final now = DateTime.now();
       if (_lastHeartbeatLogAt == null ||
@@ -854,7 +953,10 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
     );
 
     switch (type) {
-      case 'wait':
+      case 'waiting':
+        // The bridge emits `waiting`. Matching only `wait` left this latch
+        // unset, and the clear below then treated the same event as proof
+        // that buffering had finished.
         _setBuffering(true);
       case 'ended':
         _onEnded();
@@ -887,9 +989,11 @@ class BunnyWebviewPlayerAdapter implements IPlayerAdapter {
         );
       }
       // First time the media is real: release the buffering latch the load
-      // watchdog is waiting on, and honour any resume position. A `wait`
-      // report carries the same numbers but must keep the latch set.
-      if (type != 'wait' && _isBuffering) _setBuffering(false);
+      // watchdog is waiting on, and honour any resume position. A `waiting`
+      // report carries the same numbers but must keep the latch set; every
+      // other event (including the probe) proves enough media exists to stop
+      // treating the load as still booting.
+      if (type != 'waiting' && _isBuffering) _setBuffering(false);
       _maybeApplyPendingSeek();
       _maybeReplayPlayIntent();
     }
@@ -1259,6 +1363,9 @@ const String kBridgeScript = '''
 
   function post(msg) {
     msg.source = 'shobaki';
+    // Present only while the macOS diagnostics sampler is installed. Release
+    // builds, and every other platform, leave the payload unchanged.
+    if (window.__shobakiStats) msg.stats = window.__shobakiStats;
     try {
       if (!send(msg) && !isTop && window.parent) {
         window.parent.postMessage(msg, '*');

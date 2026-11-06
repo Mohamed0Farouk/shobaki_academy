@@ -6,8 +6,8 @@ workflows:
     max_build_duration: 30
 
     environment:
-      # 3.47+ is required by zikzak_inappwebview 6.x, which this workflow
-      # selects below; local dev machines stay on 3.44.x + the 5.x line.
+      # 3.47+ is required by zikzak_inappwebview 6.x, which the committed
+      # pubspec.lock pins (6.3.4):
       flutter: 3.47.8
       xcode: latest
 
@@ -17,12 +17,6 @@ workflows:
 
       - name: Get Packages
         script: flutter pub get
-
-      # The committed pubspec allows >=5.0.1 <7.0.0 so 3.44.x dev machines
-      # keep resolving 5.x from the lockfile; on this 3.47.8 runner, upgrade
-      # the zikzak line so the shipped app carries 6.x.
-      - name: Upgrade zikzak to the 6.x line
-        script: flutter pub upgrade zikzak_inappwebview
 
       - name: Analyze (fail on errors only)
         script: flutter analyze --no-fatal-warnings --no-fatal-infos
@@ -56,7 +50,7 @@ workflows:
     max_build_duration: 30
 
     environment:
-      # See macos-release-build: 3.47.8 carries the zikzak 6.x upgrade.
+      # See macos-release-build: 3.47.8 carries the zikzak 6.x line.
       flutter: 3.47.8
       xcode: latest
 
@@ -66,9 +60,6 @@ workflows:
 
       - name: Get Packages
         script: flutter pub get
-
-      - name: Upgrade zikzak to the 6.x line
-        script: flutter pub upgrade zikzak_inappwebview
 
       - name: Analyze (fail on errors only)
         script: flutter analyze --no-fatal-warnings --no-fatal-infos

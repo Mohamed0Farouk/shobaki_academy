@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shobaki_academy/controller/video_playback_controller.dart';
+import 'package:shobaki_academy/controller/bunny_player_tuning.dart';
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/media_kit_player_adapter.dart';
 import 'package:shobaki_academy/controller/network_controller.dart';
@@ -82,6 +83,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   /// filled while it is open and re-filled by the next page instance.
   String? _appVersionText;
   bool _consoleCollectorsWired = false;
+  Worker? _playerReadyWorker;
 
   /// App-side row for the console status bar. Player numbers come from
   /// [VideoPlaybackController.diagnosticsStatus]; this one describes the app.
@@ -208,12 +210,39 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     host.playerStatusCollector = () => ctrl.diagnosticsStatus();
     host.appStatusCollector = _collectAppStatus;
     _consoleCollectorsWired = true;
+    _playerReadyWorker = ever(ctrl.playerReady, (_) => _attachPlayerExperiments());
+    _attachPlayerExperiments();
     unawaited(PackageInfo.fromPlatform().then((info) {
       if (!mounted) return;
       setState(() {
         _appVersionText = 'v${info.version} (${info.buildNumber})';
       });
     }, onError: (_) {}));
+  }
+
+  /// macOS diagnostics only: the console's experiment row calls back into the
+  /// Bunny webview. Other platforms and the native player leave the row empty.
+  void _attachPlayerExperiments() {
+    final host = DiagnosticsConsoleHost.instance;
+    if (!host.supported || !Platform.isMacOS || !ctrl.playerReady.value) return;
+    final player = ctrl.player;
+    if (player is! BunnyWebviewPlayerAdapter) {
+      host.experiments = const [];
+      host.experimentRunner = null;
+      return;
+    }
+    host.experiments = [
+      for (final experiment in kMacosPlayerExperiments)
+        DiagnosticsExperiment(experiment.id, experiment.label),
+    ];
+    host.experimentRunner = player.applyPlayerExperiment;
+  }
+
+  void _clearPlayerExperiments() {
+    final host = DiagnosticsConsoleHost.instance;
+    host.experiments = const [];
+    host.experimentRunner = null;
+    host.activeExperimentId = null;
   }
 
   @override
@@ -228,12 +257,14 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     _qualityWorker.dispose();
     _loadingSub?.cancel();
     _loadingHintTimer?.cancel();
+    _playerReadyWorker?.dispose();
     if (_consoleCollectorsWired) {
       final host = DiagnosticsConsoleHost.instance;
       if (host.appStatusCollector == _collectAppStatus) {
         host.appStatusCollector = null;
       }
       host.playerStatusCollector = null;
+      _clearPlayerExperiments();
       _consoleCollectorsWired = false;
     }
     _chewieController.value?.dispose();

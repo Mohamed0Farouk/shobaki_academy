@@ -479,7 +479,7 @@ class VideoPlaybackController extends GetxController
         };
       }
       final adapter = player;
-      return {
+      final status = <String, dynamic>{
         'backend': adapter.runtimeType.toString(),
         'ready': true,
         'loading': isLoading.value,
@@ -495,6 +495,15 @@ class VideoPlaybackController extends GetxController
         'generation': playerGeneration.value,
         'watchedS': _session.viewDurationSeconds,
       };
+      if (adapter is BunnyWebviewPlayerAdapter) {
+        final stats = adapter.webviewStats;
+        if (stats != null && stats.isNotEmpty) {
+          // Hoisted out of the player row by the console. Playback never
+          // reads it.
+          status['webview'] = stats;
+        }
+      }
+      return status;
     } catch (e) {
       // The adapter's internals may legitimately be unassigned between
       // generations; the console loses its numbers before a crash-free

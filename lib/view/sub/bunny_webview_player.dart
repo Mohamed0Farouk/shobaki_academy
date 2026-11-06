@@ -11,8 +11,10 @@ import 'package:zikzak_inappwebview/zikzak_inappwebview.dart'
     show InAppWebView, InAppWebViewSettings, UserScript,
         UserScriptInjectionTime;
 
+import 'package:shobaki_academy/controller/bunny_player_tuning.dart';
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 import 'package:shobaki_academy/controller/video_playback_controller.dart';
+import 'package:shobaki_academy/services/diagnostic_log.dart';
 
 /// Hosts the Bunny embed webview inside the normal player page.
 ///
@@ -39,9 +41,37 @@ class BunnyWebviewPlayer extends StatefulWidget {
 class _BunnyWebviewPlayerState extends State<BunnyWebviewPlayer> {
   StreamSubscription<bool>? _fullScreenSub;
 
+  /// zikzak recreates its platform view when the settings/scripts identity
+  /// changes, and this page rebuilds on every playback tick. Build them once:
+  /// the tuning script must be the first document-start script so it sees
+  /// Bunny's element before `customElements.define` upgrades it.
+  late final InAppWebViewSettings _macSettings;
+  late final UnmodifiableListView<UserScript> _macScripts;
+
   @override
   void initState() {
     super.initState();
+    _macSettings = InAppWebViewSettings(
+      javaScriptEnabled: true,
+      allowsInlineMediaPlayback: true,
+      mediaPlaybackRequiresUserGesture: false,
+      useShouldOverrideUrlLoading: true,
+      disableContextMenu: true,
+      supportZoom: false,
+    );
+    _macScripts = UnmodifiableListView<UserScript>([
+      if (diagnosticsEnabled || kBunnyMacosShippingOverrides.isNotEmpty)
+        UserScript(
+          source: buildMacosPlayerTuningScript(
+            diagnostics: diagnosticsEnabled,
+          ),
+          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        ),
+      UserScript(
+        source: kBridgeScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+      ),
+    ]);
     // The embed's own fullscreen button calls requestFullscreen on the media
     // element. WebView2 reports that here; driving the real window from it
     // keeps the two fullscreen states from drifting apart. On Android/iOS/
@@ -82,20 +112,8 @@ class _BunnyWebviewPlayerState extends State<BunnyWebviewPlayer> {
       // navigation callbacks forward into the adapter, where the shared
       // allowlist/settle/error logic already lives.
       return InAppWebView(
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: true,
-          allowsInlineMediaPlayback: true,
-          mediaPlaybackRequiresUserGesture: false,
-          useShouldOverrideUrlLoading: true,
-          disableContextMenu: true,
-          supportZoom: false,
-        ),
-        initialUserScripts: UnmodifiableListView<UserScript>([
-          UserScript(
-            source: kBridgeScript,
-            injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
-          ),
-        ]),
+        initialSettings: _macSettings,
+        initialUserScripts: _macScripts,
         onWebViewCreated: (controller) =>
             widget.adapter.attachMac(controller),
         onLoadStart: (controller, url) =>

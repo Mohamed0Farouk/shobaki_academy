@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shobaki_academy/controller/bunny_player_tuning.dart';
 import 'package:shobaki_academy/controller/bunny_webview_player_adapter.dart';
 
 void main() {
@@ -98,6 +99,13 @@ void main() {
 
     test('throttles timeupdate to once per second', () {
       expect(kBridgeScript, contains('now - lastTimePost < 1000'));
+    });
+
+    test('forwards the diagnostics sampler when the page has one', () {
+      // Absent on every non-macOS document, so the release payload stays the
+      // same object the adapter already understands.
+      expect(kBridgeScript, contains('window.__shobakiStats'));
+      expect(kBridgeScript, contains('msg.stats = window.__shobakiStats'));
     });
 
     test('exports the probe helper the Dart side calls back into', () {
@@ -207,6 +215,54 @@ void main() {
       );
       expect(isAllowedBunnyNavigation('javascript:alert(1)'), isFalse);
       expect(isAllowedBunnyNavigation(''), isFalse);
+    });
+  });
+
+  group('macos player tuning', () {
+    test('diagnostics script installs the config hook and reads the flag', () {
+      final source = buildMacosPlayerTuningScript(diagnostics: true);
+      expect(source, contains('var DIAG = true'));
+      expect(source, contains("localStorage.getItem('shobaki.exp')"));
+      expect(source, contains("name === 'bunny-stream-video'"));
+      expect(source, contains('preferManagedMediaSource'));
+      expect(source, contains('__shobakiStats'));
+      expect(source, isNot(contains('__DIAG__')));
+      expect(source, isNot(contains('__SHIPPING__')));
+    });
+
+    test('release script with no shipping overrides does not invent any', () {
+      final source = buildMacosPlayerTuningScript(diagnostics: false);
+      expect(source, contains('var DIAG = false'));
+      expect(source, contains('var SHIPPING = {}'));
+      expect(kBunnyMacosShippingOverrides, isEmpty);
+    });
+
+    test('candidate experiment is classic MSE plus a 30s buffer', () {
+      final candidate = kMacosPlayerExperiments
+          .firstWhere((experiment) => experiment.id == 'candidate');
+      final hls = candidate.flags['hls'] as Map<String, Object?>;
+      expect(hls['preferManagedMediaSource'], isFalse);
+      expect(hls['maxBufferLength'], 30);
+      expect(hls['maxBufferSize'], 30000000);
+    });
+
+    test('stats log line keeps the fields the experiment needs', () {
+      final line = formatBunnyWebviewStats(<String, dynamic>{
+        'exp': 'candidate',
+        'mode': 'hlsjs',
+        'source': 'MediaSource',
+        'preferMMS': false,
+        'forwardS': 12.4,
+        'waiting': 1,
+        'evicted': 0,
+        'segAvgMs': 180,
+        'errors': ['bufferStalledError'],
+      });
+      expect(line, contains('exp=candidate'));
+      expect(line, contains('src=MediaSource'));
+      expect(line, contains('mms=false'));
+      expect(line, contains('fwd=12.4'));
+      expect(line, contains('err=bufferStalledError'));
     });
   });
 }

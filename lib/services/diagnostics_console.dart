@@ -18,6 +18,18 @@ const Duration kDiagnosticsPanelRefresh = Duration(milliseconds: 300);
 /// never imports app controllers; the page describes the app/player to it.
 typedef DiagnosticsStatusCollector = Map<String, dynamic>? Function();
 
+/// One macOS playback experiment the video page offers the console.
+class DiagnosticsExperiment {
+  const DiagnosticsExperiment(this.id, this.label);
+
+  final String id;
+  final String label;
+}
+
+/// Applies an experiment and reloads the player page when the flag requires
+/// it. Installed only while a Bunny webview is the active macOS player.
+typedef DiagnosticsExperimentRunner = Future<void> Function(String id);
+
 /// Owner of the in-app diagnostics console: opens it as a full-screen dialog
 /// on top of whatever page is showing, and carries the live status snapshot
 /// providers between the video page and the console view.
@@ -35,6 +47,12 @@ class DiagnosticsConsoleHost {
 
   DiagnosticsStatusCollector? appStatusCollector;
   DiagnosticsStatusCollector? playerStatusCollector;
+
+  /// macOS Bunny webview only. Empty on every other page, so the experiment
+  /// row stays hidden. The page clears these when it disposes.
+  List<DiagnosticsExperiment> experiments = const [];
+  DiagnosticsExperimentRunner? experimentRunner;
+  String? activeExperimentId;
 
   bool _dialogOpen = false;
 
@@ -64,7 +82,15 @@ class DiagnosticsConsoleHost {
     final app = appStatusCollector?.call();
     if (app != null) payload['app'] = app;
     final player = playerStatusCollector?.call();
-    if (player != null) payload['player'] = player;
+    if (player != null) {
+      final copy = Map<String, dynamic>.from(player);
+      final webview = copy.remove('webview');
+      payload['player'] = copy;
+      if (webview is Map) {
+        payload['webview'] =
+            webview.map((key, value) => MapEntry(key.toString(), value));
+      }
+    }
     return payload;
   }
 }
@@ -142,6 +168,7 @@ class _DiagnosticsConsoleViewState extends State<DiagnosticsConsoleView> {
   String _query = '';
   int _minLevelRank = 0;
   bool _follow = true;
+  String _experimentSig = '';
 
   static const _levelChoices = ['ALL', 'INFO', 'WARN', 'ERROR'];
 
@@ -166,9 +193,13 @@ class _DiagnosticsConsoleViewState extends State<DiagnosticsConsoleView> {
   /// Same-engine read: no channels involved, nothing to fail.
   void _refresh() {
     final buffer = DiagnosticLogBuffer.instance;
+    final host = DiagnosticsConsoleHost.instance;
+    final experimentSig =
+        '${host.experiments.length}:${host.activeExperimentId}';
+    final experimentsChanged = experimentSig != _experimentSig;
     var statusChanged = false;
     try {
-      final next = DiagnosticsConsoleHost.instance.collectStatus();
+      final next = host.collectStatus();
       if (const JsonEncoder().convert(next) !=
           const JsonEncoder().convert(_status ?? const <String, dynamic>{})) {
         _status = next;
@@ -178,9 +209,10 @@ class _DiagnosticsConsoleViewState extends State<DiagnosticsConsoleView> {
       // Defensiveness only: collectors never throw.
     }
     final fresh = buffer.entriesAfter(_lastSeq);
-    if (fresh.isEmpty && !statusChanged) return;
+    if (fresh.isEmpty && !statusChanged && !experimentsChanged) return;
     if (mounted) {
       setState(() {
+        _experimentSig = experimentSig;
         if (fresh.isNotEmpty) {
           _entries.addAll(fresh);
           _lastSeq = fresh.last.seq;
@@ -240,11 +272,15 @@ class _DiagnosticsConsoleViewState extends State<DiagnosticsConsoleView> {
     final status = _status ?? const <String, dynamic>{};
     final app = status['app'] as Map? ?? const <String, dynamic>{};
     final player = status['player'] as Map? ?? const <String, dynamic>{};
+    final webview = status['webview'] as Map? ?? const <String, dynamic>{};
     for (final key in app.keys) {
       out.writeln('app.$key: ${app[key]}');
     }
     for (final key in player.keys) {
       out.writeln('player.$key: ${player[key]}');
+    }
+    for (final key in webview.keys) {
+      out.writeln('webview.$key: ${webview[key]}');
     }
     out.writeln('================================================');
     for (final entry in _visibleEntries) {
@@ -296,9 +332,79 @@ class _DiagnosticsConsoleViewState extends State<DiagnosticsConsoleView> {
       child: Column(
         children: [
           _header(context),
+          if (DiagnosticsConsoleHost.instance.experiments.isNotEmpty)
+            _experimentBar(),
           _StatusGrid(status: _status),
           _toolbar(context),
           Expanded(child: _logList()),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copyStats() async {
+    final webview = _status?['webview'];
+    if (webview is! Map || webview.isEmpty) {
+      _toast('لا توجد أرقام للمشغّل بعد — انتظر نبضة ثم أعد النسخ');
+      return;
+    }
+    try {
+      final text = const JsonEncoder.withIndent('  ').convert(webview);
+      await Clipboard.setData(ClipboardData(text: text));
+      _toast('أرقام المشغّل في الحافظة');
+    } catch (_) {
+      _toast('تعذّر نسخ الأرقام');
+    }
+  }
+
+  Widget _experimentBar() {
+    final host = DiagnosticsConsoleHost.instance;
+    return Container(
+      color: const Color(0xFF1A1408),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Close this panel to watch. Seek to the same spot, wait 60–90s, '
+            'reopen, then Copy stats. Baseline is today\'s player.',
+            style: TextStyle(color: Color(0xFFFFCC80), fontSize: 11),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final experiment in host.experiments)
+                ActionChip(
+                  label: Text(
+                    experiment.label,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  backgroundColor: host.activeExperimentId == experiment.id
+                      ? const Color(0xFFB26A00)
+                      : const Color(0xFF2A2418),
+                  labelStyle: const TextStyle(color: Colors.white),
+                  onPressed: () {
+                    final runner = host.experimentRunner;
+                    if (runner == null) return;
+                    setState(() => host.activeExperimentId = experiment.id);
+                    unawaited(runner(experiment.id));
+                    _toast(
+                      '${experiment.label}: applied. Close the panel and watch.',
+                    );
+                  },
+                ),
+              ActionChip(
+                avatar: const Icon(Icons.copy_rounded, size: 14, color: Colors.white),
+                label: const Text('Copy stats', style: TextStyle(fontSize: 11)),
+                backgroundColor: const Color(0xFF1E3A2F),
+                labelStyle: const TextStyle(color: Colors.white),
+                onPressed: () => unawaited(_copyStats()),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -503,7 +609,7 @@ class _StatusGrid extends StatelessWidget {
       );
     }
     final rows = <Widget>[];
-    for (final sectionKey in ['app', 'player']) {
+    for (final sectionKey in ['app', 'player', 'webview']) {
       final section = status![sectionKey];
       if (section is! Map || section.isEmpty) continue;
       rows.add(Padding(
