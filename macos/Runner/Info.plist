@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Flutter 3.47 enables Impeller (MetalSDF) by default on macOS. On some
+	     Intel Macs (reported on i7 with dual Intel/AMD graphics and automatic
+	     graphics switching) it renders glyphs as striped noise and smears
+	     transitions; Skia renders the same build correctly. This opt-out
+	     forces the Skia/Metal backend at engine startup.
+	     Remove it (and re-test on the affected Mac) once Flutter ships the
+	     engine fix and the release notes call it out. -->
+	<key>FLTEnableImpeller</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.education</string>
 	<key>CFBundleDevelopmentRegion</key>

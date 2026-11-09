@@ -24,6 +24,13 @@ workflows:
       - name: Test
         script: flutter test
 
+      - name: Verify macOS renderer fallback
+        # Guards the Intel/dual-GPU Impeller workaround in
+        # macos/Runner/Info.plist (FLTEnableImpeller=false). Only re-enable
+        # Impeller after a release build is verified on an affected Mac.
+        script: |
+          /usr/libexec/PlistBuddy -c "Print :FLTEnableImpeller" macos/Runner/Info.plist | grep -qx false
+
       - name: Build macOS App
         script: |
           flutter build macos --release
@@ -52,6 +59,11 @@ workflows:
     environment:
       # Same engine as the release build, so a DIAG soak measures playback and
       # not a Flutter-version difference.
+      #
+      # NOTE: macos/Runner/Info.plist forces the Skia backend
+      # (FLTEnableImpeller=false) to work around Impeller glyph corruption on
+      # some Intel/dual-GPU Macs. To A/B test Impeller, temporarily flip that
+      # key before running this workflow.
       flutter: 3.47.9
       xcode: latest
 
